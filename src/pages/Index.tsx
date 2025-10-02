@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import gripenLogo from "@/assets/gripen-silhouette.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HotnessMeter } from "@/components/dashboard/HotnessMeter";
@@ -10,7 +9,7 @@ import { NarrativeSummaries } from "@/components/dashboard/NarrativeSummaries";
 import { PoliticsHeatMap } from "@/components/dashboard/PoliticsHeatMap";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SourcesPanel } from "@/components/dashboard/SourcesPanel";
-import { Bell, Settings, LogOut } from "lucide-react";
+import { Bell, Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
@@ -98,7 +97,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <img src={gripenLogo} alt="Gripen" className="h-8 w-8 object-contain" />
+              <Plane className="h-8 w-8 text-primary -rotate-45 scale-x-[-1]" />
               <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-primary rounded-full animate-pulse" />
             </div>
             <div>
