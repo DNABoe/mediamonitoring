@@ -1,23 +1,17 @@
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, TrendingUp } from "lucide-react";
 
 export const NarrativeSummaries = () => {
   return (
     <Card className="p-6">
-      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+      <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
         <FileText className="h-5 w-5" />
         AI Narrative Summaries
       </h3>
 
-      <Tabs defaultValue="gripen" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="gripen">Gripen</TabsTrigger>
-          <TabsTrigger value="f35">F-35</TabsTrigger>
-          <TabsTrigger value="overall">Overall Race</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="gripen" className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-3">
+          <h4 className="font-bold text-success">Gripen</h4>
           <div className="prose prose-sm prose-invert max-w-none">
             <p className="text-sm text-foreground leading-relaxed">
               Recent coverage highlights the Gripen's emphasis on <strong>industrial partnerships</strong> and 
@@ -31,9 +25,10 @@ export const NarrativeSummaries = () => {
             <TrendingUp className="h-3 w-3" />
             <span>Based on 47 sources • Updated 3 min ago</span>
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="f35" className="space-y-4">
+        <div className="space-y-3">
+          <h4 className="font-bold text-destructive">F-35</h4>
           <div className="prose prose-sm prose-invert max-w-none">
             <p className="text-sm text-foreground leading-relaxed">
               F-35 discussions center on <strong>NATO interoperability</strong> and strategic alignment with 
@@ -47,9 +42,10 @@ export const NarrativeSummaries = () => {
             <TrendingUp className="h-3 w-3" />
             <span>Based on 52 sources • Updated 2 min ago</span>
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="overall" className="space-y-4">
+        <div className="space-y-3">
+          <h4 className="font-bold">Overall Race</h4>
           <div className="space-y-3">
             <div className="p-3 rounded-lg bg-secondary/50">
               <div className="flex items-start gap-2 mb-2">
@@ -90,8 +86,8 @@ export const NarrativeSummaries = () => {
               </div>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </Card>
   );
 };
