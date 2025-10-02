@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { WinnerMetar } from "@/components/dashboard/WinnerMetar";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
 import { SourceArticles } from "@/components/dashboard/SourceArticles";
 import { ResearchExecutiveSummary } from "@/components/dashboard/ResearchExecutiveSummary";
@@ -125,10 +124,7 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <>
-                <BaselineGenerator />
-                <DashboardHeader />
-              </>
+              <BaselineGenerator />
             )}
             <Button
               variant="outline"
