@@ -200,18 +200,36 @@ export const ResearchDimensions = () => {
         </TabsContent>
       </Tabs>
 
-      {report.sources && Array.isArray(report.sources) && report.sources.length > 0 && (
-        <div className="mt-6 pt-6 border-t">
-          <h3 className="text-sm font-semibold mb-3">Key Sources Referenced</h3>
-          <div className="flex flex-wrap gap-2">
-            {report.sources.map((source: string, i: number) => (
-              <Badge key={i} variant="outline" className="text-xs">
-                {source}
-              </Badge>
-            ))}
+      {report.sources && Array.isArray(report.sources) && report.sources.length > 0 && (() => {
+        // Filter sources to only show those from the last 60 days
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+        
+        // Try to extract date from URL and filter, otherwise show all from latest report
+        const recentSources = report.sources.filter((source: string) => {
+          // Check if source URL contains a date pattern (YYYY/MM/DD or YYYY-MM-DD)
+          const dateMatch = source.match(/(\d{4})[/-](\d{2})[/-](\d{2})/);
+          if (dateMatch) {
+            const sourceDate = new Date(dateMatch[0].replace(/\//g, '-'));
+            return sourceDate >= sixtyDaysAgo;
+          }
+          // If no date in URL, include it (assume it's recent since it's from latest report)
+          return true;
+        });
+
+        return recentSources.length > 0 ? (
+          <div className="mt-6 pt-6 border-t">
+            <h3 className="text-sm font-semibold mb-3">Key Sources Referenced (Last 60 Days)</h3>
+            <div className="flex flex-wrap gap-2">
+              {recentSources.map((source: string, i: number) => (
+                <Badge key={i} variant="outline" className="text-xs">
+                  {source}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ) : null;
+      })()}
     </Card>
   );
 };

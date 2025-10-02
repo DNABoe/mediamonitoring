@@ -25,11 +25,6 @@ serve(async (req) => {
 
     const today = new Date().toISOString().split('T')[0];
     
-    // Calculate 60 days ago for source filtering
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-    const sourceDateLimit = sixtyDaysAgo.toISOString().split('T')[0];
-    
     // Fetch the latest baseline to get tracking start date
     const { data: baselineData } = await supabase
       .from('baselines')
@@ -138,13 +133,7 @@ Return your analysis as a structured JSON object with this exact format:
    "sources": ["https://example.com/article1", "https://example.com/article2"]
 }
 
-CRITICAL SOURCE REQUIREMENTS: 
-- ONLY include sources (articles, reports, documents) published between ${sourceDateLimit} and ${today} (last 60 days)
-- Do NOT include any sources older than ${sourceDateLimit}
-- All source URLs must be to real, recently published content
-- Verify publication dates are within the 60-day window before including
-
-IMPORTANT: Be objective in your scoring. Base scores on factual analysis of the research, not assumptions. For sources, provide actual URLs to online articles, reports, and documents published in the last 60 days that you reference (not citations - actual working URLs only).`;
+IMPORTANT: Be objective in your scoring. Base scores on factual analysis of the research, not assumptions. For sources, provide actual URLs to online articles, reports, and documents that you reference (not citations - actual working URLs only).`;
 
     console.log('Calling Lovable AI for research...');
 
