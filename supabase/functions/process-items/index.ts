@@ -36,13 +36,23 @@ Deno.serve(async (req) => {
     console.log(`Found ${items?.length || 0} items to process`)
 
     let processedCount = 0
-    const keywords = ['Gripen', 'JAS 39', 'F-35', 'F35', 'Lockheed Martin', 'Saab', 'Força Aérea']
+    const keywords = ['Gripen', 'JAS 39', 'F-35', 'F35', 'Lockheed Martin', 'Saab', 'Força Aérea', 'fighter', 'caça']
 
     for (const item of items || []) {
       try {
         console.log(`Processing: ${item.title_pt}`)
 
         const content = item.fulltext_pt || item.title_pt
+        
+        // Skip if no fighter-related keywords found
+        const hasKeyword = keywords.some(kw => 
+          content.toLowerCase().includes(kw.toLowerCase())
+        )
+        
+        if (!hasKeyword) {
+          console.log(`Skipping - no fighter keywords found: ${item.title_pt}`)
+          continue
+        }
 
         // Call Lovable AI to analyze content
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -179,68 +189,73 @@ Respond in valid JSON format only.`
       }
     }
 
-    // After processing items, generate daily metrics
-    if (processedCount > 0) {
-      console.log('Generating daily metrics...')
+    // Generate daily metrics regardless of processedCount
+    console.log('Generating daily metrics...')
+    
+    const today = new Date().toISOString().split('T')[0]
+    
+    // Get all processed items from today that have fighter tags
+    const { data: todayItems, error: todayError } = await supabase
+      .from('items')
+      .select('*')
+      .gte('published_at', today)
+      .not('sentiment', 'is', null)
+      .not('fighter_tags', 'eq', '{}')
+    
+    if (!todayError && todayItems && todayItems.length > 0) {
+      // Calculate metrics for each fighter
+      const fighters = ['Gripen', 'F-35']
       
-      const today = new Date().toISOString().split('T')[0]
-      
-      // Get all items from today
-      const { data: todayItems, error: todayError } = await supabase
-        .from('items')
-        .select('*')
-        .gte('published_at', today)
-        .not('sentiment', 'is', null)
-      
-      if (!todayError && todayItems && todayItems.length > 0) {
-        // Calculate metrics for each fighter
-        const fighters = ['Gripen', 'F-35']
+      for (const fighter of fighters) {
+        const fighterItems = todayItems.filter(i => 
+          Array.isArray(i.fighter_tags) && i.fighter_tags.includes(fighter)
+        )
         
-        for (const fighter of fighters) {
-          const fighterItems = todayItems.filter(i => i.fighter_tags?.includes(fighter))
+        if (fighterItems.length > 0) {
+          const avgSentiment = fighterItems.reduce((sum, i) => sum + (i.sentiment || 0), 0) / fighterItems.length
+          const stanceScore = fighterItems.reduce((sum, i) => sum + (i.stance?.[fighter] || 0), 0) / fighterItems.length
+          const hotness = Math.abs(stanceScore) * fighterItems.length * (1 + Math.abs(avgSentiment))
           
-          if (fighterItems.length > 0) {
-            const avgSentiment = fighterItems.reduce((sum, i) => sum + (i.sentiment || 0), 0) / fighterItems.length
-            const stanceScore = fighterItems.reduce((sum, i) => sum + (i.stance?.[fighter] || 0), 0) / fighterItems.length
-            const hotness = Math.abs(stanceScore) * fighterItems.length * (1 + Math.abs(avgSentiment))
-            
-            // Check if metrics exist for this fighter today
-            const { data: existingMetric } = await supabase
+          // Check if metrics exist for this fighter today
+          const { data: existingMetric } = await supabase
+            .from('metrics')
+            .select('id, hotness')
+            .eq('day', today)
+            .eq('fighter', fighter)
+            .maybeSingle()
+          
+          const momentum = existingMetric ? hotness - (existingMetric.hotness || 0) : 0
+          
+          if (existingMetric) {
+            await supabase
               .from('metrics')
-              .select('id, hotness')
-              .eq('day', today)
-              .eq('fighter', fighter)
-              .maybeSingle()
-            
-            const momentum = existingMetric ? hotness - (existingMetric.hotness || 0) : 0
-            
-            if (existingMetric) {
-              await supabase
-                .from('metrics')
-                .update({
-                  mentions: fighterItems.length,
-                  avg_sentiment: avgSentiment,
-                  hotness: hotness,
-                  momentum: momentum
-                })
-                .eq('id', existingMetric.id)
-            } else {
-              await supabase
-                .from('metrics')
-                .insert({
-                  day: today,
-                  fighter: fighter,
-                  mentions: fighterItems.length,
-                  avg_sentiment: avgSentiment,
-                  hotness: hotness,
-                  momentum: momentum
-                })
-            }
-            
-            console.log(`✓ Metrics for ${fighter}: ${fighterItems.length} mentions, hotness: ${hotness.toFixed(2)}`)
+              .update({
+                mentions: fighterItems.length,
+                avg_sentiment: avgSentiment,
+                hotness: hotness,
+                momentum: momentum
+              })
+              .eq('id', existingMetric.id)
+          } else {
+            await supabase
+              .from('metrics')
+              .insert({
+                day: today,
+                fighter: fighter,
+                mentions: fighterItems.length,
+                avg_sentiment: avgSentiment,
+                hotness: hotness,
+                momentum: momentum
+              })
           }
+          
+          console.log(`✓ Metrics for ${fighter}: ${fighterItems.length} mentions, hotness: ${hotness.toFixed(2)}`)
+        } else {
+          console.log(`No items found for ${fighter} today`)
         }
       }
+    } else {
+      console.log('No processed items with fighter tags found for today')
     }
 
     return new Response(
