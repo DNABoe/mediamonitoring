@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { HotnessMeter } from "@/components/dashboard/HotnessMeter";
 import { WinnerMetar } from "@/components/dashboard/WinnerMetar";
 import { LiveStream } from "@/components/dashboard/LiveStream";
@@ -8,17 +10,23 @@ import { NarrativeSummaries } from "@/components/dashboard/NarrativeSummaries";
 import { PoliticsHeatMap } from "@/components/dashboard/PoliticsHeatMap";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SourcesPanel } from "@/components/dashboard/SourcesPanel";
-import { Bell, Settings } from "lucide-react";
+import { Bell, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, isAdmin, loading: authLoading, signOut } = useAuth();
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [gripenHotness, setGripenHotness] = useState(0);
   const [f35Hotness, setF35Hotness] = useState(0);
   const [winnerScore, setWinnerScore] = useState({ gripen: 0, f35: 0 });
   const [activeAlerts, setActiveAlerts] = useState(0);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -77,6 +85,14 @@ const Index = () => {
     };
   }, []);
 
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -90,7 +106,7 @@ const Index = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <DashboardHeader />
+            {isAdmin && <DashboardHeader />}
             <Button
               variant="outline"
               size="sm"
@@ -110,6 +126,14 @@ const Index = () => {
               onClick={() => navigate('/settings')}
             >
               <Settings className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={signOut}
+              title="Sign Out"
+            >
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
