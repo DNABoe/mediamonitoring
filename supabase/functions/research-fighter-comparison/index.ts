@@ -110,7 +110,7 @@ Return your analysis as a structured JSON object with this exact format:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert defense intelligence analyst specializing in fighter aircraft procurement. Provide detailed, factual analysis based on recent information. Always return valid JSON in the exact format requested.'
+            content: 'You are an expert defense intelligence analyst specializing in fighter aircraft procurement. Provide detailed, factual analysis based on recent information. Always return valid JSON in the exact format requested. Be concise but comprehensive - aim for 2-3 paragraphs per analysis section.'
           },
           {
             role: 'user',
@@ -118,7 +118,7 @@ Return your analysis as a structured JSON object with this exact format:
           }
         ],
         temperature: 0.7,
-        max_tokens: 4000,
+        max_tokens: 8000,
       }),
     });
 
