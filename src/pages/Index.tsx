@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HotnessMeter } from "@/components/dashboard/HotnessMeter";
@@ -14,7 +13,6 @@ import { Bell, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
-  const navigate = useNavigate();
   const { user, isAdmin, loading: authLoading, signOut } = useAuth();
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [gripenHotness, setGripenHotness] = useState(0);
@@ -24,9 +22,9 @@ const Index = () => {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate("/auth");
+      window.location.href = "/auth";
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -111,7 +109,7 @@ const Index = () => {
               variant="outline"
               size="sm"
               className="relative"
-              onClick={() => navigate('/alerts')}
+              onClick={() => window.location.href = '/alerts'}
             >
               <Bell className="h-4 w-4" />
               {activeAlerts > 0 && (
@@ -123,7 +121,7 @@ const Index = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate('/settings')}
+              onClick={() => window.location.href = '/settings'}
             >
               <Settings className="h-4 w-4" />
             </Button>
