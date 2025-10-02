@@ -67,22 +67,34 @@ export const ResearchControls = () => {
 
       if (baselineError) throw baselineError;
 
+      // Update baseline state
+      setHasBaseline(true);
+
       toast({
         title: "Tracking Date Set",
         description: `Now generating research from ${format(selectedDate, 'PPP')}...`,
       });
 
-      // Update baseline state
-      setHasBaseline(true);
-
       // Then generate research
-      await generateResearch();
+      const { error: researchError } = await supabase.functions.invoke('research-fighter-comparison');
+
+      if (researchError) throw researchError;
+
+      toast({
+        title: "Research Complete",
+        description: "Intelligence report has been generated successfully.",
+      });
+
+      // Reload page to update tracking date display
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
 
     } catch (error: any) {
       console.error('Error setting baseline:', error);
       toast({
-        title: "Failed to Set Tracking Date",
-        description: error.message || "Could not set tracking start date",
+        title: "Failed",
+        description: error.message || "Could not complete operation",
         variant: "destructive",
       });
       setIsGenerating(false);
