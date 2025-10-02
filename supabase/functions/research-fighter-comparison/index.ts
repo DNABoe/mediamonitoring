@@ -24,20 +24,36 @@ serve(async (req) => {
     console.log('Starting AI-powered fighter comparison research...');
 
     const today = new Date().toISOString().split('T')[0];
+    
+    // Fetch the latest baseline to get tracking start date
+    const { data: baselineData } = await supabase
+      .from('baselines')
+      .select('start_date')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    const trackingStartDate = baselineData?.start_date || today;
+    const daysSinceBaseline = Math.floor((new Date(today).getTime() - new Date(trackingStartDate).getTime()) / (1000 * 60 * 60 * 24));
     const researchPrompt = `
 You are a defense intelligence analyst researching the comparison between Gripen and F-35 fighter jets in the context of Portuguese fighter program selection.
+
+TRACKING PERIOD: From ${trackingStartDate} to ${today} (${daysSinceBaseline} days of tracking)
 
 Conduct a comprehensive analysis covering these dimensions:
 
 1. MEDIA PRESENCE (Portuguese & International)
-   - Count recent mentions of each fighter in news media
-   - Identify key narratives and story angles
+   - Count ALL mentions of each fighter in news media since ${trackingStartDate}
+   - Identify key narratives and story angles that emerged during this period
    - Note which sources are covering each fighter
+   - Track momentum and trends over the ${daysSinceBaseline}-day period
 
 2. MEDIA TONALITY
    - Sentiment analysis: positive, negative, neutral coverage
    - Key themes: technical capability, cost, politics, industrial benefits
    - Compare tone between Portuguese and international coverage
+   - Note any sentiment shifts during the tracking period
 
 3. CAPABILITY ANALYSIS
    - Technical specifications comparison
@@ -71,7 +87,7 @@ Conduct a comprehensive analysis covering these dimensions:
 
 Current date: ${today}
 
-Focus on information from the past 30 days. Provide specific examples with sources when possible.
+IMPORTANT: For media mentions, count ALL articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
 
 Return your analysis as a structured JSON object with this exact format:
 {
