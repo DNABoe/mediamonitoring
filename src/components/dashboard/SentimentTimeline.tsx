@@ -126,7 +126,8 @@ export const SentimentTimeline = () => {
 
   return (
     <Card className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Media Sentiment Trends</h2>
+      <h2 className="text-2xl font-bold mb-1">Media Sentiment Trends</h2>
+      <p className="text-sm text-muted-foreground mb-6">Portuguese media sources only</p>
       
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
