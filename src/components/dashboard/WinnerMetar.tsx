@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface WinnerMetarProps {
   gripenScore: number;
@@ -191,22 +190,21 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
         </div>
       </div>
 
-      <Collapsible open={showSettings} onOpenChange={setShowSettings}>
-        <CollapsibleTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full flex items-center justify-between"
-          >
-            <span className="text-sm font-medium">
-              {showSettings ? 'Hide' : 'Adjust'} Dimension Weights
-            </span>
-            {showSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-        </CollapsibleTrigger>
+      <div className="space-y-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full flex items-center justify-between"
+          onClick={() => setShowSettings(!showSettings)}
+        >
+          <span className="text-sm font-medium">
+            {showSettings ? 'Hide' : 'Adjust'} Dimension Weights
+          </span>
+          {showSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
         
-        <CollapsibleContent className="mt-4">
-          <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+        {showSettings && (
+          <div className="space-y-4 p-4 bg-card border border-border rounded-lg shadow-sm">
             <div className="text-sm text-muted-foreground mb-2 flex items-center justify-between">
               <span>Total: {totalWeight}%</span>
               {totalWeight !== 100 && (
@@ -230,8 +228,8 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
               </div>
             ))}
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        )}
+      </div>
     </Card>
   );
 };
