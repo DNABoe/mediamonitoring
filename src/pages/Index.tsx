@@ -10,6 +10,7 @@ import { SentimentTimeline } from "@/components/dashboard/SentimentTimeline";
 import { ResearchControls } from "@/components/dashboard/ResearchControls";
 import { ResearchSources } from "@/components/dashboard/ResearchSources";
 import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
+import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +19,7 @@ const Index = () => {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [winnerScore, setWinnerScore] = useState({ gripen: 0, f35: 0 });
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -123,13 +125,15 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.href = '/settings'}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -177,6 +181,10 @@ const Index = () => {
           <SourceArticles />
         </div>
       </div>
+
+      {isAdmin && (
+        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      )}
     </div>
   );
 };
