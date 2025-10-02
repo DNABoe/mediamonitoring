@@ -20,37 +20,48 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     cost: 10,
     capabilities: 10,
   });
-  const [calculatedScores, setCalculatedScores] = useState({ gripen: 0, f35: 0 });
+  const [dimensionScores, setDimensionScores] = useState<{
+    gripen: Record<string, number>;
+    f35: Record<string, number>;
+  } | null>(null);
 
-  const calculateWeightedScores = async (currentWeights: typeof weights) => {
-    const { data: scores } = await supabase
-      .from('scores')
-      .select('fighter, components')
-      .order('created_at', { ascending: false })
-      .limit(10);
+  const calculateWeightedScores = (currentWeights: typeof weights) => {
+    if (!dimensionScores) return { gripen: 0, f35: 0 };
 
-    if (scores && scores.length > 0) {
-      const gripenScores = scores.filter(s => s.fighter === 'Gripen');
-      const f35Scores = scores.filter(s => s.fighter === 'F-35');
+    const calculateTotal = (scores: Record<string, number>) => {
+      return (
+        (scores.media || 0) * (currentWeights.media / 100) +
+        (scores.political || 0) * (currentWeights.political / 100) +
+        (scores.industrial || 0) * (currentWeights.industrial / 100) +
+        (scores.cost || 0) * (currentWeights.cost / 100) +
+        (scores.capabilities || 0) * (currentWeights.capabilities / 100)
+      );
+    };
+
+    return {
+      gripen: calculateTotal(dimensionScores.gripen),
+      f35: calculateTotal(dimensionScores.f35),
+    };
+  };
+
+  const fetchDimensionScores = async () => {
+    const { data: report } = await supabase
+      .from('research_reports')
+      .select('media_tonality')
+      .order('report_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (report?.media_tonality) {
+      const tonality = report.media_tonality as any;
+      const scores = tonality.dimension_scores;
       
-      const calculateWeighted = (fighterScores: typeof scores) => {
-        if (fighterScores.length === 0) return 0;
-        const latest = fighterScores[0];
-        const components = latest.components as Record<string, number> || {};
-        
-        return (
-          (components.media || 0) * currentWeights.media / 100 +
-          (components.political || 0) * currentWeights.political / 100 +
-          (components.industrial || 0) * currentWeights.industrial / 100 +
-          (components.cost || 0) * currentWeights.cost / 100 +
-          (components.capabilities || 0) * currentWeights.capabilities / 100
-        );
-      };
-      
-      setCalculatedScores({
-        gripen: calculateWeighted(gripenScores),
-        f35: calculateWeighted(f35Scores),
-      });
+      if (scores) {
+        setDimensionScores({
+          gripen: scores.gripen || {},
+          f35: scores.f35 || {},
+        });
+      }
     }
   };
 
@@ -63,33 +74,42 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
         .maybeSingle();
       
       if (data?.value) {
-        const loadedWeights = data.value as typeof weights;
-        setWeights(loadedWeights);
-        calculateWeightedScores(loadedWeights);
-      } else {
-        calculateWeightedScores(weights);
+        setWeights(data.value as typeof weights);
       }
     };
+    
     loadWeights();
+    fetchDimensionScores();
 
-    const channel = supabase
+    const settingsChannel = supabase
       .channel('settings-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'settings', filter: 'key=eq.winner_weights' },
         (payload) => {
           if (payload.new && 'value' in payload.new) {
-            const newWeights = payload.new.value as typeof weights;
-            setWeights(newWeights);
-            calculateWeightedScores(newWeights);
+            setWeights(payload.new.value as typeof weights);
             toast.success('Weights updated - scores recalculated');
           }
         }
       )
       .subscribe();
 
+    const reportsChannel = supabase
+      .channel('research-reports-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'research_reports' },
+        () => {
+          fetchDimensionScores();
+          toast.success('New research data loaded');
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(settingsChannel);
+      supabase.removeChannel(reportsChannel);
     };
   }, []);
 
@@ -106,11 +126,11 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     if (error) {
       toast.error('Failed to save weights');
     } else {
-      calculateWeightedScores(weights);
-      toast.success('Weights saved and scores recalculated!');
+      toast.success('Weights saved!');
     }
   };
 
+  const calculatedScores = calculateWeightedScores(weights);
   const displayGripen = calculatedScores.gripen || gripenScore;
   const displayF35 = calculatedScores.f35 || f35Score;
   const total = displayGripen + displayF35;
