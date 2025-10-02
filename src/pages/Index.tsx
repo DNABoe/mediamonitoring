@@ -90,6 +90,7 @@ const Index = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <DashboardHeader />
             <Button
               variant="outline"
               size="sm"
@@ -115,8 +116,6 @@ const Index = () => {
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <DashboardHeader />
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <HotnessMeter fighter="Gripen" score={gripenHotness} trend="up" />
           <HotnessMeter fighter="F-35" score={f35Hotness} trend="down" />

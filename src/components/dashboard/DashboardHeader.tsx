@@ -2,12 +2,21 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export const DashboardHeader = () => {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const fetchKeywords = async () => {
@@ -15,7 +24,7 @@ export const DashboardHeader = () => {
         .from('settings')
         .select('value')
         .eq('key', 'keywords')
-        .single();
+        .maybeSingle();
 
       if (data?.value) {
         setKeywords(data.value as string[]);
@@ -49,40 +58,52 @@ export const DashboardHeader = () => {
   };
 
   return (
-    <div className="mb-6 p-4 rounded-lg bg-card border border-border">
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <span className="text-sm font-semibold text-muted-foreground">Active Keywords:</span>
-        {keywords.slice(0, 15).map((keyword) => (
-          <Badge
-            key={keyword}
-            variant="secondary"
-            className="gap-1 cursor-pointer hover:bg-secondary/80"
-          >
-            {keyword}
-            <X
-              className="h-3 w-3 hover:text-destructive"
-              onClick={() => removeKeyword(keyword)}
-            />
-          </Badge>
-        ))}
-        {keywords.length > 15 && (
-          <Badge variant="outline">+{keywords.length - 15} more</Badge>
-        )}
-      </div>
-
-      <div className="flex gap-2">
-        <Input
-          placeholder="Add new keyword..."
-          value={newKeyword}
-          onChange={(e) => setNewKeyword(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && addKeyword()}
-          className="max-w-xs"
-        />
-        <Button onClick={addKeyword} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Add
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <Tag className="h-4 w-4" />
+          Keywords ({keywords.length})
         </Button>
-      </div>
-    </div>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Manage Keywords</DialogTitle>
+          <DialogDescription>
+            Add or remove keywords to track across all sources
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add new keyword..."
+              value={newKeyword}
+              onChange={(e) => setNewKeyword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addKeyword()}
+            />
+            <Button onClick={addKeyword} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {keywords.map((keyword) => (
+              <Badge
+                key={keyword}
+                variant="secondary"
+                className="gap-1 cursor-pointer hover:bg-secondary/80"
+              >
+                {keyword}
+                <X
+                  className="h-3 w-3 hover:text-destructive"
+                  onClick={() => removeKeyword(keyword)}
+                />
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
