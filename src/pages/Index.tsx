@@ -8,6 +8,7 @@ import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { NarrativeSummaries } from "@/components/dashboard/NarrativeSummaries";
 import { PoliticsHeatMap } from "@/components/dashboard/PoliticsHeatMap";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
 import { SourcesPanel } from "@/components/dashboard/SourcesPanel";
 import { Bell, Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -110,7 +111,12 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && <DashboardHeader />}
+            {isAdmin && (
+              <>
+                <BaselineGenerator />
+                <DashboardHeader />
+              </>
+            )}
             <Button
               variant="outline"
               size="sm"

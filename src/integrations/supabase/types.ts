@@ -47,6 +47,45 @@ export type Database = {
         }
         Relationships: []
       }
+      baselines: {
+        Row: {
+          alerts_count: number | null
+          created_at: string | null
+          created_by: string | null
+          data: Json | null
+          end_date: string
+          id: string
+          items_count: number | null
+          metrics_summary: Json | null
+          start_date: string
+          status: string | null
+        }
+        Insert: {
+          alerts_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          data?: Json | null
+          end_date: string
+          id?: string
+          items_count?: number | null
+          metrics_summary?: Json | null
+          start_date: string
+          status?: string | null
+        }
+        Update: {
+          alerts_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          data?: Json | null
+          end_date?: string
+          id?: string
+          items_count?: number | null
+          metrics_summary?: Json | null
+          start_date?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       items: {
         Row: {
           created_at: string | null

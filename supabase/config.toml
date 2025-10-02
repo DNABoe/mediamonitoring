@@ -1,1 +1,4 @@
 project_id = "bmlxazcllmoupkjzrrnl"
+
+[functions.generate-baseline]
+verify_jwt = true
