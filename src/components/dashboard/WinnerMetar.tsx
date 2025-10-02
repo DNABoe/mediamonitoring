@@ -154,7 +154,7 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
       <div className="relative h-16 rounded-full overflow-hidden bg-gradient-to-r from-success via-warning to-destructive mb-4">
         <div
           className="absolute top-0 h-full w-1 bg-foreground shadow-lg transition-all duration-500"
-          style={{ left: `${gripenPercent}%` }}
+          style={{ left: `${f35Percent}%` }}
         >
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card px-3 py-1 rounded shadow-lg border border-border">
             <div className="text-xs font-bold whitespace-nowrap">
