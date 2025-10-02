@@ -130,10 +130,10 @@ Return your analysis as a structured JSON object with this exact format:
     "gripen_score": number (0-10, where 10 is strongest geopolitical alignment),
     "f35_score": number (0-10)
   },
-  "sources": ["source1", "source2", "source3"]
+  "sources": ["https://example.com/article1", "https://example.com/article2"]
 }
 
-IMPORTANT: Be objective in your scoring. Base scores on factual analysis of the research, not assumptions.`;
+IMPORTANT: Be objective in your scoring. Base scores on factual analysis of the research, not assumptions. For sources, provide actual URLs to online articles, reports, and documents that you reference (not citations - actual working URLs only).`;
 
     console.log('Calling Lovable AI for research...');
 
