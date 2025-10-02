@@ -88,6 +88,7 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
             selected={startDate}
             onSelect={handleDateSelect}
             disabled={(date) => date > new Date() || isGenerating}
+            defaultMonth={startDate || new Date()}
             initialFocus
             className={cn("pointer-events-auto")}
           />
