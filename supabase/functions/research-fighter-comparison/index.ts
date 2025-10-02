@@ -36,7 +36,19 @@ serve(async (req) => {
     
     const trackingStartDate = baselineData?.start_date || today;
     const daysSinceBaseline = Math.floor((new Date(today).getTime() - new Date(trackingStartDate).getTime()) / (1000 * 60 * 60 * 24));
-    const researchPrompt = `
+    
+    // Fetch custom research prompt if it exists
+    const { data: promptData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'research_prompt')
+      .maybeSingle();
+    
+    let researchPrompt = promptData?.value as string;
+    
+    // Use default prompt if no custom prompt is set
+    if (!researchPrompt) {
+      researchPrompt = `
 You are a defense intelligence analyst researching the comparison between Gripen and F-35 fighter jets in the context of Portuguese fighter program selection.
 
 TRACKING PERIOD: From ${trackingStartDate} to ${today} (${daysSinceBaseline} days of tracking)
@@ -146,6 +158,13 @@ CRITICAL:
 - Prioritize Portuguese news sources
 - Only include real, working URLs to recent articles
 - Be objective in your scoring based on factual analysis`;
+    }
+    
+    // Replace template variables in the prompt
+    researchPrompt = researchPrompt
+      .replace(/\{\{trackingStartDate\}\}/g, trackingStartDate)
+      .replace(/\{\{today\}\}/g, today)
+      .replace(/\{\{daysSinceBaseline\}\}/g, daysSinceBaseline.toString());
 
     console.log('Calling Lovable AI for research...');
 

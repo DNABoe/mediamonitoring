@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trash2, Loader2, FileEdit } from "lucide-react";
 import { toast } from "sonner";
 
 interface SettingsDialogProps {
@@ -29,6 +31,86 @@ interface SettingsDialogProps {
 
 export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
   const [isResetting, setIsResetting] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [isSavingPrompt, setIsSavingPrompt] = useState(false);
+
+  const defaultPrompt = `You are a defense intelligence analyst researching the comparison between Gripen and F-35 fighter jets in the context of Portuguese fighter program selection.
+
+TRACKING PERIOD: From {{trackingStartDate}} to {{today}} ({{daysSinceBaseline}} days of tracking)
+
+Conduct a comprehensive analysis covering these dimensions:
+
+1. MEDIA PRESENCE (Portuguese & International)
+   - Count ALL mentions of each fighter in news media since {{trackingStartDate}}
+   - Identify key narratives and story angles that emerged during this period
+   - Note which sources are covering each fighter
+   - Track momentum and trends over the {{daysSinceBaseline}}-day period
+
+2. MEDIA TONALITY
+   - Sentiment analysis: positive, negative, neutral coverage
+   - Key themes: technical capability, cost, politics, industrial benefits
+   - Compare tone between Portuguese and international coverage
+   - Note any sentiment shifts during the tracking period
+
+3. CAPABILITY ANALYSIS
+   - Technical specifications comparison
+   - Operational advantages/disadvantages
+   - NATO interoperability considerations
+   - Multi-role vs specialized capabilities
+
+4. COST ANALYSIS
+   - Unit acquisition cost
+   - Lifecycle/operating costs
+   - Maintenance and support costs
+   - Training costs
+
+5. POLITICAL ANALYSIS
+   - Portuguese government positions
+   - Political party stances
+   - Public opinion indicators
+   - Parliamentary debates or statements
+
+6. INDUSTRIAL COOPERATION
+   - Offset deals and technology transfer
+   - Local manufacturing opportunities
+   - Job creation potential
+   - Long-term industrial partnerships
+
+7. GEOPOLITICAL CONSIDERATIONS
+   - US vs European strategic relationships
+   - NATO implications
+   - Sovereignty and autonomy concerns
+   - Regional security dynamics
+
+Current date: {{today}}
+Tracking period: {{trackingStartDate}} to {{today}}
+
+CRITICAL SOURCING REQUIREMENTS:
+- PRIORITIZE Portuguese media sources (e.g., Observador, Público, DN, Expresso, Visão, Jornal de Negócios)
+- ONLY cite sources published within the last 60 days
+- Include publication dates in your research
+- Focus on recent developments and current news
+- Prefer Portuguese-language sources when available`;
+
+  useEffect(() => {
+    const loadPrompt = async () => {
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'research_prompt')
+        .maybeSingle();
+      
+      if (data?.value) {
+        setCustomPrompt(data.value as string);
+      } else {
+        setCustomPrompt(defaultPrompt);
+      }
+    };
+    
+    if (open) {
+      loadPrompt();
+    }
+  }, [open]);
 
   const handleReset = async () => {
     setIsResetting(true);
@@ -56,9 +138,35 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     }
   };
 
+  const savePrompt = async () => {
+    setIsSavingPrompt(true);
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .upsert({
+          key: 'research_prompt',
+          value: customPrompt
+        }, {
+          onConflict: 'key'
+        });
+      
+      if (error) throw error;
+      toast.success('Research prompt saved successfully');
+    } catch (error) {
+      console.error('Error saving prompt:', error);
+      toast.error('Failed to save prompt');
+    } finally {
+      setIsSavingPrompt(false);
+    }
+  };
+
+  const resetToDefault = () => {
+    setCustomPrompt(defaultPrompt);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
@@ -66,7 +174,57 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <Tabs defaultValue="prompt" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="prompt">
+              <FileEdit className="h-4 w-4 mr-2" />
+              Research Prompt
+            </TabsTrigger>
+            <TabsTrigger value="data">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Data Management
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="prompt" className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">AI Research Prompt</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Customize the prompt used for AI research generation. Variables: {"{{trackingStartDate}}"}, {"{{today}}"}, {"{{daysSinceBaseline}}"}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={resetToDefault}>
+                  Reset to Default
+                </Button>
+              </div>
+
+              <Textarea
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                className="min-h-[300px] font-mono text-xs"
+                placeholder="Enter your custom research prompt..."
+              />
+
+              <Button 
+                onClick={savePrompt}
+                disabled={isSavingPrompt}
+                className="w-full"
+              >
+                {isSavingPrompt ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Prompt'
+                )}
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="data" className="space-y-4">
           <div className="rounded-lg border border-destructive/50 p-4">
             <div className="flex items-start gap-3 mb-3">
               <Trash2 className="h-5 w-5 text-destructive mt-0.5" />
@@ -119,7 +277,8 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
               </AlertDialogContent>
             </AlertDialog>
           </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
