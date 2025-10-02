@@ -53,6 +53,9 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
       
       setOpen(false);
       setStartDate(undefined);
+      
+      // Force a page refresh to update the baseline date
+      window.location.reload();
     } catch (error) {
       console.error('Error:', error);
       toast.error("An unexpected error occurred");
