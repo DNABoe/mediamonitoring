@@ -13,6 +13,7 @@ interface WinnerMetarProps {
 
 export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
   const [showSettings, setShowSettings] = useState(false);
+  const [showScores, setShowScores] = useState(false);
   const [weights, setWeights] = useState({
     media: 35,
     political: 25,
@@ -155,6 +156,8 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
 
   const dimensionOrder: (keyof typeof weights)[] = ['media', 'political', 'industrial', 'cost', 'capabilities'];
 
+  const hasScores = dimensionScores && dimensionScores.gripen && dimensionScores.f35;
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -232,6 +235,49 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
           </div>
         )}
       </div>
+
+      {hasScores && (
+        <div className="mt-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full flex items-center justify-between text-xs"
+            onClick={() => setShowScores(!showScores)}
+          >
+            <span className="text-muted-foreground">
+              {showScores ? 'Hide' : 'View'} AI Analysis Scores
+            </span>
+            {showScores ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </Button>
+          
+          {showScores && (
+            <div className="mt-3 p-4 bg-muted/20 border border-border rounded-lg">
+              <div className="text-xs font-semibold text-muted-foreground mb-3">
+                Raw AI Analysis Scores (0-10 scale)
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="font-medium text-muted-foreground">Dimension</div>
+                <div className="font-medium text-success text-center">Gripen</div>
+                <div className="font-medium text-destructive text-center">F-35</div>
+                
+                {dimensionOrder.map((key) => (
+                  <>
+                    <div key={`${key}-label`} className="capitalize text-foreground">
+                      {key}
+                    </div>
+                    <div key={`${key}-gripen`} className="text-center font-semibold text-success">
+                      {dimensionScores.gripen[key]?.toFixed(1) || 'N/A'}
+                    </div>
+                    <div key={`${key}-f35`} className="text-center font-semibold text-destructive">
+                      {dimensionScores.f35[key]?.toFixed(1) || 'N/A'}
+                    </div>
+                  </>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 };
