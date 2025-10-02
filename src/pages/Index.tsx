@@ -3,20 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HotnessMeter } from "@/components/dashboard/HotnessMeter";
 import { WinnerMetar } from "@/components/dashboard/WinnerMetar";
-import { LiveStream } from "@/components/dashboard/LiveStream";
-import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
-import { DynamicNarrativeSummaries } from "@/components/dashboard/DynamicNarrativeSummaries";
-import { PoliticsHeatMap } from "@/components/dashboard/PoliticsHeatMap";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
-import { ScraperControls } from "@/components/dashboard/ScraperControls";
-import { SourcesPanel } from "@/components/dashboard/SourcesPanel";
 import { SourceArticles } from "@/components/dashboard/SourceArticles";
 import { ResearchExecutiveSummary } from "@/components/dashboard/ResearchExecutiveSummary";
 import { ResearchDimensions } from "@/components/dashboard/ResearchDimensions";
 import { SentimentTimeline } from "@/components/dashboard/SentimentTimeline";
 import { ResearchControls } from "@/components/dashboard/ResearchControls";
-import { Bell, Settings, LogOut, Plane } from "lucide-react";
+import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
@@ -25,7 +19,6 @@ const Index = () => {
   const [gripenHotness, setGripenHotness] = useState(0);
   const [f35Hotness, setF35Hotness] = useState(0);
   const [winnerScore, setWinnerScore] = useState({ gripen: 0, f35: 0 });
-  const [activeAlerts, setActiveAlerts] = useState(0);
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,15 +51,6 @@ const Index = () => {
       }
     };
 
-    const fetchAlerts = async () => {
-      const { count } = await supabase
-        .from('alerts')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
-      
-      setActiveAlerts(count || 0);
-    };
-
     const fetchBaseline = async () => {
       const { data } = await supabase
         .from('baselines')
@@ -82,23 +66,12 @@ const Index = () => {
     };
 
     fetchMetrics();
-    fetchAlerts();
     fetchBaseline();
 
     const interval = setInterval(() => {
       setLastUpdate(new Date());
       fetchMetrics();
-      fetchAlerts();
     }, 30000);
-
-    const alertsChannel = supabase
-      .channel('alerts-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'alerts' },
-        () => fetchAlerts()
-      )
-      .subscribe();
 
     const baselinesChannel = supabase
       .channel('baselines-changes')
@@ -111,7 +84,6 @@ const Index = () => {
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(alertsChannel);
       supabase.removeChannel(baselinesChannel);
     };
   }, []);
@@ -150,24 +122,10 @@ const Index = () => {
           <div className="flex items-center gap-2">
             {isAdmin && (
               <>
-                <ScraperControls />
                 <BaselineGenerator />
                 <DashboardHeader />
               </>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="relative"
-              onClick={() => window.location.href = '/alerts'}
-            >
-              <Bell className="h-4 w-4" />
-              {activeAlerts > 0 && (
-                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {activeAlerts}
-                </span>
-              )}
-            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -216,28 +174,7 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <SourcesPanel />
-        </div>
-
-        <div className="mb-6">
           <SourceArticles />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2">
-            <DynamicNarrativeSummaries />
-          </div>
-          <div>
-            <AlertsPanel />
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <PoliticsHeatMap />
-        </div>
-
-        <div className="mb-6">
-          <LiveStream />
         </div>
       </div>
     </div>
