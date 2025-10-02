@@ -58,22 +58,43 @@ Generate strategic messaging suggestions for BOTH platforms to improve their pos
 
 {
   "gripen": {
-    "media": ["suggestion 1", "suggestion 2", "suggestion 3"],
-    "politicians": ["suggestion 1", "suggestion 2", "suggestion 3"],
-    "airforce": ["suggestion 1", "suggestion 2", "suggestion 3"]
+    "media": [
+      {"message": "suggestion text", "messenger": "who should deliver this"},
+      ...
+    ],
+    "politicians": [
+      {"message": "suggestion text", "messenger": "who should deliver this"},
+      ...
+    ],
+    "airforce": [
+      {"message": "suggestion text", "messenger": "who should deliver this"},
+      ...
+    ]
   },
   "f35": {
-    "media": ["suggestion 1", "suggestion 2", "suggestion 3"],
-    "politicians": ["suggestion 1", "suggestion 2", "suggestion 3"],
-    "airforce": ["suggestion 1", "suggestion 2", "suggestion 3"]
+    "media": [
+      {"message": "suggestion text", "messenger": "who should deliver this"},
+      ...
+    ],
+    "politicians": [
+      {"message": "suggestion text", "messenger": "who should deliver this"},
+      ...
+    ],
+    "airforce": [
+      {"message": "suggestion text", "messenger": "who should deliver this"},
+      ...
+    ]
   }
 }
 
 Each suggestion should be:
-- Specific and actionable
+- Specific and actionable message
+- Identify the ideal messenger (specific role or organization, e.g., "Saab CEO", "Portuguese Ambassador to US", "Retired Portuguese Air Force General", etc.)
 - Based on identified weaknesses or opportunities in the research
 - Tailored to the Portuguese context
-- Concrete messaging points or strategies`;
+- Concrete messaging points or strategies
+
+Provide 3-4 suggestions per category.`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
