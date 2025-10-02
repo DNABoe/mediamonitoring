@@ -37,11 +37,22 @@ export const SentimentTimeline = () => {
 
   const fetchMetrics = async () => {
     try {
+      // Fetch baseline start date to determine tracking period
+      const { data: baselineData } = await supabase
+        .from('baselines')
+        .select('start_date')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const startDate = baselineData?.start_date || new Date().toISOString().split('T')[0];
+
       const { data: metrics, error } = await supabase
         .from('comparison_metrics')
         .select('*')
-        .order('metric_date', { ascending: true })
-        .limit(30);
+        .gte('metric_date', startDate)
+        .order('metric_date', { ascending: true });
 
       if (error) throw error;
 
