@@ -23,36 +23,35 @@ Deno.serve(async (req) => {
 
     console.log('Fetching unprocessed items...')
 
-    // Get items that haven't been processed (no summary_en or title_en)
-    const { data: items, error: itemsError } = await supabase
+    const keywords = ['Gripen', 'JAS 39', 'F-35', 'F35', 'Lockheed Martin', 'Saab', 'Força Aérea', 'fighter', 'caça', 'avião de combate', 'Air Force']
+
+    // Get items that haven't been processed - prioritize those with fighter keywords
+    const { data: allItems, error: itemsError } = await supabase
       .from('items')
-      .select('*')
+      .select('*, sources!inner(name, type)')
       .is('summary_en', null)
       .order('published_at', { ascending: false })
-      .limit(10) // Process 10 at a time
+      .limit(100) // Fetch more to find relevant ones
 
     if (itemsError) throw itemsError
 
-    console.log(`Found ${items?.length || 0} items to process`)
+    // Filter for items with fighter keywords or from defense sources
+    const items = (allItems || []).filter(item => {
+      const content = (item.fulltext_pt || item.title_pt || '').toLowerCase()
+      const hasKeyword = keywords.some(kw => content.includes(kw.toLowerCase()))
+      const isDefenseSource = item.sources?.type === 'defense'
+      return hasKeyword || isDefenseSource
+    }).slice(0, 10) // Process top 10 relevant items
+
+    console.log(`Found ${items?.length || 0} relevant items to process`)
 
     let processedCount = 0
-    const keywords = ['Gripen', 'JAS 39', 'F-35', 'F35', 'Lockheed Martin', 'Saab', 'Força Aérea', 'fighter', 'caça']
 
     for (const item of items || []) {
       try {
         console.log(`Processing: ${item.title_pt}`)
 
         const content = item.fulltext_pt || item.title_pt
-        
-        // Skip if no fighter-related keywords found
-        const hasKeyword = keywords.some(kw => 
-          content.toLowerCase().includes(kw.toLowerCase())
-        )
-        
-        if (!hasKeyword) {
-          console.log(`Skipping - no fighter keywords found: ${item.title_pt}`)
-          continue
-        }
 
         // Call Lovable AI to analyze content
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
