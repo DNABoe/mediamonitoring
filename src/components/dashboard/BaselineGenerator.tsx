@@ -17,7 +17,9 @@ interface BaselineGeneratorProps {
 
 export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
   const [open, setOpen] = useState(false);
-  const [startDate, setStartDate] = useState<Date>();
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    currentDate ? new Date(currentDate) : undefined
+  );
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async (date: Date) => {
