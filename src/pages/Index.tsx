@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { HotnessMeter } from "@/components/dashboard/HotnessMeter";
 import { WinnerMetar } from "@/components/dashboard/WinnerMetar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
@@ -16,8 +15,6 @@ import { Button } from "@/components/ui/button";
 const Index = () => {
   const { user, isAdmin, loading: authLoading, signOut } = useAuth();
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [gripenHotness, setGripenHotness] = useState(0);
-  const [f35Hotness, setF35Hotness] = useState(0);
   const [winnerScore, setWinnerScore] = useState({ gripen: 0, f35: 0 });
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
 
@@ -40,9 +37,6 @@ const Index = () => {
       if (metrics) {
         const gripen = metrics.find(m => m.fighter === 'Gripen');
         const f35 = metrics.find(m => m.fighter === 'F-35');
-        
-        setGripenHotness(gripen?.hotness || 0);
-        setF35Hotness(f35?.hotness || 0);
         
         setWinnerScore({
           gripen: gripen?.hotness || 0,
@@ -162,11 +156,6 @@ const Index = () => {
 
         <div className="mb-6">
           <ResearchDimensions />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <HotnessMeter fighter="Gripen" score={gripenHotness} trend="up" />
-          <HotnessMeter fighter="F-35" score={f35Hotness} trend="down" />
         </div>
 
         <div className="mb-6">
