@@ -9,6 +9,7 @@ import { ResearchExecutiveSummary } from "@/components/dashboard/ResearchExecuti
 import { ResearchDimensions } from "@/components/dashboard/ResearchDimensions";
 import { SentimentTimeline } from "@/components/dashboard/SentimentTimeline";
 import { ResearchControls } from "@/components/dashboard/ResearchControls";
+import { ResearchSources } from "@/components/dashboard/ResearchSources";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -164,6 +165,10 @@ const Index = () => {
 
         <div className="mb-6">
           <ResearchDimensions />
+        </div>
+
+        <div className="mb-6">
+          <ResearchSources />
         </div>
 
         <div className="mb-6">
