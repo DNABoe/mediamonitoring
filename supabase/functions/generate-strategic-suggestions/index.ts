@@ -89,7 +89,8 @@ Generate strategic messaging suggestions for BOTH platforms to improve their pos
 
 Each suggestion should be:
 - Specific and actionable message
-- Identify the ideal messenger (specific role or organization, e.g., "Saab CEO", "Portuguese Ambassador to US", "Retired Portuguese Air Force General", etc.)
+- Identify the ideal messenger from COMPANY REPRESENTATIVES or CREDIBLE THIRD PARTIES (e.g., "Saab CEO", "Lockheed Martin VP", "Defense Industry Analyst", "Former NATO Official", "Swedish Ambassador", "Aviation Expert", "Think Tank Researcher")
+- NEVER suggest politicians, military personnel, or public officials as messengers - they are the TARGET audience, not the messengers
 - Based on identified weaknesses or opportunities in the research
 - Tailored to the Portuguese context
 - Concrete messaging points or strategies
