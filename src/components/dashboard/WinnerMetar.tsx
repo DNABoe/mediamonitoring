@@ -20,6 +20,39 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     cost: 10,
     capabilities: 10,
   });
+  const [calculatedScores, setCalculatedScores] = useState({ gripen: 0, f35: 0 });
+
+  const calculateWeightedScores = async (currentWeights: typeof weights) => {
+    const { data: scores } = await supabase
+      .from('scores')
+      .select('fighter, components')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (scores && scores.length > 0) {
+      const gripenScores = scores.filter(s => s.fighter === 'Gripen');
+      const f35Scores = scores.filter(s => s.fighter === 'F-35');
+      
+      const calculateWeighted = (fighterScores: typeof scores) => {
+        if (fighterScores.length === 0) return 0;
+        const latest = fighterScores[0];
+        const components = latest.components as Record<string, number> || {};
+        
+        return (
+          (components.media || 0) * currentWeights.media / 100 +
+          (components.political || 0) * currentWeights.political / 100 +
+          (components.industrial || 0) * currentWeights.industrial / 100 +
+          (components.cost || 0) * currentWeights.cost / 100 +
+          (components.capabilities || 0) * currentWeights.capabilities / 100
+        );
+      };
+      
+      setCalculatedScores({
+        gripen: calculateWeighted(gripenScores),
+        f35: calculateWeighted(f35Scores),
+      });
+    }
+  };
 
   useEffect(() => {
     const loadWeights = async () => {
@@ -30,10 +63,34 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
         .maybeSingle();
       
       if (data?.value) {
-        setWeights(data.value as typeof weights);
+        const loadedWeights = data.value as typeof weights;
+        setWeights(loadedWeights);
+        calculateWeightedScores(loadedWeights);
+      } else {
+        calculateWeightedScores(weights);
       }
     };
     loadWeights();
+
+    const channel = supabase
+      .channel('settings-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'settings', filter: 'key=eq.winner_weights' },
+        (payload) => {
+          if (payload.new && 'value' in payload.new) {
+            const newWeights = payload.new.value as typeof weights;
+            setWeights(newWeights);
+            calculateWeightedScores(newWeights);
+            toast.success('Weights updated - scores recalculated');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const saveWeights = async () => {
@@ -49,16 +106,19 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     if (error) {
       toast.error('Failed to save weights');
     } else {
-      toast.success('Weights saved!');
+      calculateWeightedScores(weights);
+      toast.success('Weights saved and scores recalculated!');
     }
   };
 
-  const total = gripenScore + f35Score;
-  const gripenPercent = total > 0 ? (gripenScore / total) * 100 : 50;
-  const f35Percent = total > 0 ? (f35Score / total) * 100 : 50;
+  const displayGripen = calculatedScores.gripen || gripenScore;
+  const displayF35 = calculatedScores.f35 || f35Score;
+  const total = displayGripen + displayF35;
+  const gripenPercent = total > 0 ? (displayGripen / total) * 100 : 50;
+  const f35Percent = total > 0 ? (displayF35 / total) * 100 : 50;
 
-  const leader = gripenScore > f35Score ? "Gripen" : "F-35";
-  const delta = Math.abs(gripenScore - f35Score).toFixed(1);
+  const leader = displayGripen > displayF35 ? "Gripen" : "F-35";
+  const delta = Math.abs(displayGripen - displayF35).toFixed(1);
 
   const totalWeight = Object.values(weights).reduce((sum, val) => sum + val, 0);
 
