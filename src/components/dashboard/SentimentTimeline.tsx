@@ -56,25 +56,45 @@ export const SentimentTimeline = () => {
 
       if (error) throw error;
 
-      // Transform data for chart
-      const dateMap = new Map();
+      // Transform data for chart - group by month
+      const monthMap = new Map();
       
       metrics?.forEach((metric: MetricData) => {
-        const date = metric.metric_date;
-        if (!dateMap.has(date)) {
-          dateMap.set(date, { date });
+        const date = new Date(metric.metric_date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+        
+        if (!monthMap.has(monthKey)) {
+          monthMap.set(monthKey, { 
+            date: monthKey,
+            gripenMentions: 0,
+            f35Mentions: 0,
+            gripenSentimentSum: 0,
+            f35SentimentSum: 0,
+            gripenCount: 0,
+            f35Count: 0
+          });
         }
-        const entry = dateMap.get(date);
+        
+        const entry = monthMap.get(monthKey);
         if (metric.fighter === 'Gripen') {
-          entry.gripenSentiment = metric.sentiment_score;
-          entry.gripenMentions = metric.mentions_count;
+          entry.gripenMentions += metric.mentions_count;
+          entry.gripenSentimentSum += metric.sentiment_score;
+          entry.gripenCount += 1;
         } else {
-          entry.f35Sentiment = metric.sentiment_score;
-          entry.f35Mentions = metric.mentions_count;
+          entry.f35Mentions += metric.mentions_count;
+          entry.f35SentimentSum += metric.sentiment_score;
+          entry.f35Count += 1;
         }
       });
 
-      const chartData = Array.from(dateMap.values());
+      // Calculate average sentiment for each month
+      const chartData = Array.from(monthMap.values()).map(entry => ({
+        date: entry.date,
+        gripenMentions: entry.gripenMentions,
+        f35Mentions: entry.f35Mentions,
+        gripenSentiment: entry.gripenCount > 0 ? entry.gripenSentimentSum / entry.gripenCount : 0,
+        f35Sentiment: entry.f35Count > 0 ? entry.f35SentimentSum / entry.f35Count : 0
+      })).sort((a, b) => a.date.localeCompare(b.date));
       setData(chartData);
     } catch (error) {
       console.error('Error fetching metrics:', error);
@@ -113,11 +133,11 @@ export const SentimentTimeline = () => {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
             dataKey="date" 
-            tickFormatter={(value) => format(new Date(value), 'MMM d')}
+            tickFormatter={(value) => format(new Date(value), 'MMM yyyy')}
           />
           <YAxis domain={[-1, 1]} />
           <Tooltip 
-            labelFormatter={(value) => format(new Date(value), 'MMM d, yyyy')}
+            labelFormatter={(value) => format(new Date(value), 'MMMM yyyy')}
             formatter={(value: number) => value.toFixed(2)}
           />
           <Legend />
@@ -145,11 +165,11 @@ export const SentimentTimeline = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
               dataKey="date" 
-              tickFormatter={(value) => format(new Date(value), 'MMM d')}
+              tickFormatter={(value) => format(new Date(value), 'MMM yyyy')}
             />
             <YAxis />
             <Tooltip 
-              labelFormatter={(value) => format(new Date(value), 'MMM d, yyyy')}
+              labelFormatter={(value) => format(new Date(value), 'MMMM yyyy')}
             />
             <Legend />
             <Line 
