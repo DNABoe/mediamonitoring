@@ -194,6 +194,10 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
+          <SourcesPanel />
+        </div>
+
+        <div className="mb-6">
           <SourceArticles />
         </div>
 
@@ -210,13 +214,8 @@ const Index = () => {
           <PoliticsHeatMap />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3">
-            <LiveStream />
-          </div>
-          <div>
-            <SourcesPanel />
-          </div>
+        <div className="mb-6">
+          <LiveStream />
         </div>
       </div>
     </div>
