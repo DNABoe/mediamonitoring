@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { DOMParser, Element } from 'https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,19 +41,41 @@ Deno.serve(async (req) => {
     let totalItemsScraped = 0
     const results = []
 
+    // Known RSS feed URLs for Portuguese sources
+    const rssUrls: Record<string, string> = {
+      'RTP': 'https://www.rtp.pt/noticias/rss',
+      'SIC Notícias': 'https://sicnoticias.pt/rss',
+      'Público': 'https://www.publico.pt/rss',
+      'Expresso': 'https://expresso.pt/rss',
+      'Observador': 'https://observador.pt/feed/',
+      'ECO': 'https://eco.sapo.pt/feed/',
+    }
+
     for (const source of sources || []) {
       try {
         console.log(`Scraping ${source.name} (${source.url})`)
         
-        // Construct RSS feed URL (common patterns)
-        let rssUrl = source.url
-        if (!rssUrl.includes('/feed') && !rssUrl.includes('/rss')) {
-          rssUrl = `${source.url}/rss`
+        // Get RSS URL from mapping or construct it
+        let rssUrl = rssUrls[source.name]
+        if (!rssUrl) {
+          // Try common patterns
+          if (source.url.includes('saab.com')) {
+            rssUrl = 'https://www.saabgroup.com/feed/'
+          } else if (source.url.includes('lockheedmartin.com')) {
+            rssUrl = 'https://news.lockheedmartin.com/rss'
+          } else if (source.url.includes('f35.com')) {
+            rssUrl = 'https://www.f35.com/feed'
+          } else {
+            rssUrl = `${source.url}/feed`
+          }
         }
+
+        console.log(`Fetching RSS from: ${rssUrl}`)
 
         const response = await fetch(rssUrl, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; PortugueseFighterMonitor/1.0)'
+            'User-Agent': 'Mozilla/5.0 (compatible; PortugueseFighterMonitor/1.0)',
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*'
           }
         })
 
@@ -64,24 +85,29 @@ Deno.serve(async (req) => {
         }
 
         const xmlText = await response.text()
-        const doc = new DOMParser().parseFromString(xmlText, 'text/xml')
         
-        if (!doc) {
-          console.error(`Failed to parse XML for ${source.name}`)
-          continue
-        }
-
-        const items = doc.querySelectorAll('item')
+        // Parse XML manually using regex patterns (simpler and more reliable in Deno)
+        const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi
+        const items = [...xmlText.matchAll(itemRegex)]
+        
         console.log(`Found ${items.length} items in ${source.name}`)
 
-        for (const itemNode of items) {
+        for (const itemMatch of items) {
           try {
-            const item = itemNode as Element
-            const title = item.querySelector('title')?.textContent?.trim()
-            const link = item.querySelector('link')?.textContent?.trim()
-            const pubDate = item.querySelector('pubDate')?.textContent?.trim()
-            const description = item.querySelector('description')?.textContent?.trim()
-            const contentEncoded = item.querySelector('content\\:encoded')?.textContent?.trim()
+            const itemXml = itemMatch[1]
+            
+            // Extract data using regex
+            const titleMatch = itemXml.match(/<title[^>]*><!\[CDATA\[(.*?)\]\]><\/title>|<title[^>]*>(.*?)<\/title>/i)
+            const linkMatch = itemXml.match(/<link[^>]*>(.*?)<\/link>/i)
+            const pubDateMatch = itemXml.match(/<pubDate[^>]*>(.*?)<\/pubDate>/i)
+            const descMatch = itemXml.match(/<description[^>]*><!\[CDATA\[(.*?)\]\]><\/description>|<description[^>]*>(.*?)<\/description>/i)
+            const contentMatch = itemXml.match(/<content:encoded[^>]*><!\[CDATA\[(.*?)\]\]><\/content:encoded>/i)
+            
+            const title = (titleMatch?.[1] || titleMatch?.[2])?.trim()
+            const link = linkMatch?.[1]?.trim()
+            const pubDate = pubDateMatch?.[1]?.trim()
+            const description = (descMatch?.[1] || descMatch?.[2])?.trim()
+            const contentEncoded = contentMatch?.[1]?.trim()
             
             if (!title || !link) continue
 
