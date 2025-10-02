@@ -10,6 +10,7 @@ import { ResearchDimensions } from "@/components/dashboard/ResearchDimensions";
 import { SentimentTimeline } from "@/components/dashboard/SentimentTimeline";
 import { ResearchControls } from "@/components/dashboard/ResearchControls";
 import { ResearchSources } from "@/components/dashboard/ResearchSources";
+import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -154,6 +155,10 @@ const Index = () => {
             <ResearchControls />
           </div>
         )}
+
+        <div className="mb-6">
+          <ResearchChanges />
+        </div>
 
         <div className="mb-6">
           <ResearchExecutiveSummary />
