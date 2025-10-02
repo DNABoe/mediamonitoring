@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.research-fighter-comparison]
 verify_jwt = false
+
+[functions.reset-research-data]
+verify_jwt = true
