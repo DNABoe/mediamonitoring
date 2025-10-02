@@ -56,12 +56,13 @@ TRACKING PERIOD: From ${trackingStartDate} to ${today} (${daysSinceBaseline} day
 Conduct a comprehensive analysis covering these dimensions:
 
 1. MEDIA PRESENCE (Portuguese Media ONLY)
-   - Count ALL mentions of each fighter in PORTUGUESE news media ONLY since ${trackingStartDate}
+   - Provide a MONTHLY BREAKDOWN of mentions from ${trackingStartDate} to ${today}
+   - Count ALL mentions of each fighter in PORTUGUESE news media ONLY
    - CRITICAL: Only count articles from Portuguese sources (Observador, Público, DN, Expresso, Visão, Jornal de Negócios, RTP, SIC, TVI, etc.)
    - Do NOT include international media in mention counts
+   - For EACH MONTH in the tracking period, provide the count of articles published that month
    - Identify key narratives and story angles that emerged during this period in Portuguese media
    - Note which Portuguese sources are covering each fighter
-   - Track momentum and trends over the ${daysSinceBaseline}-day period
 
 2. MEDIA TONALITY
    - Sentiment analysis: positive, negative, neutral coverage
@@ -115,8 +116,15 @@ Return your analysis as a structured JSON object with this exact format:
 {
   "executive_summary": "3-4 paragraph overview",
   "media_presence": {
-    "gripen_mentions": number,
-    "f35_mentions": number,
+    "monthly_breakdown": [
+      {
+        "month": "2025-01",
+        "gripen_mentions": number,
+        "f35_mentions": number,
+        "gripen_sentiment": number (-1 to 1),
+        "f35_sentiment": number (-1 to 1)
+      }
+    ],
     "key_narratives": ["narrative1", "narrative2"],
     "coverage_balance": "description"
   },
@@ -319,42 +327,51 @@ CRITICAL:
 
     console.log('Storing comparison metrics...');
 
-    // Delete only today's metrics to avoid duplicates
+    // Delete all metrics from the tracking start date onwards
     await supabase
       .from('comparison_metrics')
       .delete()
-      .eq('metric_date', today);
+      .gte('metric_date', trackingStartDate);
 
-    // Store metrics for today only
-    const metricsData = [
-      {
-        metric_date: today,
-        fighter: 'Gripen',
-        mentions_count: analysis.media_presence.gripen_mentions || 0,
-        sentiment_score: analysis.media_tonality.gripen_sentiment || 0,
-        media_reach_score: analysis.media_presence.gripen_mentions || 0,
-        political_support_score: gripenTotal,
-        dimension_scores: gripenScores
-      },
-      {
-        metric_date: today,
-        fighter: 'F-35',
-        mentions_count: analysis.media_presence.f35_mentions || 0,
-        sentiment_score: analysis.media_tonality.f35_sentiment || 0,
-        media_reach_score: analysis.media_presence.f35_mentions || 0,
-        political_support_score: f35Total,
-        dimension_scores: f35Scores
+    // Store metrics for each month from the breakdown
+    const metricsData: any[] = [];
+    
+    if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
+      analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
+        const monthDate = `${monthData.month}-01`; // First day of the month
+        
+        metricsData.push({
+          metric_date: monthDate,
+          fighter: 'Gripen',
+          mentions_count: monthData.gripen_mentions || 0,
+          sentiment_score: monthData.gripen_sentiment || 0,
+          media_reach_score: monthData.gripen_mentions || 0,
+          political_support_score: gripenTotal,
+          dimension_scores: gripenScores
+        });
+        
+        metricsData.push({
+          metric_date: monthDate,
+          fighter: 'F-35',
+          mentions_count: monthData.f35_mentions || 0,
+          sentiment_score: monthData.f35_sentiment || 0,
+          media_reach_score: monthData.f35_mentions || 0,
+          political_support_score: f35Total,
+          dimension_scores: f35Scores
+        });
+      });
+    }
+
+    // Insert all monthly metrics
+    if (metricsData.length > 0) {
+      const { error: metricsError } = await supabase
+        .from('comparison_metrics')
+        .insert(metricsData);
+
+      if (metricsError) {
+        console.error('Error storing metrics:', metricsError);
+        throw metricsError;
       }
-    ];
-
-    // Insert today's metrics
-    const { error: metricsError } = await supabase
-      .from('comparison_metrics')
-      .insert(metricsData);
-
-    if (metricsError) {
-      console.error('Error storing metrics:', metricsError);
-      throw metricsError;
     }
 
     console.log('✓ Research completed and stored successfully');
