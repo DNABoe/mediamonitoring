@@ -10,15 +10,26 @@ export const ResearchSources = () => {
 
   useEffect(() => {
     const fetchSources = async () => {
+      // Calculate date 60 days ago
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const dateFilter = sixtyDaysAgo.toISOString().split('T')[0];
+
       const { data } = await supabase
         .from('research_reports')
-        .select('sources')
-        .order('report_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .select('sources, report_date')
+        .gte('report_date', dateFilter)
+        .order('report_date', { ascending: false });
 
-      if (data?.sources) {
-        setSources(data.sources as string[]);
+      if (data && data.length > 0) {
+        // Collect all unique sources from the last 60 days
+        const allSources = new Set<string>();
+        data.forEach(report => {
+          if (report.sources) {
+            (report.sources as string[]).forEach(source => allSources.add(source));
+          }
+        });
+        setSources(Array.from(allSources));
       }
       setLoading(false);
     };
@@ -89,7 +100,7 @@ export const ResearchSources = () => {
           <CardTitle>Key Sources Referenced</CardTitle>
         </div>
         <CardDescription>
-          Primary sources analyzed in the latest research report
+          Sources referenced in research reports from the last 60 days
         </CardDescription>
       </CardHeader>
       <CardContent>
