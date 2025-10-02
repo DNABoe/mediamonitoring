@@ -153,6 +153,8 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     }
   };
 
+  const dimensionOrder: (keyof typeof weights)[] = ['media', 'political', 'industrial', 'cost', 'capabilities'];
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -211,19 +213,19 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
                 <span className="text-xs text-warning">Must equal 100%</span>
               )}
             </div>
-            {Object.entries(weights).map(([key, value]) => (
+            {dimensionOrder.map((key) => (
               <div key={key} className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="capitalize font-medium">{key}</span>
-                  <span className="font-semibold text-primary">{value}%</span>
+                  <span className="font-semibold text-primary">{weights[key]}%</span>
                 </div>
                 <Slider
-                  value={[value]}
-                  onValueChange={(val) => handleWeightChange(key as keyof typeof weights, val)}
+                  value={[weights[key]]}
+                  onValueChange={(val) => handleWeightChange(key, val)}
                   max={100}
                   step={1}
                   className="w-full"
-                  disabled={totalWeight !== 100 && value === 0}
+                  disabled={totalWeight !== 100 && weights[key] === 0}
                 />
               </div>
             ))}
