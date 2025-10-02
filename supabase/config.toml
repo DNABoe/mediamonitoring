@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.process-items]
 verify_jwt = false
+
+[functions.research-fighter-comparison]
+verify_jwt = false

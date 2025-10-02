@@ -12,6 +12,10 @@ import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
 import { ScraperControls } from "@/components/dashboard/ScraperControls";
 import { SourcesPanel } from "@/components/dashboard/SourcesPanel";
 import { SourceArticles } from "@/components/dashboard/SourceArticles";
+import { ResearchExecutiveSummary } from "@/components/dashboard/ResearchExecutiveSummary";
+import { ResearchDimensions } from "@/components/dashboard/ResearchDimensions";
+import { SentimentTimeline } from "@/components/dashboard/SentimentTimeline";
+import { ResearchControls } from "@/components/dashboard/ResearchControls";
 import { Bell, Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -184,6 +188,24 @@ const Index = () => {
       </div>
 
       <div className="container mx-auto px-4 py-6">
+        {isAdmin && (
+          <div className="mb-6">
+            <ResearchControls />
+          </div>
+        )}
+
+        <div className="mb-6">
+          <ResearchExecutiveSummary />
+        </div>
+
+        <div className="mb-6">
+          <SentimentTimeline />
+        </div>
+
+        <div className="mb-6">
+          <ResearchDimensions />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <HotnessMeter fighter="Gripen" score={gripenHotness} trend="up" />
           <HotnessMeter fighter="F-35" score={f35Hotness} trend="down" />

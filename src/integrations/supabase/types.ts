@@ -86,6 +86,42 @@ export type Database = {
         }
         Relationships: []
       }
+      comparison_metrics: {
+        Row: {
+          created_at: string
+          dimension_scores: Json
+          fighter: string
+          id: string
+          media_reach_score: number
+          mentions_count: number
+          metric_date: string
+          political_support_score: number
+          sentiment_score: number
+        }
+        Insert: {
+          created_at?: string
+          dimension_scores?: Json
+          fighter: string
+          id?: string
+          media_reach_score?: number
+          mentions_count?: number
+          metric_date?: string
+          political_support_score?: number
+          sentiment_score?: number
+        }
+        Update: {
+          created_at?: string
+          dimension_scores?: Json
+          fighter?: string
+          id?: string
+          media_reach_score?: number
+          mentions_count?: number
+          metric_date?: string
+          political_support_score?: number
+          sentiment_score?: number
+        }
+        Relationships: []
+      }
       items: {
         Row: {
           created_at: string | null
@@ -211,6 +247,54 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      research_reports: {
+        Row: {
+          capability_analysis: string | null
+          cost_analysis: string | null
+          created_at: string
+          executive_summary: string
+          geopolitical_analysis: string | null
+          id: string
+          industrial_cooperation: string | null
+          media_presence: Json
+          media_tonality: Json
+          political_analysis: string | null
+          report_date: string
+          sources: Json
+          status: string
+        }
+        Insert: {
+          capability_analysis?: string | null
+          cost_analysis?: string | null
+          created_at?: string
+          executive_summary: string
+          geopolitical_analysis?: string | null
+          id?: string
+          industrial_cooperation?: string | null
+          media_presence?: Json
+          media_tonality?: Json
+          political_analysis?: string | null
+          report_date?: string
+          sources?: Json
+          status?: string
+        }
+        Update: {
+          capability_analysis?: string | null
+          cost_analysis?: string | null
+          created_at?: string
+          executive_summary?: string
+          geopolitical_analysis?: string | null
+          id?: string
+          industrial_cooperation?: string | null
+          media_presence?: Json
+          media_tonality?: Json
+          political_analysis?: string | null
+          report_date?: string
+          sources?: Json
+          status?: string
         }
         Relationships: []
       }
