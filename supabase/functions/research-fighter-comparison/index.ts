@@ -285,13 +285,28 @@ CRITICAL:
     const gripenTotal = calculateWeightedScore(gripenScores);
     const f35Total = calculateWeightedScore(f35Scores);
 
+    // Calculate total mentions from monthly breakdown
+    let totalGripenMentions = 0;
+    let totalF35Mentions = 0;
+    
+    if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
+      analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
+        totalGripenMentions += monthData.gripen_mentions || 0;
+        totalF35Mentions += monthData.f35_mentions || 0;
+      });
+    }
+
     // Store the research report with scores
     const { data: report, error: reportError } = await supabase
       .from('research_reports')
       .insert({
         report_date: today,
         executive_summary: analysis.executive_summary,
-        media_presence: analysis.media_presence,
+        media_presence: {
+          ...analysis.media_presence,
+          total_gripen_mentions: totalGripenMentions,
+          total_f35_mentions: totalF35Mentions
+        },
         media_tonality: {
           ...analysis.media_tonality,
           gripen_score: gripenTotal,
