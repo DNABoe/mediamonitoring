@@ -44,7 +44,7 @@ export const ResearchControls = () => {
         <div>
           <h3 className="font-semibold flex items-center gap-2">
             <Brain className="h-5 w-5" />
-            AI Intelligence Research
+            Intelligence Research
           </h3>
           <p className="text-sm text-muted-foreground">
             Generate comprehensive fighter comparison analysis
