@@ -9,6 +9,7 @@ import { ResearchDimensions } from "@/components/dashboard/ResearchDimensions";
 import { SentimentTimeline } from "@/components/dashboard/SentimentTimeline";
 import { ResearchControls } from "@/components/dashboard/ResearchControls";
 import { ResearchSources } from "@/components/dashboard/ResearchSources";
+import { StrategicSuggestions } from "@/components/dashboard/StrategicSuggestions";
 import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { Settings, LogOut, Plane } from "lucide-react";
@@ -171,6 +172,10 @@ const Index = () => {
 
         <div className="mb-6">
           <WinnerMetar gripenScore={winnerScore.gripen} f35Score={winnerScore.f35} />
+        </div>
+
+        <div className="mb-6">
+          <StrategicSuggestions />
         </div>
 
         <div className="mb-6">
