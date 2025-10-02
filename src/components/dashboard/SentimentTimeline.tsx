@@ -162,7 +162,8 @@ export const SentimentTimeline = () => {
       </ResponsiveContainer>
 
       <div className="mt-6 pt-6 border-t">
-        <h3 className="text-lg font-semibold mb-4">Media Mentions Over Time</h3>
+        <h3 className="text-lg font-semibold mb-1">Media Mentions Over Time</h3>
+        <p className="text-sm text-muted-foreground mb-4">Portuguese media sources only</p>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />

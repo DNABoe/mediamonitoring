@@ -55,10 +55,12 @@ TRACKING PERIOD: From ${trackingStartDate} to ${today} (${daysSinceBaseline} day
 
 Conduct a comprehensive analysis covering these dimensions:
 
-1. MEDIA PRESENCE (Portuguese & International)
-   - Count ALL mentions of each fighter in news media since ${trackingStartDate}
-   - Identify key narratives and story angles that emerged during this period
-   - Note which sources are covering each fighter
+1. MEDIA PRESENCE (Portuguese Media ONLY)
+   - Count ALL mentions of each fighter in PORTUGUESE news media ONLY since ${trackingStartDate}
+   - CRITICAL: Only count articles from Portuguese sources (Observador, Público, DN, Expresso, Visão, Jornal de Negócios, RTP, SIC, TVI, etc.)
+   - Do NOT include international media in mention counts
+   - Identify key narratives and story angles that emerged during this period in Portuguese media
+   - Note which Portuguese sources are covering each fighter
    - Track momentum and trends over the ${daysSinceBaseline}-day period
 
 2. MEDIA TONALITY
@@ -107,7 +109,7 @@ CRITICAL SOURCING REQUIREMENTS:
 - Focus on recent developments and current news
 - Prefer Portuguese-language sources when available
 
-IMPORTANT: For media mentions, count ALL articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
+IMPORTANT: For media mentions, count ONLY Portuguese media articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
 
 Return your analysis as a structured JSON object with this exact format:
 {
