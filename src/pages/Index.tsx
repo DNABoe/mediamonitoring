@@ -22,6 +22,7 @@ const Index = () => {
   const [f35Hotness, setF35Hotness] = useState(0);
   const [winnerScore, setWinnerScore] = useState({ gripen: 0, f35: 0 });
   const [activeAlerts, setActiveAlerts] = useState(0);
+  const [baselineDate, setBaselineDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -62,8 +63,23 @@ const Index = () => {
       setActiveAlerts(count || 0);
     };
 
+    const fetchBaseline = async () => {
+      const { data } = await supabase
+        .from('baselines')
+        .select('start_date')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (data?.start_date) {
+        setBaselineDate(data.start_date);
+      }
+    };
+
     fetchMetrics();
     fetchAlerts();
+    fetchBaseline();
 
     const interval = setInterval(() => {
       setLastUpdate(new Date());
@@ -80,9 +96,19 @@ const Index = () => {
       )
       .subscribe();
 
+    const baselinesChannel = supabase
+      .channel('baselines-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'baselines' },
+        () => fetchBaseline()
+      )
+      .subscribe();
+
     return () => {
       clearInterval(interval);
       supabase.removeChannel(alertsChannel);
+      supabase.removeChannel(baselinesChannel);
     };
   }, []);
 
@@ -109,6 +135,11 @@ const Index = () => {
               </h1>
               <p className="text-xs text-muted-foreground">
                 Real-time intelligence dashboard • Last updated: {lastUpdate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {lastUpdate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                {baselineDate && (
+                  <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded">
+                    Tracking from: {new Date(baselineDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                )}
               </p>
             </div>
           </div>
