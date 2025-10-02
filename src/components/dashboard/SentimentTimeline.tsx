@@ -16,6 +16,22 @@ export const SentimentTimeline = () => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border rounded-lg p-3 shadow-lg">
+          <p className="font-semibold mb-2">{format(new Date(label), 'MMMM yyyy')}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} style={{ color: entry.color }}>
+              {entry.name}: {typeof entry.value === 'number' && entry.value < 100 ? entry.value.toFixed(2) : entry.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   useEffect(() => {
     fetchMetrics();
 
@@ -137,13 +153,7 @@ export const SentimentTimeline = () => {
             tickFormatter={(value) => format(new Date(value), 'MMM yyyy')}
           />
           <YAxis domain={[-1, 1]} />
-          <Tooltip 
-            labelFormatter={(value) => `Date: ${format(new Date(value), 'MMMM yyyy')}`}
-            formatter={(value: number, name: string) => {
-              const label = name === 'gripenSentiment' ? 'Gripen Sentiment' : 'F-35 Sentiment';
-              return [value.toFixed(2), label];
-            }}
-          />
+          <Tooltip content={<CustomTooltip />} />
           <Legend />
           <Line 
             type="monotone" 
@@ -173,13 +183,7 @@ export const SentimentTimeline = () => {
               tickFormatter={(value) => format(new Date(value), 'MMM yyyy')}
             />
             <YAxis />
-            <Tooltip 
-              labelFormatter={(value) => `Date: ${format(new Date(value), 'MMMM yyyy')}`}
-              formatter={(value: number, name: string) => {
-                const label = name === 'gripenMentions' ? 'Gripen Mentions' : 'F-35 Mentions';
-                return [value, label];
-              }}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Legend />
             <Line 
               type="monotone" 
