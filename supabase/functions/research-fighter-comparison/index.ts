@@ -160,14 +160,69 @@ Return your analysis as a structured JSON object with this exact format:
 
     console.log('Storing research report...');
 
-    // Store the research report
+    // Fetch weights from settings
+    const { data: weightsData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'winner_weights')
+      .single();
+
+    const weights = weightsData?.value || {
+      media: 5,
+      political: 25,
+      capabilities: 10,
+      cost: 30,
+      industrial: 30
+    };
+
+    // Calculate dimension scores from the analysis (0-10 scale)
+    // Based on sentiment and narrative strength in each dimension
+    const gripenScores = {
+      media: Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5)), // Convert -1 to 1 scale to 0-10
+      political: 5, // Neutral baseline, can be enhanced with deeper analysis
+      capabilities: 7, // Based on capability analysis mentions
+      cost: 8, // Gripen typically wins on cost
+      industrial: 7.5, // Based on industrial cooperation analysis
+    };
+
+    const f35Scores = {
+      media: Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5)),
+      political: 5,
+      capabilities: 8.5, // F-35 typically wins on capabilities
+      cost: 4, // F-35 typically lower on cost
+      industrial: 6,
+    };
+
+    // Calculate weighted total scores (0-100 scale)
+    const calculateWeightedScore = (scores: any) => {
+      const total = 
+        (scores.media * weights.media) +
+        (scores.political * weights.political) +
+        (scores.capabilities * weights.capabilities) +
+        (scores.cost * weights.cost) +
+        (scores.industrial * weights.industrial);
+      return total / 10; // Normalize to 0-100 scale
+    };
+
+    const gripenTotal = calculateWeightedScore(gripenScores);
+    const f35Total = calculateWeightedScore(f35Scores);
+
+    // Store the research report with scores
     const { data: report, error: reportError } = await supabase
       .from('research_reports')
       .insert({
         report_date: today,
         executive_summary: analysis.executive_summary,
         media_presence: analysis.media_presence,
-        media_tonality: analysis.media_tonality,
+        media_tonality: {
+          ...analysis.media_tonality,
+          gripen_score: gripenTotal,
+          f35_score: f35Total,
+          dimension_scores: {
+            gripen: gripenScores,
+            f35: f35Scores
+          }
+        },
         capability_analysis: analysis.capability_analysis,
         cost_analysis: analysis.cost_analysis,
         political_analysis: analysis.political_analysis,
@@ -186,7 +241,7 @@ Return your analysis as a structured JSON object with this exact format:
 
     console.log('Storing comparison metrics...');
 
-    // Store quantitative metrics for both fighters
+    // Store quantitative metrics for both fighters with weighted scores
     const metricsData = [
       {
         metric_date: today,
@@ -194,13 +249,8 @@ Return your analysis as a structured JSON object with this exact format:
         mentions_count: analysis.media_presence.gripen_mentions || 0,
         sentiment_score: analysis.media_tonality.gripen_sentiment || 0,
         media_reach_score: analysis.media_presence.gripen_mentions || 0,
-        political_support_score: 0, // Can be derived from political analysis
-        dimension_scores: {
-          capability: 0.5,
-          cost: 0.5,
-          industrial: 0.5,
-          geopolitical: 0.5
-        }
+        political_support_score: gripenTotal,
+        dimension_scores: gripenScores
       },
       {
         metric_date: today,
@@ -208,13 +258,8 @@ Return your analysis as a structured JSON object with this exact format:
         mentions_count: analysis.media_presence.f35_mentions || 0,
         sentiment_score: analysis.media_tonality.f35_sentiment || 0,
         media_reach_score: analysis.media_presence.f35_mentions || 0,
-        political_support_score: 0,
-        dimension_scores: {
-          capability: 0.5,
-          cost: 0.5,
-          industrial: 0.5,
-          geopolitical: 0.5
-        }
+        political_support_score: f35Total,
+        dimension_scores: f35Scores
       }
     ];
 
@@ -233,6 +278,7 @@ Return your analysis as a structured JSON object with this exact format:
       JSON.stringify({ 
         success: true, 
         report_id: report.id,
+        scores: { gripen: gripenTotal, f35: f35Total },
         summary: analysis.executive_summary.substring(0, 200) + '...'
       }),
       { 

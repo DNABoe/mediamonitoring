@@ -25,22 +25,20 @@ const Index = () => {
   }, [user, authLoading]);
 
   useEffect(() => {
-    const fetchMetrics = async () => {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { data: metrics } = await supabase
-        .from('metrics')
-        .select('*')
-        .eq('day', today)
-        .order('created_at', { ascending: false });
+    const fetchScores = async () => {
+      // Fetch latest research report scores
+      const { data: report } = await supabase
+        .from('research_reports')
+        .select('media_tonality')
+        .order('report_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (metrics) {
-        const gripen = metrics.find(m => m.fighter === 'Gripen');
-        const f35 = metrics.find(m => m.fighter === 'F-35');
-        
+      if (report?.media_tonality) {
+        const tonality = report.media_tonality as any;
         setWinnerScore({
-          gripen: gripen?.hotness || 0,
-          f35: f35?.hotness || 0
+          gripen: tonality.gripen_score || 0,
+          f35: tonality.f35_score || 0
         });
       }
     };
@@ -59,13 +57,22 @@ const Index = () => {
       }
     };
 
-    fetchMetrics();
+    fetchScores();
     fetchBaseline();
 
     const interval = setInterval(() => {
       setLastUpdate(new Date());
-      fetchMetrics();
+      fetchScores();
     }, 30000);
+
+    const reportsChannel = supabase
+      .channel('reports-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'research_reports' },
+        () => fetchScores()
+      )
+      .subscribe();
 
     const baselinesChannel = supabase
       .channel('baselines-changes')
@@ -78,6 +85,7 @@ const Index = () => {
 
     return () => {
       clearInterval(interval);
+      supabase.removeChannel(reportsChannel);
       supabase.removeChannel(baselinesChannel);
     };
   }, []);
