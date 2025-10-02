@@ -25,6 +25,25 @@ serve(async (req) => {
 
     const today = new Date().toISOString().split('T')[0];
     
+    // Search for real Portuguese news articles
+    console.log('Searching for real Portuguese media articles...');
+    const searchResults = await Promise.all([
+      // Search for Gripen articles
+      fetch(`https://www.googleapis.com/customsearch/v1?key=${Deno.env.get('GOOGLE_SEARCH_API_KEY')}&cx=${Deno.env.get('GOOGLE_SEARCH_ENGINE_ID')}&q=Gripen+Portugal+caças&lr=lang_pt&dateRestrict=m6&num=10`),
+      // Search for F-35 articles  
+      fetch(`https://www.googleapis.com/customsearch/v1?key=${Deno.env.get('GOOGLE_SEARCH_API_KEY')}&cx=${Deno.env.get('GOOGLE_SEARCH_ENGINE_ID')}&q=F-35+Portugal+caças&lr=lang_pt&dateRestrict=m6&num=10`)
+    ]);
+    
+    const [gripenSearchData, f35SearchData] = await Promise.all([
+      searchResults[0].json(),
+      searchResults[1].json()
+    ]);
+    
+    const gripenArticles = gripenSearchData.items || [];
+    const f35Articles = f35SearchData.items || [];
+    
+    console.log(`Found ${gripenArticles.length} Gripen articles and ${f35Articles.length} F-35 articles`);
+    
     // Fetch the latest baseline to get tracking start date
     const { data: baselineData } = await supabase
       .from('baselines')
@@ -53,16 +72,24 @@ You are a defense intelligence analyst researching the comparison between Gripen
 
 TRACKING PERIOD: From ${trackingStartDate} to ${today} (${daysSinceBaseline} days of tracking)
 
+REAL ARTICLE DATA PROVIDED:
+Gripen Articles Found: ${gripenArticles.length}
+${gripenArticles.map((a: any, i: number) => `${i+1}. ${a.title}\n   URL: ${a.link}\n   Snippet: ${a.snippet}\n`).join('\n')}
+
+F-35 Articles Found: ${f35Articles.length}
+${f35Articles.map((a: any, i: number) => `${i+1}. ${a.title}\n   URL: ${a.link}\n   Snippet: ${a.snippet}\n`).join('\n')}
+
 Conduct a comprehensive analysis covering these dimensions:
 
 1. MEDIA PRESENCE (Portuguese Media ONLY)
+   - USE THE REAL ARTICLES PROVIDED ABOVE to count mentions
    - Provide a MONTHLY BREAKDOWN of mentions from ${trackingStartDate} to ${today}
-   - Count ALL mentions of each fighter in PORTUGUESE news media ONLY
-   - CRITICAL: Only count articles from Portuguese sources (Observador, Público, DN, Expresso, Visão, Jornal de Negócios, RTP, SIC, TVI, etc.)
-   - Do NOT include international media in mention counts
-   - For EACH MONTH in the tracking period, provide the count of articles published that month
-   - Identify key narratives and story angles that emerged during this period in Portuguese media
-   - Note which Portuguese sources are covering each fighter
+   - Base your counts on the ACTUAL ARTICLES provided above
+   - For EACH MONTH in the tracking period, count how many of the provided articles were published
+   - Gripen mentions = ${gripenArticles.length} articles found
+   - F-35 mentions = ${f35Articles.length} articles found
+   - Identify key narratives from the actual article titles and snippets provided
+   - Note which Portuguese sources are covering each fighter based on the URLs
 
 2. MEDIA TONALITY
    - Sentiment analysis: positive, negative, neutral coverage
