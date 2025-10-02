@@ -9,7 +9,7 @@ import { NarrativeSummaries } from "@/components/dashboard/NarrativeSummaries";
 import { PoliticsHeatMap } from "@/components/dashboard/PoliticsHeatMap";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SourcesPanel } from "@/components/dashboard/SourcesPanel";
-import { Bell, Settings, LogOut } from "lucide-react";
+import { Bell, Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
@@ -95,13 +95,19 @@ const Index = () => {
     <div className="min-h-screen bg-background text-foreground">
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Portuguese Fighter Program Monitor
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Real-time intelligence dashboard • Last updated: {lastUpdate.toLocaleTimeString()}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Plane className="h-8 w-8 text-primary rotate-45" />
+              <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-primary rounded-full animate-pulse" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent flex items-center gap-2">
+                Portuguese Fighter Program Monitor
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Real-time intelligence dashboard • Last updated: {lastUpdate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {lastUpdate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && <DashboardHeader />}
