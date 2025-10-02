@@ -5,7 +5,7 @@ import { HotnessMeter } from "@/components/dashboard/HotnessMeter";
 import { WinnerMetar } from "@/components/dashboard/WinnerMetar";
 import { LiveStream } from "@/components/dashboard/LiveStream";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
-import { NarrativeSummaries } from "@/components/dashboard/NarrativeSummaries";
+import { DynamicNarrativeSummaries } from "@/components/dashboard/DynamicNarrativeSummaries";
 import { PoliticsHeatMap } from "@/components/dashboard/PoliticsHeatMap";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
@@ -163,7 +163,7 @@ const Index = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2">
-            <NarrativeSummaries />
+            <DynamicNarrativeSummaries />
           </div>
           <div>
             <AlertsPanel />

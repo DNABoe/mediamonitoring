@@ -1,8 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { TrendingUp, Settings } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface WinnerMetarProps {
   gripenScore: number;
@@ -18,6 +20,38 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     cost: 10,
     capabilities: 10,
   });
+
+  useEffect(() => {
+    const loadWeights = async () => {
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'winner_weights')
+        .maybeSingle();
+      
+      if (data?.value) {
+        setWeights(data.value as typeof weights);
+      }
+    };
+    loadWeights();
+  }, []);
+
+  const saveWeights = async () => {
+    const { error } = await supabase
+      .from('settings')
+      .upsert({
+        key: 'winner_weights',
+        value: weights
+      }, {
+        onConflict: 'key'
+      });
+    
+    if (error) {
+      toast.error('Failed to save weights');
+    } else {
+      toast.success('Weights saved!');
+    }
+  };
 
   const total = gripenScore + f35Score;
   const gripenPercent = total > 0 ? (gripenScore / total) * 100 : 50;
@@ -109,6 +143,14 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
               Warning: Total must equal 100% (currently {totalWeight}%)
             </div>
           )}
+          <Button 
+            onClick={saveWeights}
+            size="sm"
+            className="w-full"
+            disabled={totalWeight !== 100}
+          >
+            Save Weights
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-5 gap-3 text-xs">
