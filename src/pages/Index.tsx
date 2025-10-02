@@ -101,7 +101,7 @@ const Index = () => {
               <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-primary rounded-full animate-pulse" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent flex items-center gap-2">
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
                 Portuguese Fighter Program Monitor
               </h1>
               <p className="text-xs text-muted-foreground">
