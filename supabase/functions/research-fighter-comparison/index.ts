@@ -86,6 +86,14 @@ Conduct a comprehensive analysis covering these dimensions:
    - Regional security dynamics
 
 Current date: ${today}
+Tracking period: ${trackingStartDate} to ${today}
+
+CRITICAL SOURCING REQUIREMENTS:
+- PRIORITIZE Portuguese media sources (e.g., Observador, Público, DN, Expresso, Visão, Jornal de Negócios)
+- ONLY cite sources published within the last 60 days (after ${new Date(Date.now() - 60*24*60*60*1000).toISOString().split('T')[0]})
+- Include publication dates in your research
+- Focus on recent developments and current news
+- Prefer Portuguese-language sources when available
 
 IMPORTANT: For media mentions, count ALL articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
 
@@ -133,7 +141,11 @@ Return your analysis as a structured JSON object with this exact format:
    "sources": ["https://example.com/article1", "https://example.com/article2"]
 }
 
-IMPORTANT: Be objective in your scoring. Base scores on factual analysis of the research, not assumptions. For sources, provide actual URLs to online articles, reports, and documents that you reference (not citations - actual working URLs only).`;
+CRITICAL: 
+- All source URLs must be from articles published within the last 60 days (after ${new Date(Date.now() - 60*24*60*60*1000).toISOString().split('T')[0]})
+- Prioritize Portuguese news sources
+- Only include real, working URLs to recent articles
+- Be objective in your scoring based on factual analysis`;
 
     console.log('Calling Lovable AI for research...');
 

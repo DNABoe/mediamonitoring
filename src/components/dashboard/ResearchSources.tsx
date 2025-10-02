@@ -92,6 +92,31 @@ export const ResearchSources = () => {
     }
   };
 
+  // Helper to check if domain is Portuguese
+  const isPortugueseDomain = (url: string) => {
+    try {
+      const domain = new URL(url).hostname.toLowerCase();
+      return domain.endsWith('.pt') || 
+             domain.includes('observador') || 
+             domain.includes('publico') || 
+             domain.includes('expresso') ||
+             domain.includes('visao') ||
+             domain.includes('jornaldenegocios');
+    } catch {
+      return false;
+    }
+  };
+
+  // Sort sources: Portuguese domains first, then alphabetically
+  const sortedSources = [...sources].sort((a, b) => {
+    const aIsPortuguese = isPortugueseDomain(a);
+    const bIsPortuguese = isPortugueseDomain(b);
+    
+    if (aIsPortuguese && !bIsPortuguese) return -1;
+    if (!aIsPortuguese && bIsPortuguese) return 1;
+    return a.localeCompare(b);
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -100,40 +125,54 @@ export const ResearchSources = () => {
           <CardTitle>Key Sources Referenced</CardTitle>
         </div>
         <CardDescription>
-          Sources referenced in research reports from the last 60 days
+          Sources from research reports in the last 60 days (Portuguese sources prioritized)
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {sources.map((source, index) => (
-            <div
-              key={index}
-              className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors"
-            >
-              <ExternalLink className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                {isUrl(source) ? (
-                  <a
-                    href={source}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-primary hover:underline break-words"
-                  >
-                    {getDomain(source)}
-                  </a>
-                ) : (
-                  <p className="text-sm font-medium text-foreground break-words">
-                    {source}
-                  </p>
-                )}
-                {isUrl(source) && (
-                  <p className="text-xs text-muted-foreground mt-1 truncate">
-                    {source}
-                  </p>
-                )}
+          {sortedSources.map((source, index) => {
+            const isPortuguese = isPortugueseDomain(source);
+            return (
+              <div
+                key={index}
+                className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                  isPortuguese 
+                    ? 'border-primary/50 bg-primary/5 hover:border-primary' 
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <ExternalLink className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  {isUrl(source) ? (
+                    <>
+                      <a
+                        href={source}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-primary hover:underline break-words"
+                      >
+                        {getDomain(source)}
+                      </a>
+                      {isPortuguese && (
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                          PT
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm font-medium text-foreground break-words">
+                      {source}
+                    </p>
+                  )}
+                  {isUrl(source) && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {source}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
