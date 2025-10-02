@@ -11,6 +11,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
 import { ScraperControls } from "@/components/dashboard/ScraperControls";
 import { SourcesPanel } from "@/components/dashboard/SourcesPanel";
+import { SourceArticles } from "@/components/dashboard/SourceArticles";
 import { Bell, Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -159,6 +160,10 @@ const Index = () => {
 
         <div className="mb-6">
           <WinnerMetar gripenScore={winnerScore.gripen} f35Score={winnerScore.f35} />
+        </div>
+
+        <div className="mb-6">
+          <SourceArticles />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
