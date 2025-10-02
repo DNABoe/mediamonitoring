@@ -114,18 +114,15 @@ const Index = () => {
               </h1>
               <p className="text-xs text-muted-foreground">
                 Real-time intelligence dashboard • Last updated: {lastUpdate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {lastUpdate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-                {baselineDate && (
-                  <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded">
-                    Tracking from: {new Date(baselineDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {isAdmin && (
+                  <span className="ml-2">
+                    <BaselineGenerator currentDate={baselineDate} />
                   </span>
                 )}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && (
-              <BaselineGenerator />
-            )}
             <Button
               variant="outline"
               size="sm"

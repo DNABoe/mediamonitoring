@@ -2,16 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Database } from "lucide-react";
 import { format } from "date-fns";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -20,17 +11,16 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export const BaselineGenerator = () => {
+interface BaselineGeneratorProps {
+  currentDate: string | null;
+}
+
+export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
   const [open, setOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date>();
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerate = async () => {
-    if (!startDate) {
-      toast.error("Please select a start date");
-      return;
-    }
-
+  const handleGenerate = async (date: Date) => {
     setIsGenerating(true);
     
     try {
@@ -41,24 +31,24 @@ export const BaselineGenerator = () => {
         return;
       }
 
-      toast.info("Generating baseline...");
+      toast.info("Setting tracking start date...");
 
       const { data, error } = await supabase.functions.invoke('generate-baseline', {
         body: { 
-          start_date: format(startDate, 'yyyy-MM-dd')
+          start_date: format(date, 'yyyy-MM-dd')
         }
       });
 
       if (error) {
         console.error('Error generating baseline:', error);
-        toast.error(error.message || "Failed to generate baseline");
+        toast.error(error.message || "Failed to set tracking date");
         return;
       }
 
       console.log('Baseline generated:', data);
       
       toast.success(
-        `Baseline generated successfully! ${data.summary.items_count} items and ${data.summary.alerts_count} alerts collected.`
+        `Tracking date set to ${format(date, 'PPP')}! ${data.summary.items_count} items collected.`
       );
       
       setOpen(false);
@@ -71,77 +61,33 @@ export const BaselineGenerator = () => {
     }
   };
 
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setStartDate(date);
+      handleGenerate(date);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Database className="h-4 w-4" />
-          Generate Baseline
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Generate Baseline Collection</DialogTitle>
-          <DialogDescription>
-            Select a start date to collect all historical data and create a baseline.
-            Real-time updates will be added to this baseline.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Start Date</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !startDate && "text-muted-foreground"
-                  )}
-                >
-                  {startDate ? format(startDate, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={setStartDate}
-                  disabled={(date) => date > new Date()}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {startDate && (
-            <div className="rounded-md bg-muted p-3 text-sm">
-              <p className="font-medium">Collection Period:</p>
-              <p className="text-muted-foreground">
-                From {format(startDate, "PPP")} to {format(new Date(), "PPP")}
-              </p>
-            </div>
-          )}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="px-2 py-0.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors cursor-pointer">
+          Tracking from: {currentDate ? new Date(currentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not set'}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <div className="p-3">
+          <p className="text-sm font-medium mb-2">Set tracking start date</p>
+          <Calendar
+            mode="single"
+            selected={startDate}
+            onSelect={handleDateSelect}
+            disabled={(date) => date > new Date() || isGenerating}
+            initialFocus
+            className={cn("pointer-events-auto")}
+          />
         </div>
-
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={isGenerating}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleGenerate}
-            disabled={!startDate || isGenerating}
-          >
-            {isGenerating ? "Generating..." : "Generate Baseline"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </PopoverContent>
+    </Popover>
   );
 };
