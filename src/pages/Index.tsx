@@ -170,11 +170,11 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <ResearchSources />
+          <WinnerMetar gripenScore={winnerScore.gripen} f35Score={winnerScore.f35} />
         </div>
 
         <div className="mb-6">
-          <WinnerMetar gripenScore={winnerScore.gripen} f35Score={winnerScore.f35} />
+          <ResearchSources />
         </div>
 
         <div className="mb-6">
