@@ -89,13 +89,35 @@ Return your analysis as a structured JSON object with this exact format:
     "f35_themes": ["theme1", "theme2"],
     "sentiment_summary": "description"
   },
-  "capability_analysis": "detailed text analysis",
-  "cost_analysis": "detailed text analysis",
-  "political_analysis": "detailed text analysis",
-  "industrial_cooperation": "detailed text analysis",
-  "geopolitical_analysis": "detailed text analysis",
+  "capability_analysis": {
+    "text": "detailed text analysis",
+    "gripen_score": number (0-10, where 10 is strongest capability),
+    "f35_score": number (0-10)
+  },
+  "cost_analysis": {
+    "text": "detailed text analysis",
+    "gripen_score": number (0-10, where 10 is best value/lowest cost),
+    "f35_score": number (0-10)
+  },
+  "political_analysis": {
+    "text": "detailed text analysis",
+    "gripen_score": number (0-10, where 10 is strongest political support),
+    "f35_score": number (0-10)
+  },
+  "industrial_cooperation": {
+    "text": "detailed text analysis",
+    "gripen_score": number (0-10, where 10 is strongest industrial benefits),
+    "f35_score": number (0-10)
+  },
+  "geopolitical_analysis": {
+    "text": "detailed text analysis",
+    "gripen_score": number (0-10, where 10 is strongest geopolitical alignment),
+    "f35_score": number (0-10)
+  },
   "sources": ["source1", "source2", "source3"]
-}`;
+}
+
+IMPORTANT: Be objective in your scoring. Base scores on factual analysis of the research, not assumptions.`;
 
     console.log('Calling Lovable AI for research...');
 
@@ -175,22 +197,21 @@ Return your analysis as a structured JSON object with this exact format:
       industrial: 30
     };
 
-    // Calculate dimension scores from the analysis (0-10 scale)
-    // Based on sentiment and narrative strength in each dimension
+    // Calculate dimension scores from AI analysis
     const gripenScores = {
-      media: Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5)), // Convert -1 to 1 scale to 0-10
-      political: 5, // Neutral baseline, can be enhanced with deeper analysis
-      capabilities: 7, // Based on capability analysis mentions
-      cost: 8, // Gripen typically wins on cost
-      industrial: 7.5, // Based on industrial cooperation analysis
+      media: Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5)),
+      political: analysis.political_analysis?.gripen_score || 5,
+      capabilities: analysis.capability_analysis?.gripen_score || 5,
+      cost: analysis.cost_analysis?.gripen_score || 5,
+      industrial: analysis.industrial_cooperation?.gripen_score || 5,
     };
 
     const f35Scores = {
       media: Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5)),
-      political: 5,
-      capabilities: 8.5, // F-35 typically wins on capabilities
-      cost: 4, // F-35 typically lower on cost
-      industrial: 6,
+      political: analysis.political_analysis?.f35_score || 5,
+      capabilities: analysis.capability_analysis?.f35_score || 5,
+      cost: analysis.cost_analysis?.f35_score || 5,
+      industrial: analysis.industrial_cooperation?.f35_score || 5,
     };
 
     // Calculate weighted total scores (0-100 scale)
@@ -220,14 +241,22 @@ Return your analysis as a structured JSON object with this exact format:
           f35_score: f35Total,
           dimension_scores: {
             gripen: gripenScores,
-            f35: f35Scores
-          }
-        },
-        capability_analysis: analysis.capability_analysis,
-        cost_analysis: analysis.cost_analysis,
-        political_analysis: analysis.political_analysis,
-        industrial_cooperation: analysis.industrial_cooperation,
-        geopolitical_analysis: analysis.geopolitical_analysis,
+          f35: f35Scores
+        }
+      },
+      capability_analysis: typeof analysis.capability_analysis === 'string' 
+        ? analysis.capability_analysis 
+        : analysis.capability_analysis?.text,
+      cost_analysis: typeof analysis.cost_analysis === 'string'
+        ? analysis.cost_analysis
+        : analysis.cost_analysis?.text,
+      political_analysis: typeof analysis.political_analysis === 'string'
+        ? analysis.political_analysis
+        : analysis.political_analysis?.text,
+      industrial_cooperation: typeof analysis.industrial_cooperation === 'string'
+        ? analysis.industrial_cooperation
+        : analysis.industrial_cooperation?.text,
+      geopolitical_analysis: analysis.geopolitical_analysis,
         sources: analysis.sources,
         status: 'completed'
       })
