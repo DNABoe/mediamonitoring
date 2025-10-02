@@ -21,6 +21,22 @@ export const ResearchDimensions = () => {
 
   useEffect(() => {
     fetchLatestReport();
+
+    const channel = supabase
+      .channel('research-dimensions-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'research_reports' },
+        () => {
+          console.log('Research reports changed, refetching...');
+          fetchLatestReport();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchLatestReport = async () => {
@@ -32,7 +48,12 @@ export const ResearchDimensions = () => {
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching research dimensions:', error);
+        throw error;
+      }
+      
+      console.log('Research report data:', data);
       setReport(data);
     } catch (error) {
       console.error('Error fetching research dimensions:', error);
