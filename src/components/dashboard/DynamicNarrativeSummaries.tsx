@@ -28,13 +28,13 @@ export const DynamicNarrativeSummaries = () => {
       const gripenItems = items.filter(i => i.fighter_tags?.includes('Gripen'));
       const f35Items = items.filter(i => i.fighter_tags?.includes('F-35'));
 
-      // Aggregate summaries
+      // Aggregate summaries - use all available summaries
       const gripenSummary = gripenItems.length > 0
-        ? `Recent coverage (${gripenItems.length} articles) highlights: ${gripenItems.slice(0, 3).map(i => i.summary_en).join(' ')}`
+        ? `Recent coverage highlights: ${gripenItems.map(i => i.summary_en).join(' ')}`
         : 'Limited recent coverage. Awaiting more news articles about Gripen.';
 
       const f35Summary = f35Items.length > 0
-        ? `Recent coverage (${f35Items.length} articles) focuses on: ${f35Items.slice(0, 3).map(i => i.summary_en).join(' ')}`
+        ? `Recent coverage focuses on: ${f35Items.map(i => i.summary_en).join(' ')}`
         : 'Limited recent coverage. Awaiting more news articles about F-35.';
 
       setSummaries({
