@@ -137,8 +137,20 @@ Return your analysis as a structured JSON object with this exact format:
     let analysis;
     try {
       // Try to extract JSON from markdown code blocks if present
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : content;
+      let jsonStr = content.trim();
+      
+      // Remove markdown code block markers if present
+      if (jsonStr.startsWith('```')) {
+        // Find the first newline after opening ```
+        const firstNewline = jsonStr.indexOf('\n');
+        // Find the closing ```
+        const lastCodeBlock = jsonStr.lastIndexOf('```');
+        
+        if (firstNewline !== -1 && lastCodeBlock > firstNewline) {
+          jsonStr = jsonStr.substring(firstNewline + 1, lastCodeBlock).trim();
+        }
+      }
+      
       analysis = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
