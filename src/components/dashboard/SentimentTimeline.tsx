@@ -138,7 +138,10 @@ export const SentimentTimeline = () => {
           <YAxis domain={[-1, 1]} />
           <Tooltip 
             labelFormatter={(value) => format(new Date(value), 'MMMM yyyy')}
-            formatter={(value: number) => value.toFixed(2)}
+            formatter={(value: number, name: string) => [
+              value.toFixed(2),
+              name === 'gripenSentiment' ? 'Gripen Sentiment' : 'F-35 Sentiment'
+            ]}
           />
           <Legend />
           <Line 
@@ -170,6 +173,10 @@ export const SentimentTimeline = () => {
             <YAxis />
             <Tooltip 
               labelFormatter={(value) => format(new Date(value), 'MMMM yyyy')}
+              formatter={(value: number, name: string) => [
+                value,
+                name === 'gripenMentions' ? 'Gripen Mentions' : 'F-35 Mentions'
+              ]}
             />
             <Legend />
             <Line 
