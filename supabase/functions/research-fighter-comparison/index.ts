@@ -317,7 +317,9 @@ CRITICAL:
 
     // Calculate dimension scores from AI analysis
     const gripenScores = {
-      media: Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5)),
+      media: analysis.media_tonality?.gripen_sentiment 
+        ? Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5))
+        : 5,
       political: analysis.political_analysis?.gripen_score || 5,
       capabilities: analysis.capability_analysis?.gripen_score || 5,
       cost: analysis.cost_analysis?.gripen_score || 5,
@@ -325,7 +327,9 @@ CRITICAL:
     };
 
     const f35Scores = {
-      media: Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5)),
+      media: analysis.media_tonality?.f35_sentiment 
+        ? Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5))
+        : 5,
       political: analysis.political_analysis?.f35_score || 5,
       capabilities: analysis.capability_analysis?.f35_score || 5,
       cost: analysis.cost_analysis?.f35_score || 5,
