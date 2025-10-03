@@ -25,6 +25,11 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     gripen: Record<string, number>;
     f35: Record<string, number>;
   } | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    rationale: string;
+    weights: typeof weights;
+  } | null>(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
 
   const calculateWeightedScores = (currentWeights: typeof weights) => {
     if (!dimensionScores) return { gripen: 0, f35: 0 };
@@ -158,6 +163,33 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
 
   const hasScores = dimensionScores && dimensionScores.gripen && dimensionScores.f35;
 
+  const fetchAiSuggestion = async () => {
+    setLoadingSuggestion(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('suggest-dimension-weights');
+      
+      if (error) throw error;
+      
+      if (data) {
+        setAiSuggestion(data);
+        toast.success('AI weight suggestions generated');
+      }
+    } catch (error) {
+      console.error('Error fetching AI suggestion:', error);
+      toast.error('Failed to generate AI suggestions');
+    } finally {
+      setLoadingSuggestion(false);
+    }
+  };
+
+  const applyAiSuggestion = () => {
+    if (aiSuggestion?.weights) {
+      setWeights(aiSuggestion.weights);
+      saveWeights(aiSuggestion.weights);
+      toast.success('AI suggested weights applied');
+    }
+  };
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -250,28 +282,78 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
           </Button>
           
           {showScores && (
-            <div className="mt-3 p-4 bg-muted/20 border border-border rounded-lg">
-              <div className="text-xs font-semibold text-muted-foreground mb-3">
-                Raw AI Analysis Scores (0-10 scale)
+            <div className="mt-3 space-y-3">
+              <div className="p-4 bg-muted/20 border border-border rounded-lg">
+                <div className="text-xs font-semibold text-muted-foreground mb-3">
+                  Raw AI Analysis Scores (0-10 scale)
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="font-medium text-muted-foreground">Dimension</div>
+                  <div className="font-medium text-success text-center">Gripen</div>
+                  <div className="font-medium text-destructive text-center">F-35</div>
+                  
+                  {dimensionOrder.map((key) => (
+                    <>
+                      <div key={`${key}-label`} className="capitalize text-foreground">
+                        {key}
+                      </div>
+                      <div key={`${key}-gripen`} className="text-center font-semibold text-success">
+                        {dimensionScores.gripen[key]?.toFixed(1) || 'N/A'}
+                      </div>
+                      <div key={`${key}-f35`} className="text-center font-semibold text-destructive">
+                        {dimensionScores.f35[key]?.toFixed(1) || 'N/A'}
+                      </div>
+                    </>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="font-medium text-muted-foreground">Dimension</div>
-                <div className="font-medium text-success text-center">Gripen</div>
-                <div className="font-medium text-destructive text-center">F-35</div>
+
+              <div className="p-4 bg-accent/10 border border-accent/30 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-foreground">
+                    AI Weight Suggestions
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={fetchAiSuggestion}
+                    disabled={loadingSuggestion}
+                    className="h-7 text-xs"
+                  >
+                    {loadingSuggestion ? 'Analyzing...' : 'Generate'}
+                  </Button>
+                </div>
                 
-                {dimensionOrder.map((key) => (
-                  <>
-                    <div key={`${key}-label`} className="capitalize text-foreground">
-                      {key}
+                {aiSuggestion && (
+                  <div className="space-y-3 mt-3">
+                    <p className="text-xs text-muted-foreground italic">
+                      {aiSuggestion.rationale}
+                    </p>
+                    
+                    <div className="grid grid-cols-5 gap-2 text-xs">
+                      {dimensionOrder.map((key) => (
+                        <div key={key} className="text-center">
+                          <div className="capitalize text-muted-foreground mb-1">{key}</div>
+                          <div className="font-bold text-accent">{aiSuggestion.weights[key]}%</div>
+                        </div>
+                      ))}
                     </div>
-                    <div key={`${key}-gripen`} className="text-center font-semibold text-success">
-                      {dimensionScores.gripen[key]?.toFixed(1) || 'N/A'}
-                    </div>
-                    <div key={`${key}-f35`} className="text-center font-semibold text-destructive">
-                      {dimensionScores.f35[key]?.toFixed(1) || 'N/A'}
-                    </div>
-                  </>
-                ))}
+                    
+                    <Button
+                      size="sm"
+                      onClick={applyAiSuggestion}
+                      className="w-full h-7 text-xs"
+                    >
+                      Apply These Weights
+                    </Button>
+                  </div>
+                )}
+                
+                {!aiSuggestion && !loadingSuggestion && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Click Generate to get AI-powered weight recommendations based on the research analysis.
+                  </p>
+                )}
               </div>
             </div>
           )}

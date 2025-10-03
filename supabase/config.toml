@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.reset-research-data]
 verify_jwt = true
+
+[functions.suggest-dimension-weights]
+verify_jwt = false
+
+[functions.generate-strategic-suggestions]
+verify_jwt = false
