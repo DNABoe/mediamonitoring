@@ -14,6 +14,7 @@ import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ExportPDF } from "@/components/dashboard/ExportPDF";
 
 const Index = () => {
   const { user, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -130,6 +131,7 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ExportPDF />
             {isAdmin && (
               <Button
                 variant="outline"
