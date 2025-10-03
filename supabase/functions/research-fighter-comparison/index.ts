@@ -298,6 +298,32 @@ CRITICAL:
       throw new Error('Failed to parse AI analysis response');
     }
 
+    // Log the parsed analysis structure for debugging
+    console.log('Parsed analysis keys:', Object.keys(analysis));
+    console.log('Media presence exists:', !!analysis.media_presence);
+    console.log('Media tonality exists:', !!analysis.media_tonality);
+    
+    // Validate and set defaults for missing fields
+    if (!analysis.media_presence) {
+      console.warn('Missing media_presence in AI response, using defaults');
+      analysis.media_presence = {
+        monthly_breakdown: [],
+        key_narratives: [],
+        coverage_balance: 'No data available'
+      };
+    }
+    
+    if (!analysis.media_tonality) {
+      console.warn('Missing media_tonality in AI response, using defaults');
+      analysis.media_tonality = {
+        gripen_sentiment: 0,
+        f35_sentiment: 0,
+        gripen_themes: [],
+        f35_themes: [],
+        sentiment_summary: 'No data available'
+      };
+    }
+
     console.log('Storing research report...');
 
     // Fetch weights from settings
