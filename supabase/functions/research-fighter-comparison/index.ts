@@ -303,9 +303,9 @@ CRITICAL:
     console.log('Parsed analysis keys:', Object.keys(analysis));
     console.log('Media presence exists:', !!analysis.media_presence);
     console.log('Media tonality exists:', !!analysis.media_tonality);
-    console.log('Executive summary field:', analysis.executive_summary?.substring(0, 100));
-    console.log('Analysis metadata:', JSON.stringify(analysis.analysis_metadata).substring(0, 200));
-    console.log('Monthly breakdown:', JSON.stringify(analysis.media_presence?.monthly_breakdown));
+    console.log('Executive summary field:', typeof analysis.executive_summary === 'string' ? analysis.executive_summary.substring(0, 100) : typeof analysis.executive_summary);
+    console.log('Analysis metadata:', analysis.analysis_metadata ? JSON.stringify(analysis.analysis_metadata).substring(0, 200) : 'undefined');
+    console.log('Monthly breakdown:', analysis.media_presence?.monthly_breakdown ? JSON.stringify(analysis.media_presence.monthly_breakdown) : 'undefined');
     
     // Validate and set defaults for missing fields
     if (!analysis.media_presence) {
