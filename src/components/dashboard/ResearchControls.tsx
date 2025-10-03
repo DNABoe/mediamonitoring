@@ -175,16 +175,29 @@ export const ResearchControls = () => {
             <Calendar
               mode="single"
               selected={selectedDate}
-              onSelect={setSelectedDate}
+              onSelect={(date) => {
+                console.log('Date selected:', date);
+                setSelectedDate(date);
+              }}
               disabled={(date) => date > new Date()}
               initialFocus
             />
             <Button 
-              onClick={handleDateConfirm}
-              disabled={!selectedDate}
-              className="w-full"
+              onClick={() => {
+                console.log('Button clicked, selectedDate:', selectedDate);
+                handleDateConfirm();
+              }}
+              disabled={!selectedDate || isGenerating}
+              className="w-full pointer-events-auto z-50"
             >
-              Set Date & Generate Research
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Set Date & Generate Research"
+              )}
             </Button>
           </div>
         </DialogContent>
