@@ -148,14 +148,144 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 1.4,
   },
+  chartContainer: {
+    marginTop: 15,
+    marginBottom: 15,
+    padding: 15,
+    backgroundColor: '#f8fafc',
+    borderRadius: 6,
+  },
+  chartTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#475569',
+  },
+  chart: {
+    height: 150,
+    marginTop: 10,
+  },
+  suggestionItem: {
+    marginBottom: 10,
+    paddingLeft: 15,
+  },
+  suggestionText: {
+    fontSize: 9,
+    lineHeight: 1.4,
+    marginBottom: 3,
+  },
+  suggestionMessenger: {
+    fontSize: 8,
+    color: '#64748b',
+    fontStyle: 'italic',
+    marginLeft: 10,
+  },
 });
 
 interface PDFDocumentProps {
   data: any;
 }
 
+// Simple SVG line chart for PDF
+const renderLineChart = (data: any[], dataKey1: string, dataKey2: string, height: number = 150) => {
+  if (!data || data.length === 0) return null;
+  
+  const width = 500;
+  const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  
+  // Find min/max values
+  const values1 = data.map(d => parseFloat(d[dataKey1]) || 0);
+  const values2 = data.map(d => parseFloat(d[dataKey2]) || 0);
+  const allValues = [...values1, ...values2];
+  const minValue = Math.min(...allValues, -1);
+  const maxValue = Math.max(...allValues, 1);
+  const valueRange = maxValue - minValue;
+  
+  // Generate points for lines
+  const getY = (value: number) => {
+    return padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
+  };
+  
+  const getX = (index: number) => {
+    return padding.left + (index / (data.length - 1)) * chartWidth;
+  };
+  
+  const line1Points = data.map((d, i) => `${getX(i)},${getY(parseFloat(d[dataKey1]) || 0)}`).join(' ');
+  const line2Points = data.map((d, i) => `${getX(i)},${getY(parseFloat(d[dataKey2]) || 0)}`).join(' ');
+  
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {/* Background grid */}
+      <rect x={padding.left} y={padding.top} width={chartWidth} height={chartHeight} fill="#f8fafc" />
+      
+      {/* Horizontal grid lines */}
+      {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+        const y = padding.top + chartHeight * ratio;
+        return (
+          <line
+            key={ratio}
+            x1={padding.left}
+            y1={y}
+            x2={padding.left + chartWidth}
+            y2={y}
+            stroke="#e2e8f0"
+            strokeWidth="1"
+          />
+        );
+      })}
+      
+      {/* Y-axis labels */}
+      {[maxValue, maxValue * 0.5, 0, minValue * 0.5, minValue].map((value, i) => {
+        const y = padding.top + (chartHeight / 4) * i;
+        return (
+          <text key={i} x={padding.left - 10} y={y + 4} fontSize="8" fill="#64748b" textAnchor="end">
+            {value.toFixed(1)}
+          </text>
+        );
+      })}
+      
+      {/* Line 1 (Gripen) */}
+      <polyline
+        points={line1Points}
+        fill="none"
+        stroke="#10b981"
+        strokeWidth="2"
+      />
+      
+      {/* Line 2 (F-35) */}
+      <polyline
+        points={line2Points}
+        fill="none"
+        stroke="#3b82f6"
+        strokeWidth="2"
+      />
+      
+      {/* X-axis labels (first, middle, last) */}
+      {[0, Math.floor(data.length / 2), data.length - 1].map((index) => {
+        if (index >= data.length) return null;
+        const x = getX(index);
+        return (
+          <text key={index} x={x} y={height - 5} fontSize="8" fill="#64748b" textAnchor="middle">
+            {format(new Date(data[index].date), 'MMM yy')}
+          </text>
+        );
+      })}
+      
+      {/* Legend */}
+      <g transform={`translate(${padding.left}, ${padding.top - 15})`}>
+        <rect x="0" y="0" width="15" height="3" fill="#10b981" />
+        <text x="20" y="4" fontSize="8" fill="#1e293b">Gripen</text>
+        <rect x="80" y="0" width="15" height="3" fill="#3b82f6" />
+        <text x="100" y="4" fontSize="8" fill="#1e293b">F-35</text>
+      </g>
+    </svg>
+  );
+};
+
 const PDFDocument = ({ data }: PDFDocumentProps) => {
-  const { report, metrics, previousReport } = data;
+  const { report, metrics, previousReport, settings, suggestions } = data;
   
   // Process metrics for chart representation
   const processMetrics = () => {
@@ -277,6 +407,21 @@ const PDFDocument = ({ data }: PDFDocumentProps) => {
           </View>
         )}
 
+        {settings && settings.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Analysis Weights & Configuration</Text>
+            <Text style={[styles.text, { marginBottom: 10 }]}>
+              These are the weights configured for the analysis dimensions:
+            </Text>
+            {settings.map((setting: any) => (
+              <View key={setting.id} style={styles.metricRow}>
+                <Text style={styles.metricLabel}>{setting.key}:</Text>
+                <Text style={styles.metricValue}>{JSON.stringify(setting.value)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <Text style={styles.footer}>
           Portuguese Fighter Program Monitor • Page 1
         </Text>
@@ -330,33 +475,27 @@ const PDFDocument = ({ data }: PDFDocumentProps) => {
         </View>
 
         {chartData && chartData.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sentiment Timeline Data</Text>
-            <Text style={[styles.text, { marginBottom: 10 }]}>
-              This table shows monthly sentiment scores (range: -1 to +1, where -1 is most negative, 0 is neutral, and +1 is most positive) and media mentions for both aircraft over the tracking period.
-            </Text>
-            <View style={styles.table}>
-              <View style={[styles.tableRow, styles.tableHeader]}>
-                <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Month</Text>
-                <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Gripen Sentiment</Text>
-                <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>F-35 Sentiment</Text>
-                <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Gripen Mentions</Text>
-                <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>F-35 Mentions</Text>
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Media Sentiment Trends</Text>
+              <Text style={[styles.text, { marginBottom: 10 }]}>
+                Monthly sentiment scores (range: -1 to +1, where -1 is most negative, 0 is neutral, and +1 is most positive) tracking how media coverage has evolved over time.
+              </Text>
+              <View style={styles.chartContainer}>
+                {renderLineChart(chartData, 'gripenSentiment', 'f35Sentiment', 140)}
               </View>
-              {chartData.slice(0, 8).map((row: any, index: number) => (
-                <View key={index} style={styles.tableRow}>
-                  <Text style={styles.tableCell}>{format(new Date(row.date), 'MMM yyyy')}</Text>
-                  <Text style={styles.tableCell}>{row.gripenSentiment}</Text>
-                  <Text style={styles.tableCell}>{row.f35Sentiment}</Text>
-                  <Text style={styles.tableCell}>{row.gripenMentions}</Text>
-                  <Text style={styles.tableCell}>{row.f35Mentions}</Text>
-                </View>
-              ))}
             </View>
-            <Text style={[styles.text, { fontSize: 8, fontStyle: 'italic', marginTop: 5 }]}>
-              * Positive sentiment trends indicate favorable media coverage, while higher mention counts show increased media presence
-            </Text>
-          </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Media Mentions Over Time</Text>
+              <Text style={[styles.text, { marginBottom: 10 }]}>
+                Total number of media mentions per month, showing the volume of coverage each aircraft received in Portuguese media.
+              </Text>
+              <View style={styles.chartContainer}>
+                {renderLineChart(chartData, 'gripenMentions', 'f35Mentions', 140)}
+              </View>
+            </View>
+          </>
         )}
 
         <Text style={styles.footer}>
@@ -439,6 +578,73 @@ const PDFDocument = ({ data }: PDFDocumentProps) => {
           Portuguese Fighter Program Monitor • Page 5
         </Text>
       </Page>
+
+      {suggestions && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Strategic Messaging Suggestions</Text>
+            <Text style={[styles.text, { marginBottom: 15 }]}>
+              AI-generated strategic messaging recommendations based on current analysis.
+            </Text>
+
+            <Text style={styles.subsectionTitle}>Gripen Campaign Strategy</Text>
+            
+            <Text style={[styles.text, { fontWeight: 'bold', marginTop: 10, marginBottom: 5 }]}>Media Strategy:</Text>
+            {suggestions.gripen?.media?.map((item: any, i: number) => (
+              <View key={i} style={styles.suggestionItem}>
+                <Text style={styles.suggestionText}>• {item.message}</Text>
+                <Text style={styles.suggestionMessenger}>Messenger: {item.messenger}</Text>
+              </View>
+            ))}
+
+            <Text style={[styles.text, { fontWeight: 'bold', marginTop: 10, marginBottom: 5 }]}>Political Engagement:</Text>
+            {suggestions.gripen?.politicians?.map((item: any, i: number) => (
+              <View key={i} style={styles.suggestionItem}>
+                <Text style={styles.suggestionText}>• {item.message}</Text>
+                <Text style={styles.suggestionMessenger}>Messenger: {item.messenger}</Text>
+              </View>
+            ))}
+
+            <Text style={[styles.text, { fontWeight: 'bold', marginTop: 10, marginBottom: 5 }]}>Air Force Messaging:</Text>
+            {suggestions.gripen?.airforce?.map((item: any, i: number) => (
+              <View key={i} style={styles.suggestionItem}>
+                <Text style={styles.suggestionText}>• {item.message}</Text>
+                <Text style={styles.suggestionMessenger}>Messenger: {item.messenger}</Text>
+              </View>
+            ))}
+
+            <Text style={[styles.subsectionTitle, { marginTop: 20 }]}>F-35 Campaign Strategy</Text>
+            
+            <Text style={[styles.text, { fontWeight: 'bold', marginTop: 10, marginBottom: 5 }]}>Media Strategy:</Text>
+            {suggestions.f35?.media?.map((item: any, i: number) => (
+              <View key={i} style={styles.suggestionItem}>
+                <Text style={styles.suggestionText}>• {item.message}</Text>
+                <Text style={styles.suggestionMessenger}>Messenger: {item.messenger}</Text>
+              </View>
+            ))}
+
+            <Text style={[styles.text, { fontWeight: 'bold', marginTop: 10, marginBottom: 5 }]}>Political Engagement:</Text>
+            {suggestions.f35?.politicians?.map((item: any, i: number) => (
+              <View key={i} style={styles.suggestionItem}>
+                <Text style={styles.suggestionText}>• {item.message}</Text>
+                <Text style={styles.suggestionMessenger}>Messenger: {item.messenger}</Text>
+              </View>
+            ))}
+
+            <Text style={[styles.text, { fontWeight: 'bold', marginTop: 10, marginBottom: 5 }]}>Air Force Messaging:</Text>
+            {suggestions.f35?.airforce?.map((item: any, i: number) => (
+              <View key={i} style={styles.suggestionItem}>
+                <Text style={styles.suggestionText}>• {item.message}</Text>
+                <Text style={styles.suggestionMessenger}>Messenger: {item.messenger}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.footer}>
+            Portuguese Fighter Program Monitor • Page 6
+          </Text>
+        </Page>
+      )}
     </Document>
   );
 };
@@ -484,7 +690,29 @@ export const ExportPDF = () => {
       .order('report_date', { ascending: false })
       .limit(2);
 
-    return { report, metrics: metrics || [], previousReport: reports?.[1] || null };
+    // Fetch settings/weights
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('*');
+
+    // Fetch or generate strategic suggestions
+    let suggestions = null;
+    try {
+      const { data: suggestionsData } = await supabase.functions.invoke('generate-strategic-suggestions');
+      if (suggestionsData?.suggestions) {
+        suggestions = suggestionsData.suggestions;
+      }
+    } catch (error) {
+      console.error('Could not fetch strategic suggestions:', error);
+    }
+
+    return { 
+      report, 
+      metrics: metrics || [], 
+      previousReport: reports?.[1] || null,
+      settings: settings || [],
+      suggestions
+    };
   };
 
   const handleExportPDF = async () => {
@@ -523,7 +751,7 @@ export const ExportPDF = () => {
       toast.loading("Generating Word document...");
       
       const data = await fetchReportData();
-      const { report, metrics, previousReport } = data;
+      const { report, metrics, previousReport, settings, suggestions } = data;
 
       // Process changes
       const changes: any[] = [];
@@ -653,6 +881,23 @@ export const ExportPDF = () => {
                 text: "",
                 spacing: { after: 200 },
               }),
+            ] : []),
+            ...(settings && settings.length > 0 ? [
+              new Paragraph({
+                text: "Analysis Weights & Configuration",
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 200, after: 200 },
+              }),
+              new Paragraph({
+                text: "These are the weights configured for the analysis dimensions:",
+                spacing: { after: 200 },
+              }),
+              ...settings.map((setting: any) =>
+                new Paragraph({
+                  text: `${setting.key}: ${JSON.stringify(setting.value)}`,
+                  spacing: { after: 100 },
+                })
+              ),
             ] : []),
             new Paragraph({
               text: "Media Sentiment Analysis",
@@ -831,6 +1076,87 @@ export const ExportPDF = () => {
                 ),
               ] : []),
             ] : []),
+            ...(suggestions ? [
+              new Paragraph({
+                text: "Strategic Messaging Suggestions",
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 400, after: 200 },
+              }),
+              new Paragraph({
+                text: "AI-generated strategic messaging recommendations based on current analysis.",
+                spacing: { after: 300 },
+              }),
+              new Paragraph({
+                text: "Gripen Campaign Strategy",
+                heading: HeadingLevel.HEADING_3,
+                spacing: { before: 200, after: 100 },
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: "Media Strategy:", bold: true })],
+                spacing: { after: 100 },
+              }),
+              ...(suggestions.gripen?.media || []).map((item: any) => 
+                new Paragraph({
+                  text: `• ${item.message} (Messenger: ${item.messenger})`,
+                  spacing: { after: 100 },
+                })
+              ),
+              new Paragraph({
+                children: [new TextRun({ text: "Political Engagement:", bold: true })],
+                spacing: { before: 200, after: 100 },
+              }),
+              ...(suggestions.gripen?.politicians || []).map((item: any) => 
+                new Paragraph({
+                  text: `• ${item.message} (Messenger: ${item.messenger})`,
+                  spacing: { after: 100 },
+                })
+              ),
+              new Paragraph({
+                children: [new TextRun({ text: "Air Force Messaging:", bold: true })],
+                spacing: { before: 200, after: 100 },
+              }),
+              ...(suggestions.gripen?.airforce || []).map((item: any) => 
+                new Paragraph({
+                  text: `• ${item.message} (Messenger: ${item.messenger})`,
+                  spacing: { after: 100 },
+                })
+              ),
+              new Paragraph({
+                text: "F-35 Campaign Strategy",
+                heading: HeadingLevel.HEADING_3,
+                spacing: { before: 300, after: 100 },
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: "Media Strategy:", bold: true })],
+                spacing: { after: 100 },
+              }),
+              ...(suggestions.f35?.media || []).map((item: any) => 
+                new Paragraph({
+                  text: `• ${item.message} (Messenger: ${item.messenger})`,
+                  spacing: { after: 100 },
+                })
+              ),
+              new Paragraph({
+                children: [new TextRun({ text: "Political Engagement:", bold: true })],
+                spacing: { before: 200, after: 100 },
+              }),
+              ...(suggestions.f35?.politicians || []).map((item: any) => 
+                new Paragraph({
+                  text: `• ${item.message} (Messenger: ${item.messenger})`,
+                  spacing: { after: 100 },
+                })
+              ),
+              new Paragraph({
+                children: [new TextRun({ text: "Air Force Messaging:", bold: true })],
+                spacing: { before: 200, after: 100 },
+              }),
+              ...(suggestions.f35?.airforce || []).map((item: any) => 
+                new Paragraph({
+                  text: `• ${item.message} (Messenger: ${item.messenger})`,
+                  spacing: { after: 100 },
+                })
+              ),
+            ] : []),
           ],
         }],
       });
@@ -859,7 +1185,7 @@ export const ExportPDF = () => {
     try {
       setLoading(true);
       const data = await fetchReportData();
-      const { report, metrics, previousReport } = data;
+      const { report, metrics, previousReport, settings, suggestions } = data;
 
       // Process changes
       let changesHTML = '';
