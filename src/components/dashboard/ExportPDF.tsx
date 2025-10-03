@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Download, FileText, Printer } from "lucide-react";
-import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, pdf, Svg, Line, Rect, Circle } from "@react-pdf/renderer";
 import { Document as DocxDocument, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, Table, TableRow, TableCell, WidthType } from "docx";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: '#f8fafc',
     borderRadius: 6,
+    height: 180,
   },
   chartTitle: {
     fontSize: 11,
@@ -185,6 +186,164 @@ const styles = StyleSheet.create({
 interface PDFDocumentProps {
   data: any;
 }
+
+// Simple line chart component using react-pdf SVG primitives
+const LineChart = ({ data, dataKey1, dataKey2, label1, label2, color1, color2, yMin, yMax }: any) => {
+  const width = 480;
+  const height = 150;
+  const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  if (!data || data.length === 0) return null;
+
+  // Get values and calculate range
+  const values1 = data.map((d: any) => parseFloat(d[dataKey1]) || 0);
+  const values2 = data.map((d: any) => parseFloat(d[dataKey2]) || 0);
+  const minValue = yMin ?? Math.min(...values1, ...values2);
+  const maxValue = yMax ?? Math.max(...values1, ...values2);
+  const valueRange = maxValue - minValue || 1;
+
+  // Helper functions
+  const getY = (value: number) => {
+    return padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
+  };
+
+  const getX = (index: number) => {
+    return padding.left + (index / Math.max(data.length - 1, 1)) * chartWidth;
+  };
+
+  return (
+    <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {/* Background */}
+      <Rect
+        x={padding.left}
+        y={padding.top}
+        width={chartWidth}
+        height={chartHeight}
+        fill="#f8fafc"
+      />
+
+      {/* Grid lines */}
+      {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+        const y = padding.top + chartHeight * ratio;
+        return (
+          <Line
+            key={ratio}
+            x1={padding.left}
+            y1={y}
+            x2={padding.left + chartWidth}
+            y2={y}
+            stroke="#e2e8f0"
+            strokeWidth={1}
+          />
+        );
+      })}
+
+      {/* Y-axis labels */}
+      {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+        const value = maxValue - (valueRange * ratio);
+        const y = padding.top + chartHeight * ratio;
+        return (
+          <Text
+            key={i}
+            x={padding.left - 10}
+            y={y}
+            style={{ fontSize: 8, fill: '#64748b', textAnchor: 'end' }}
+          >
+            {value.toFixed(1)}
+          </Text>
+        );
+      })}
+
+      {/* Line 1 */}
+      {values1.map((value, index) => {
+        if (index === 0) return null;
+        const x1 = getX(index - 1);
+        const y1 = getY(values1[index - 1]);
+        const x2 = getX(index);
+        const y2 = getY(value);
+        return (
+          <Line
+            key={`line1-${index}`}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke={color1}
+            strokeWidth={2}
+          />
+        );
+      })}
+
+      {/* Line 2 */}
+      {values2.map((value, index) => {
+        if (index === 0) return null;
+        const x1 = getX(index - 1);
+        const y1 = getY(values2[index - 1]);
+        const x2 = getX(index);
+        const y2 = getY(value);
+        return (
+          <Line
+            key={`line2-${index}`}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke={color2}
+            strokeWidth={2}
+          />
+        );
+      })}
+
+      {/* Data points */}
+      {values1.map((value, index) => (
+        <Circle
+          key={`point1-${index}`}
+          cx={getX(index)}
+          cy={getY(value)}
+          r={3}
+          fill={color1}
+        />
+      ))}
+      {values2.map((value, index) => (
+        <Circle
+          key={`point2-${index}`}
+          cx={getX(index)}
+          cy={getY(value)}
+          r={3}
+          fill={color2}
+        />
+      ))}
+
+      {/* X-axis labels (show first, middle, last) */}
+      {[0, Math.floor(data.length / 2), data.length - 1].map((index) => {
+        if (index >= data.length) return null;
+        const x = getX(index);
+        return (
+          <Text
+            key={`xlabel-${index}`}
+            x={x}
+            y={height - 5}
+            style={{ fontSize: 8, fill: '#64748b', textAnchor: 'middle' }}
+          >
+            {format(new Date(data[index].date), 'MMM yy')}
+          </Text>
+        );
+      })}
+
+      {/* Legend */}
+      <Rect x={padding.left} y={5} width={15} height={3} fill={color1} />
+      <Text x={padding.left + 20} y={8} style={{ fontSize: 8, fill: '#1e293b' }}>
+        {label1}
+      </Text>
+      <Rect x={padding.left + 80} y={5} width={15} height={3} fill={color2} />
+      <Text x={padding.left + 100} y={8} style={{ fontSize: 8, fill: '#1e293b' }}>
+        {label2}
+      </Text>
+    </Svg>
+  );
+};
 
 const PDFDocument = ({ data }: PDFDocumentProps) => {
   const { report, metrics, previousReport, settings, suggestions } = data;
@@ -381,50 +540,38 @@ const PDFDocument = ({ data }: PDFDocumentProps) => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Media Sentiment Trends</Text>
               <Text style={[styles.text, { marginBottom: 10 }]}>
-                Monthly sentiment scores (range: -1 to +1, where -1 is most negative, 0 is neutral, and +1 is most positive) showing how media coverage has evolved over time.
+                Monthly sentiment scores tracking how media coverage has evolved over time (range: -1 to +1).
               </Text>
-              <View style={styles.table}>
-                <View style={[styles.tableRow, styles.tableHeader]}>
-                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Month</Text>
-                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Gripen</Text>
-                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>F-35</Text>
-                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Trend</Text>
-                </View>
-                {chartData.map((row: any, index: number) => (
-                  <View key={index} style={styles.tableRow}>
-                    <Text style={styles.tableCell}>{format(new Date(row.date), 'MMM yyyy')}</Text>
-                    <Text style={styles.tableCell}>{row.gripenSentiment}</Text>
-                    <Text style={styles.tableCell}>{row.f35Sentiment}</Text>
-                    <Text style={styles.tableCell}>
-                      {parseFloat(row.gripenSentiment) > parseFloat(row.f35Sentiment) ? 'Gripen ↑' : 'F-35 ↑'}
-                    </Text>
-                  </View>
-                ))}
+              <View style={styles.chartContainer}>
+                <LineChart
+                  data={chartData}
+                  dataKey1="gripenSentiment"
+                  dataKey2="f35Sentiment"
+                  label1="Gripen"
+                  label2="F-35"
+                  color1="#10b981"
+                  color2="#3b82f6"
+                  yMin={-1}
+                  yMax={1}
+                />
               </View>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Media Mentions Over Time</Text>
               <Text style={[styles.text, { marginBottom: 10 }]}>
-                Total number of media mentions per month, showing the volume of coverage each aircraft received in Portuguese media.
+                Total number of media mentions per month in Portuguese media sources.
               </Text>
-              <View style={styles.table}>
-                <View style={[styles.tableRow, styles.tableHeader]}>
-                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Month</Text>
-                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Gripen</Text>
-                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>F-35</Text>
-                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Leader</Text>
-                </View>
-                {chartData.map((row: any, index: number) => (
-                  <View key={index} style={styles.tableRow}>
-                    <Text style={styles.tableCell}>{format(new Date(row.date), 'MMM yyyy')}</Text>
-                    <Text style={styles.tableCell}>{row.gripenMentions}</Text>
-                    <Text style={styles.tableCell}>{row.f35Mentions}</Text>
-                    <Text style={styles.tableCell}>
-                      {row.gripenMentions > row.f35Mentions ? 'Gripen' : 'F-35'}
-                    </Text>
-                  </View>
-                ))}
+              <View style={styles.chartContainer}>
+                <LineChart
+                  data={chartData}
+                  dataKey1="gripenMentions"
+                  dataKey2="f35Mentions"
+                  label1="Gripen"
+                  label2="F-35"
+                  color1="#10b981"
+                  color2="#3b82f6"
+                />
               </View>
             </View>
           </>
