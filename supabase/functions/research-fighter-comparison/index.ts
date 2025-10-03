@@ -384,51 +384,43 @@ CRITICAL:
 
     console.log('Storing comparison metrics...');
 
-    // Only update metrics for the current month to preserve historical data
-    const currentMonth = today.substring(0, 7); // YYYY-MM format
-    const currentMonthDate = `${currentMonth}-01`;
-    
-    // Delete only current month's metrics to update them
-    await supabase
-      .from('comparison_metrics')
-      .delete()
-      .eq('metric_date', currentMonthDate);
-
-    // Store metrics only for the current month from the breakdown
+    // Use upsert to preserve historical data while allowing updates
     const metricsData: any[] = [];
     
     if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
-      // Find current month's data in the breakdown
-      const currentMonthData = analysis.media_presence.monthly_breakdown.find((m: any) => m.month === currentMonth);
-      
-      if (currentMonthData) {
+      analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
+        const monthDate = `${monthData.month}-01`; // First day of the month
+        
         metricsData.push({
-          metric_date: currentMonthDate,
+          metric_date: monthDate,
           fighter: 'Gripen',
-          mentions_count: currentMonthData.gripen_mentions || 0,
-          sentiment_score: currentMonthData.gripen_sentiment || 0,
-          media_reach_score: currentMonthData.gripen_mentions || 0,
+          mentions_count: monthData.gripen_mentions || 0,
+          sentiment_score: monthData.gripen_sentiment || 0,
+          media_reach_score: monthData.gripen_mentions || 0,
           political_support_score: gripenTotal,
           dimension_scores: gripenScores
         });
         
         metricsData.push({
-          metric_date: currentMonthDate,
+          metric_date: monthDate,
           fighter: 'F-35',
-          mentions_count: currentMonthData.f35_mentions || 0,
-          sentiment_score: currentMonthData.f35_sentiment || 0,
-          media_reach_score: currentMonthData.f35_mentions || 0,
+          mentions_count: monthData.f35_mentions || 0,
+          sentiment_score: monthData.f35_sentiment || 0,
+          media_reach_score: monthData.f35_mentions || 0,
           political_support_score: f35Total,
           dimension_scores: f35Scores
         });
-      }
+      });
     }
 
-    // Insert current month's metrics
+    // Upsert all metrics (insert new, update existing based on metric_date + fighter)
     if (metricsData.length > 0) {
       const { error: metricsError } = await supabase
         .from('comparison_metrics')
-        .insert(metricsData);
+        .upsert(metricsData, { 
+          onConflict: 'metric_date,fighter',
+          ignoreDuplicates: false 
+        });
 
       if (metricsError) {
         console.error('Error storing metrics:', metricsError);
