@@ -354,7 +354,7 @@ CRITICAL:
     let totalGripenMentions = 0;
     let totalF35Mentions = 0;
     
-    if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
+    if (analysis.media_presence?.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
       analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
         totalGripenMentions += monthData.gripen_mentions || 0;
         totalF35Mentions += monthData.f35_mentions || 0;
@@ -366,14 +366,14 @@ CRITICAL:
       .from('research_reports')
       .insert({
         report_date: today,
-        executive_summary: analysis.executive_summary,
+        executive_summary: analysis.executive_summary || 'No summary available',
         media_presence: {
-          ...analysis.media_presence,
+          ...(analysis.media_presence || {}),
           total_gripen_mentions: totalGripenMentions,
           total_f35_mentions: totalF35Mentions
         },
         media_tonality: {
-          ...analysis.media_tonality,
+          ...(analysis.media_tonality || {}),
           gripen_score: gripenTotal,
           f35_score: f35Total,
           dimension_scores: {
@@ -410,7 +410,7 @@ CRITICAL:
     // Use upsert to preserve historical data while allowing updates
     const metricsData: any[] = [];
     
-    if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
+    if (analysis.media_presence?.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
       analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
         const monthDate = `${monthData.month}-01`; // First day of the month
         
