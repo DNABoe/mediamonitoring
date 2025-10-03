@@ -98,13 +98,13 @@ export const ResearchExecutiveSummary = () => {
           <div className="grid grid-cols-2 gap-4 pt-4 border-t">
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">
-                {report.media_presence.gripen_mentions || 0}
+                {report.media_presence.total_gripen_mentions || 0}
               </div>
               <div className="text-sm text-muted-foreground">Gripen Mentions</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">
-                {report.media_presence.f35_mentions || 0}
+                {report.media_presence.total_f35_mentions || 0}
               </div>
               <div className="text-sm text-muted-foreground">F-35 Mentions</div>
             </div>
