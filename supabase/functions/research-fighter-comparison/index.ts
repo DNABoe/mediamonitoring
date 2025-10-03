@@ -154,25 +154,17 @@ CRITICAL SOURCING REQUIREMENTS:
 
 IMPORTANT: For media mentions, count ONLY Portuguese media articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
 
-CRITICAL: Return your analysis as a structured JSON object. The executive_summary MUST be at the ROOT level of the JSON, not nested inside any other object. The monthly_breakdown array MUST contain at least one entry for each month in the tracking period. Use this EXACT format:
-
+Return your analysis as a structured JSON object with this exact format:
 {
-  "executive_summary": "Write a 3-4 paragraph overview here as a string",
+  "executive_summary": "3-4 paragraph overview",
   "media_presence": {
     "monthly_breakdown": [
       {
-        "month": "2024-10",
-        "gripen_mentions": 15,
-        "f35_mentions": 12,
-        "gripen_sentiment": 0.2,
-        "f35_sentiment": 0.1
-      },
-      {
-        "month": "2024-11",
-        "gripen_mentions": 18,
-        "f35_mentions": 14,
-        "gripen_sentiment": 0.3,
-        "f35_sentiment": 0.2
+        "month": "2025-01",
+        "gripen_mentions": number,
+        "f35_mentions": number,
+        "gripen_sentiment": number (-1 to 1),
+        "f35_sentiment": number (-1 to 1)
       }
     ],
     "key_narratives": ["narrative1", "narrative2"],
@@ -239,7 +231,7 @@ CRITICAL:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert defense intelligence analyst specializing in fighter aircraft procurement. Provide detailed, factual analysis based on recent information. CRITICAL: Always return valid JSON in the EXACT format requested with executive_summary at the ROOT level of the JSON object. Do not nest executive_summary inside other objects. Be concise but comprehensive - aim for 2-3 paragraphs per analysis section.'
+            content: 'You are an expert defense intelligence analyst specializing in fighter aircraft procurement. Provide detailed, factual analysis based on recent information. Always return valid JSON in the exact format requested. Be concise but comprehensive - aim for 2-3 paragraphs per analysis section.'
           },
           {
             role: 'user',
@@ -257,26 +249,7 @@ CRITICAL:
       throw new Error(`AI API error: ${aiResponse.status}`);
     }
 
-    let aiData;
-    try {
-      const responseText = await aiResponse.text();
-      console.log('Raw AI response length:', responseText.length);
-      
-      if (!responseText || responseText.trim().length === 0) {
-        throw new Error('Empty response from AI API');
-      }
-      
-      aiData = JSON.parse(responseText);
-    } catch (jsonError) {
-      console.error('Failed to parse AI API response:', jsonError);
-      throw new Error('Invalid JSON response from AI API');
-    }
-    
-    if (!aiData.choices?.[0]?.message?.content) {
-      console.error('Unexpected AI response structure:', JSON.stringify(aiData));
-      throw new Error('AI response missing expected content');
-    }
-    
+    const aiData = await aiResponse.json();
     const content = aiData.choices[0].message.content;
     
     console.log('AI response received, parsing...');
@@ -306,35 +279,6 @@ CRITICAL:
       throw new Error('Failed to parse AI analysis response');
     }
 
-    // Log the parsed analysis structure for debugging
-    console.log('Parsed analysis keys:', Object.keys(analysis));
-    console.log('Media presence exists:', !!analysis.media_presence);
-    console.log('Media tonality exists:', !!analysis.media_tonality);
-    console.log('Executive summary field:', typeof analysis.executive_summary === 'string' ? analysis.executive_summary.substring(0, 100) : typeof analysis.executive_summary);
-    console.log('Analysis metadata:', analysis.analysis_metadata ? JSON.stringify(analysis.analysis_metadata).substring(0, 200) : 'undefined');
-    console.log('Monthly breakdown:', analysis.media_presence?.monthly_breakdown ? JSON.stringify(analysis.media_presence.monthly_breakdown) : 'undefined');
-    
-    // Validate and set defaults for missing fields
-    if (!analysis.media_presence) {
-      console.warn('Missing media_presence in AI response, using defaults');
-      analysis.media_presence = {
-        monthly_breakdown: [],
-        key_narratives: [],
-        coverage_balance: 'No data available'
-      };
-    }
-    
-    if (!analysis.media_tonality) {
-      console.warn('Missing media_tonality in AI response, using defaults');
-      analysis.media_tonality = {
-        gripen_sentiment: 0,
-        f35_sentiment: 0,
-        gripen_themes: [],
-        f35_themes: [],
-        sentiment_summary: 'No data available'
-      };
-    }
-
     console.log('Storing research report...');
 
     // Fetch weights from settings
@@ -354,9 +298,7 @@ CRITICAL:
 
     // Calculate dimension scores from AI analysis
     const gripenScores = {
-      media: analysis.media_tonality?.gripen_sentiment 
-        ? Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5))
-        : 5,
+      media: Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5)),
       political: analysis.political_analysis?.gripen_score || 5,
       capabilities: analysis.capability_analysis?.gripen_score || 5,
       cost: analysis.cost_analysis?.gripen_score || 5,
@@ -364,9 +306,7 @@ CRITICAL:
     };
 
     const f35Scores = {
-      media: analysis.media_tonality?.f35_sentiment 
-        ? Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5))
-        : 5,
+      media: Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5)),
       political: analysis.political_analysis?.f35_score || 5,
       capabilities: analysis.capability_analysis?.f35_score || 5,
       cost: analysis.cost_analysis?.f35_score || 5,
@@ -391,7 +331,7 @@ CRITICAL:
     let totalGripenMentions = 0;
     let totalF35Mentions = 0;
     
-    if (analysis.media_presence?.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
+    if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
       analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
         totalGripenMentions += monthData.gripen_mentions || 0;
         totalF35Mentions += monthData.f35_mentions || 0;
@@ -399,47 +339,18 @@ CRITICAL:
     }
 
     // Store the research report with scores
-    // Extract executive summary from various possible locations in the AI response
-    let executiveSummary = 'No summary available';
-    if (analysis.executive_summary && typeof analysis.executive_summary === 'string') {
-      executiveSummary = analysis.executive_summary;
-      console.log('Found executive_summary at root level');
-    } else if (analysis.executiveSummary && typeof analysis.executiveSummary === 'string') {
-      executiveSummary = analysis.executiveSummary;
-      console.log('Found executiveSummary (camelCase) at root level');
-    } else if (analysis.analysis_metadata) {
-      // Check if analysis_metadata is a string
-      if (typeof analysis.analysis_metadata === 'string') {
-        executiveSummary = analysis.analysis_metadata;
-        console.log('Found summary in analysis_metadata as string');
-      } 
-      // Check if analysis_metadata is an object with summary fields
-      else if (typeof analysis.analysis_metadata === 'object') {
-        if (analysis.analysis_metadata.summary) {
-          executiveSummary = analysis.analysis_metadata.summary;
-          console.log('Found summary in analysis_metadata.summary');
-        } else if (analysis.analysis_metadata.executive_summary) {
-          executiveSummary = analysis.analysis_metadata.executive_summary;
-          console.log('Found summary in analysis_metadata.executive_summary');
-        }
-      }
-    }
-    
-    console.log('Final executive summary length:', executiveSummary.length);
-    console.log('Executive summary preview:', executiveSummary.substring(0, 150));
-
     const { data: report, error: reportError } = await supabase
       .from('research_reports')
       .insert({
         report_date: today,
-        executive_summary: executiveSummary,
+        executive_summary: analysis.executive_summary,
         media_presence: {
-          ...(analysis.media_presence || {}),
+          ...analysis.media_presence,
           total_gripen_mentions: totalGripenMentions,
           total_f35_mentions: totalF35Mentions
         },
         media_tonality: {
-          ...(analysis.media_tonality || {}),
+          ...analysis.media_tonality,
           gripen_score: gripenTotal,
           f35_score: f35Total,
           dimension_scores: {
@@ -449,20 +360,18 @@ CRITICAL:
       },
       capability_analysis: typeof analysis.capability_analysis === 'string' 
         ? analysis.capability_analysis 
-        : (analysis.capability_analysis?.text || JSON.stringify(analysis.capability_analysis || {})),
+        : analysis.capability_analysis?.text,
       cost_analysis: typeof analysis.cost_analysis === 'string'
         ? analysis.cost_analysis
-        : (analysis.cost_analysis?.text || JSON.stringify(analysis.cost_analysis || {})),
+        : analysis.cost_analysis?.text,
       political_analysis: typeof analysis.political_analysis === 'string'
         ? analysis.political_analysis
-        : (analysis.political_analysis?.text || JSON.stringify(analysis.political_analysis || {})),
+        : analysis.political_analysis?.text,
       industrial_cooperation: typeof analysis.industrial_cooperation === 'string'
         ? analysis.industrial_cooperation
-        : (analysis.industrial_cooperation?.text || JSON.stringify(analysis.industrial_cooperation || {})),
-      geopolitical_analysis: typeof analysis.geopolitical_analysis === 'string'
-        ? analysis.geopolitical_analysis
-        : JSON.stringify(analysis.geopolitical_analysis || {}),
-        sources: Array.isArray(analysis.sources) ? analysis.sources : [],
+        : analysis.industrial_cooperation?.text,
+      geopolitical_analysis: analysis.geopolitical_analysis,
+        sources: analysis.sources,
         status: 'completed'
       })
       .select()
@@ -478,17 +387,9 @@ CRITICAL:
     // Use upsert to preserve historical data while allowing updates
     const metricsData: any[] = [];
     
-    if (analysis.media_presence?.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
+    if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
       analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
-        // Safely extract month date with proper fallback
-        let monthDate: string;
-        if (monthData.month && typeof monthData.month === 'string') {
-          monthDate = `${monthData.month}-01`;
-        } else {
-          // Fallback to current year-month
-          const currentDate = new Date();
-          monthDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`;
-        }
+        const monthDate = `${monthData.month}-01`; // First day of the month
         
         metricsData.push({
           metric_date: monthDate,
@@ -534,7 +435,7 @@ CRITICAL:
         success: true, 
         report_id: report.id,
         scores: { gripen: gripenTotal, f35: f35Total },
-        summary: (analysis.executive_summary || 'Analysis completed').substring(0, 200) + '...'
+        summary: analysis.executive_summary.substring(0, 200) + '...'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
