@@ -440,8 +440,15 @@ CRITICAL:
     
     if (analysis.media_presence?.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
       analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
-        // Safely extract month date, fallback to today if not present
-        const monthDate = monthData.month ? `${monthData.month}-01` : `${today.substring(0, 7)}-01`;
+        // Safely extract month date with proper fallback
+        let monthDate: string;
+        if (monthData.month && typeof monthData.month === 'string') {
+          monthDate = `${monthData.month}-01`;
+        } else {
+          // Fallback to current year-month
+          const currentDate = new Date();
+          monthDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`;
+        }
         
         metricsData.push({
           metric_date: monthDate,
