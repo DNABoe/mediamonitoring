@@ -25,10 +25,14 @@ export const SourceArticles = () => {
     const fetchArticles = async () => {
       setLoading(true);
 
-      // Fetch recent fighter-related articles
+      // Calculate date 60 days ago
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+      // Fetch recent fighter-related articles (max 60 days old)
       const {
         data: items
-      } = await supabase.from('items').select('id, title_en, url, published_at, fighter_tags, sentiment, source_id').not('fighter_tags', 'is', null).order('published_at', {
+      } = await supabase.from('items').select('id, title_en, url, published_at, fighter_tags, sentiment, source_id').not('fighter_tags', 'is', null).gte('published_at', sixtyDaysAgo.toISOString()).order('published_at', {
         ascending: false
       }).limit(20);
       if (items) {
