@@ -249,7 +249,26 @@ CRITICAL:
       throw new Error(`AI API error: ${aiResponse.status}`);
     }
 
-    const aiData = await aiResponse.json();
+    let aiData;
+    try {
+      const responseText = await aiResponse.text();
+      console.log('Raw AI response length:', responseText.length);
+      
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('Empty response from AI API');
+      }
+      
+      aiData = JSON.parse(responseText);
+    } catch (jsonError) {
+      console.error('Failed to parse AI API response:', jsonError);
+      throw new Error('Invalid JSON response from AI API');
+    }
+    
+    if (!aiData.choices?.[0]?.message?.content) {
+      console.error('Unexpected AI response structure:', JSON.stringify(aiData));
+      throw new Error('AI response missing expected content');
+    }
+    
     const content = aiData.choices[0].message.content;
     
     console.log('AI response received, parsing...');
