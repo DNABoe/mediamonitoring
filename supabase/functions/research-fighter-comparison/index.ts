@@ -384,42 +384,47 @@ CRITICAL:
 
     console.log('Storing comparison metrics...');
 
-    // Delete all metrics from the tracking start date onwards
+    // Only update metrics for the current month to preserve historical data
+    const currentMonth = today.substring(0, 7); // YYYY-MM format
+    const currentMonthDate = `${currentMonth}-01`;
+    
+    // Delete only current month's metrics to update them
     await supabase
       .from('comparison_metrics')
       .delete()
-      .gte('metric_date', trackingStartDate);
+      .eq('metric_date', currentMonthDate);
 
-    // Store metrics for each month from the breakdown
+    // Store metrics only for the current month from the breakdown
     const metricsData: any[] = [];
     
     if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
-      analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
-        const monthDate = `${monthData.month}-01`; // First day of the month
-        
+      // Find current month's data in the breakdown
+      const currentMonthData = analysis.media_presence.monthly_breakdown.find((m: any) => m.month === currentMonth);
+      
+      if (currentMonthData) {
         metricsData.push({
-          metric_date: monthDate,
+          metric_date: currentMonthDate,
           fighter: 'Gripen',
-          mentions_count: monthData.gripen_mentions || 0,
-          sentiment_score: monthData.gripen_sentiment || 0,
-          media_reach_score: monthData.gripen_mentions || 0,
+          mentions_count: currentMonthData.gripen_mentions || 0,
+          sentiment_score: currentMonthData.gripen_sentiment || 0,
+          media_reach_score: currentMonthData.gripen_mentions || 0,
           political_support_score: gripenTotal,
           dimension_scores: gripenScores
         });
         
         metricsData.push({
-          metric_date: monthDate,
+          metric_date: currentMonthDate,
           fighter: 'F-35',
-          mentions_count: monthData.f35_mentions || 0,
-          sentiment_score: monthData.f35_sentiment || 0,
-          media_reach_score: monthData.f35_mentions || 0,
+          mentions_count: currentMonthData.f35_mentions || 0,
+          sentiment_score: currentMonthData.f35_sentiment || 0,
+          media_reach_score: currentMonthData.f35_mentions || 0,
           political_support_score: f35Total,
           dimension_scores: f35Scores
         });
-      });
+      }
     }
 
-    // Insert all monthly metrics
+    // Insert current month's metrics
     if (metricsData.length > 0) {
       const { error: metricsError } = await supabase
         .from('comparison_metrics')
