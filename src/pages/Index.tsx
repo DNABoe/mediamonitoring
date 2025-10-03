@@ -33,7 +33,7 @@ const Index = () => {
       // Fetch latest research report scores
       const { data: report } = await supabase
         .from('research_reports')
-        .select('media_tonality')
+        .select('media_tonality, created_at')
         .order('report_date', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -44,6 +44,10 @@ const Index = () => {
           gripen: tonality.gripen_score || 0,
           f35: tonality.f35_score || 0
         });
+        // Set last update to when the report was actually created
+        if (report.created_at) {
+          setLastUpdate(new Date(report.created_at));
+        }
       }
     };
 
@@ -64,8 +68,8 @@ const Index = () => {
     fetchScores();
     fetchBaseline();
 
+    // Refresh scores every 30 seconds (but don't update timestamp)
     const interval = setInterval(() => {
-      setLastUpdate(new Date());
       fetchScores();
     }, 30000);
 
