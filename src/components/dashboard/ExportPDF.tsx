@@ -186,104 +186,6 @@ interface PDFDocumentProps {
   data: any;
 }
 
-// Simple SVG line chart for PDF
-const renderLineChart = (data: any[], dataKey1: string, dataKey2: string, height: number = 150) => {
-  if (!data || data.length === 0) return null;
-  
-  const width = 500;
-  const padding = { top: 20, right: 20, bottom: 30, left: 50 };
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
-  
-  // Find min/max values
-  const values1 = data.map(d => parseFloat(d[dataKey1]) || 0);
-  const values2 = data.map(d => parseFloat(d[dataKey2]) || 0);
-  const allValues = [...values1, ...values2];
-  const minValue = Math.min(...allValues, -1);
-  const maxValue = Math.max(...allValues, 1);
-  const valueRange = maxValue - minValue;
-  
-  // Generate points for lines
-  const getY = (value: number) => {
-    return padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
-  };
-  
-  const getX = (index: number) => {
-    return padding.left + (index / (data.length - 1)) * chartWidth;
-  };
-  
-  const line1Points = data.map((d, i) => `${getX(i)},${getY(parseFloat(d[dataKey1]) || 0)}`).join(' ');
-  const line2Points = data.map((d, i) => `${getX(i)},${getY(parseFloat(d[dataKey2]) || 0)}`).join(' ');
-  
-  return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      {/* Background grid */}
-      <rect x={padding.left} y={padding.top} width={chartWidth} height={chartHeight} fill="#f8fafc" />
-      
-      {/* Horizontal grid lines */}
-      {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-        const y = padding.top + chartHeight * ratio;
-        return (
-          <line
-            key={ratio}
-            x1={padding.left}
-            y1={y}
-            x2={padding.left + chartWidth}
-            y2={y}
-            stroke="#e2e8f0"
-            strokeWidth="1"
-          />
-        );
-      })}
-      
-      {/* Y-axis labels */}
-      {[maxValue, maxValue * 0.5, 0, minValue * 0.5, minValue].map((value, i) => {
-        const y = padding.top + (chartHeight / 4) * i;
-        return (
-          <text key={i} x={padding.left - 10} y={y + 4} fontSize="8" fill="#64748b" textAnchor="end">
-            {value.toFixed(1)}
-          </text>
-        );
-      })}
-      
-      {/* Line 1 (Gripen) */}
-      <polyline
-        points={line1Points}
-        fill="none"
-        stroke="#10b981"
-        strokeWidth="2"
-      />
-      
-      {/* Line 2 (F-35) */}
-      <polyline
-        points={line2Points}
-        fill="none"
-        stroke="#3b82f6"
-        strokeWidth="2"
-      />
-      
-      {/* X-axis labels (first, middle, last) */}
-      {[0, Math.floor(data.length / 2), data.length - 1].map((index) => {
-        if (index >= data.length) return null;
-        const x = getX(index);
-        return (
-          <text key={index} x={x} y={height - 5} fontSize="8" fill="#64748b" textAnchor="middle">
-            {format(new Date(data[index].date), 'MMM yy')}
-          </text>
-        );
-      })}
-      
-      {/* Legend */}
-      <g transform={`translate(${padding.left}, ${padding.top - 15})`}>
-        <rect x="0" y="0" width="15" height="3" fill="#10b981" />
-        <text x="20" y="4" fontSize="8" fill="#1e293b">Gripen</text>
-        <rect x="80" y="0" width="15" height="3" fill="#3b82f6" />
-        <text x="100" y="4" fontSize="8" fill="#1e293b">F-35</text>
-      </g>
-    </svg>
-  );
-};
-
 const PDFDocument = ({ data }: PDFDocumentProps) => {
   const { report, metrics, previousReport, settings, suggestions } = data;
   
@@ -479,10 +381,25 @@ const PDFDocument = ({ data }: PDFDocumentProps) => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Media Sentiment Trends</Text>
               <Text style={[styles.text, { marginBottom: 10 }]}>
-                Monthly sentiment scores (range: -1 to +1, where -1 is most negative, 0 is neutral, and +1 is most positive) tracking how media coverage has evolved over time.
+                Monthly sentiment scores (range: -1 to +1, where -1 is most negative, 0 is neutral, and +1 is most positive) showing how media coverage has evolved over time.
               </Text>
-              <View style={styles.chartContainer}>
-                {renderLineChart(chartData, 'gripenSentiment', 'f35Sentiment', 140)}
+              <View style={styles.table}>
+                <View style={[styles.tableRow, styles.tableHeader]}>
+                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Month</Text>
+                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Gripen</Text>
+                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>F-35</Text>
+                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Trend</Text>
+                </View>
+                {chartData.map((row: any, index: number) => (
+                  <View key={index} style={styles.tableRow}>
+                    <Text style={styles.tableCell}>{format(new Date(row.date), 'MMM yyyy')}</Text>
+                    <Text style={styles.tableCell}>{row.gripenSentiment}</Text>
+                    <Text style={styles.tableCell}>{row.f35Sentiment}</Text>
+                    <Text style={styles.tableCell}>
+                      {parseFloat(row.gripenSentiment) > parseFloat(row.f35Sentiment) ? 'Gripen ↑' : 'F-35 ↑'}
+                    </Text>
+                  </View>
+                ))}
               </View>
             </View>
 
@@ -491,8 +408,23 @@ const PDFDocument = ({ data }: PDFDocumentProps) => {
               <Text style={[styles.text, { marginBottom: 10 }]}>
                 Total number of media mentions per month, showing the volume of coverage each aircraft received in Portuguese media.
               </Text>
-              <View style={styles.chartContainer}>
-                {renderLineChart(chartData, 'gripenMentions', 'f35Mentions', 140)}
+              <View style={styles.table}>
+                <View style={[styles.tableRow, styles.tableHeader]}>
+                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Month</Text>
+                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Gripen</Text>
+                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>F-35</Text>
+                  <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Leader</Text>
+                </View>
+                {chartData.map((row: any, index: number) => (
+                  <View key={index} style={styles.tableRow}>
+                    <Text style={styles.tableCell}>{format(new Date(row.date), 'MMM yyyy')}</Text>
+                    <Text style={styles.tableCell}>{row.gripenMentions}</Text>
+                    <Text style={styles.tableCell}>{row.f35Mentions}</Text>
+                    <Text style={styles.tableCell}>
+                      {row.gripenMentions > row.f35Mentions ? 'Gripen' : 'F-35'}
+                    </Text>
+                  </View>
+                ))}
               </View>
             </View>
           </>
