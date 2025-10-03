@@ -494,7 +494,7 @@ CRITICAL:
         success: true, 
         report_id: report.id,
         scores: { gripen: gripenTotal, f35: f35Total },
-        summary: analysis.executive_summary.substring(0, 200) + '...'
+        summary: (analysis.executive_summary || 'Analysis completed').substring(0, 200) + '...'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
