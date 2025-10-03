@@ -388,11 +388,25 @@ CRITICAL:
     }
 
     // Store the research report with scores
+    // Extract executive summary from various possible locations in the AI response
+    let executiveSummary = 'No summary available';
+    if (analysis.executive_summary) {
+      executiveSummary = analysis.executive_summary;
+    } else if (analysis.executiveSummary) {
+      executiveSummary = analysis.executiveSummary;
+    } else if (analysis.analysis_metadata?.summary) {
+      executiveSummary = analysis.analysis_metadata.summary;
+    } else if (analysis.analysis_metadata?.executive_summary) {
+      executiveSummary = analysis.analysis_metadata.executive_summary;
+    } else if (typeof analysis.analysis_metadata === 'string') {
+      executiveSummary = analysis.analysis_metadata;
+    }
+
     const { data: report, error: reportError } = await supabase
       .from('research_reports')
       .insert({
         report_date: today,
-        executive_summary: analysis.executive_summary || analysis.executiveSummary || 'No summary available',
+        executive_summary: executiveSummary,
         media_presence: {
           ...(analysis.media_presence || {}),
           total_gripen_mentions: totalGripenMentions,
