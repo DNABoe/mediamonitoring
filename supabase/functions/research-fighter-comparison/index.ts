@@ -154,9 +154,10 @@ CRITICAL SOURCING REQUIREMENTS:
 
 IMPORTANT: For media mentions, count ONLY Portuguese media articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
 
-Return your analysis as a structured JSON object with this exact format:
+CRITICAL: Return your analysis as a structured JSON object. The executive_summary MUST be at the ROOT level of the JSON, not nested inside any other object. Use this EXACT format:
+
 {
-  "executive_summary": "3-4 paragraph overview",
+  "executive_summary": "Write a 3-4 paragraph overview here as a string",
   "media_presence": {
     "monthly_breakdown": [
       {
@@ -231,7 +232,7 @@ CRITICAL:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert defense intelligence analyst specializing in fighter aircraft procurement. Provide detailed, factual analysis based on recent information. Always return valid JSON in the exact format requested. Be concise but comprehensive - aim for 2-3 paragraphs per analysis section.'
+            content: 'You are an expert defense intelligence analyst specializing in fighter aircraft procurement. Provide detailed, factual analysis based on recent information. CRITICAL: Always return valid JSON in the EXACT format requested with executive_summary at the ROOT level of the JSON object. Do not nest executive_summary inside other objects. Be concise but comprehensive - aim for 2-3 paragraphs per analysis section.'
           },
           {
             role: 'user',
@@ -302,6 +303,9 @@ CRITICAL:
     console.log('Parsed analysis keys:', Object.keys(analysis));
     console.log('Media presence exists:', !!analysis.media_presence);
     console.log('Media tonality exists:', !!analysis.media_tonality);
+    console.log('Executive summary field:', analysis.executive_summary?.substring(0, 100));
+    console.log('Analysis metadata:', JSON.stringify(analysis.analysis_metadata).substring(0, 200));
+    console.log('Monthly breakdown:', JSON.stringify(analysis.media_presence?.monthly_breakdown));
     
     // Validate and set defaults for missing fields
     if (!analysis.media_presence) {
@@ -390,17 +394,32 @@ CRITICAL:
     // Store the research report with scores
     // Extract executive summary from various possible locations in the AI response
     let executiveSummary = 'No summary available';
-    if (analysis.executive_summary) {
+    if (analysis.executive_summary && typeof analysis.executive_summary === 'string') {
       executiveSummary = analysis.executive_summary;
-    } else if (analysis.executiveSummary) {
+      console.log('Found executive_summary at root level');
+    } else if (analysis.executiveSummary && typeof analysis.executiveSummary === 'string') {
       executiveSummary = analysis.executiveSummary;
-    } else if (analysis.analysis_metadata?.summary) {
-      executiveSummary = analysis.analysis_metadata.summary;
-    } else if (analysis.analysis_metadata?.executive_summary) {
-      executiveSummary = analysis.analysis_metadata.executive_summary;
-    } else if (typeof analysis.analysis_metadata === 'string') {
-      executiveSummary = analysis.analysis_metadata;
+      console.log('Found executiveSummary (camelCase) at root level');
+    } else if (analysis.analysis_metadata) {
+      // Check if analysis_metadata is a string
+      if (typeof analysis.analysis_metadata === 'string') {
+        executiveSummary = analysis.analysis_metadata;
+        console.log('Found summary in analysis_metadata as string');
+      } 
+      // Check if analysis_metadata is an object with summary fields
+      else if (typeof analysis.analysis_metadata === 'object') {
+        if (analysis.analysis_metadata.summary) {
+          executiveSummary = analysis.analysis_metadata.summary;
+          console.log('Found summary in analysis_metadata.summary');
+        } else if (analysis.analysis_metadata.executive_summary) {
+          executiveSummary = analysis.analysis_metadata.executive_summary;
+          console.log('Found summary in analysis_metadata.executive_summary');
+        }
+      }
     }
+    
+    console.log('Final executive summary length:', executiveSummary.length);
+    console.log('Executive summary preview:', executiveSummary.substring(0, 150));
 
     const { data: report, error: reportError } = await supabase
       .from('research_reports')
