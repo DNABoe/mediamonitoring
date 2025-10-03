@@ -392,7 +392,7 @@ CRITICAL:
       .from('research_reports')
       .insert({
         report_date: today,
-        executive_summary: analysis.executive_summary || 'No summary available',
+        executive_summary: analysis.executive_summary || analysis.executiveSummary || 'No summary available',
         media_presence: {
           ...(analysis.media_presence || {}),
           total_gripen_mentions: totalGripenMentions,
@@ -409,18 +409,20 @@ CRITICAL:
       },
       capability_analysis: typeof analysis.capability_analysis === 'string' 
         ? analysis.capability_analysis 
-        : analysis.capability_analysis?.text,
+        : (analysis.capability_analysis?.text || JSON.stringify(analysis.capability_analysis || {})),
       cost_analysis: typeof analysis.cost_analysis === 'string'
         ? analysis.cost_analysis
-        : analysis.cost_analysis?.text,
+        : (analysis.cost_analysis?.text || JSON.stringify(analysis.cost_analysis || {})),
       political_analysis: typeof analysis.political_analysis === 'string'
         ? analysis.political_analysis
-        : analysis.political_analysis?.text,
+        : (analysis.political_analysis?.text || JSON.stringify(analysis.political_analysis || {})),
       industrial_cooperation: typeof analysis.industrial_cooperation === 'string'
         ? analysis.industrial_cooperation
-        : analysis.industrial_cooperation?.text,
-      geopolitical_analysis: analysis.geopolitical_analysis,
-        sources: analysis.sources,
+        : (analysis.industrial_cooperation?.text || JSON.stringify(analysis.industrial_cooperation || {})),
+      geopolitical_analysis: typeof analysis.geopolitical_analysis === 'string'
+        ? analysis.geopolitical_analysis
+        : JSON.stringify(analysis.geopolitical_analysis || {}),
+        sources: Array.isArray(analysis.sources) ? analysis.sources : [],
         status: 'completed'
       })
       .select()
@@ -438,7 +440,8 @@ CRITICAL:
     
     if (analysis.media_presence?.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
       analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
-        const monthDate = `${monthData.month}-01`; // First day of the month
+        // Safely extract month date, fallback to today if not present
+        const monthDate = monthData.month ? `${monthData.month}-01` : `${today.substring(0, 7)}-01`;
         
         metricsData.push({
           metric_date: monthDate,
