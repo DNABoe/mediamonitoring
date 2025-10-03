@@ -228,7 +228,6 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
                   max={100}
                   step={1}
                   className="w-full"
-                  disabled={totalWeight !== 100 && weights[key] === 0}
                 />
               </div>
             ))}
