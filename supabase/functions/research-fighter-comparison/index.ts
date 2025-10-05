@@ -154,73 +154,39 @@ CRITICAL SOURCING REQUIREMENTS:
 
 IMPORTANT: For media mentions, count ONLY Portuguese media articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
 
-You MUST return a valid JSON object with this EXACT structure. Do NOT wrap in markdown code blocks. Return ONLY the JSON:
+CRITICAL: Return ONLY a raw JSON object. No markdown. No code blocks. No text before or after. Just the JSON starting with { and ending with }.
+
+Use this EXACT structure with these EXACT field names:
 
 {
-  "executive_summary": "3-4 paragraph overview of the competitive landscape",
+  "executive_summary": "string with 3-4 paragraphs",
   "media_presence": {
     "monthly_breakdown": [
-      {
-        "month": "2025-10",
-        "gripen_mentions": 15,
-        "f35_mentions": 12,
-        "gripen_sentiment": 0.3,
-        "f35_sentiment": 0.1
-      }
+      {"month": "2025-10", "gripen_mentions": 15, "f35_mentions": 12, "gripen_sentiment": 0.3, "f35_sentiment": 0.1}
     ],
-    "key_narratives": ["Cost effectiveness debate", "NATO interoperability"],
-    "coverage_balance": "Balanced coverage with slight Gripen advantage"
+    "key_narratives": ["narrative1", "narrative2"],
+    "coverage_balance": "description"
   },
   "media_tonality": {
     "gripen_sentiment": 0.2,
     "f35_sentiment": 0.1,
-    "gripen_themes": ["Cost savings", "Industrial benefits"],
-    "f35_themes": ["Advanced technology", "US alliance"],
-    "sentiment_summary": "Generally positive coverage for both with focus on different strengths"
+    "gripen_themes": ["theme1", "theme2"],
+    "f35_themes": ["theme1", "theme2"],
+    "sentiment_summary": "description"
   },
-  "capability_analysis": {
-    "text": "Detailed comparison of technical capabilities...",
-    "gripen_score": 7,
-    "f35_score": 9
-  },
-  "cost_analysis": {
-    "text": "Detailed cost comparison...",
-    "gripen_score": 8,
-    "f35_score": 5
-  },
-  "political_analysis": {
-    "text": "Detailed political landscape analysis...",
-    "gripen_score": 6,
-    "f35_score": 7
-  },
-  "industrial_cooperation": {
-    "text": "Detailed industrial benefits analysis...",
-    "gripen_score": 8,
-    "f35_score": 6
-  },
-  "geopolitical_analysis": {
-    "text": "Detailed geopolitical considerations...",
-    "gripen_score": 6,
-    "f35_score": 8
-  },
-  "sources": ["https://observador.pt/article1", "https://publico.pt/article2"]
+  "capability_analysis": {"text": "analysis", "gripen_score": 7, "f35_score": 9},
+  "cost_analysis": {"text": "analysis", "gripen_score": 8, "f35_score": 5},
+  "political_analysis": {"text": "analysis", "gripen_score": 6, "f35_score": 7},
+  "industrial_cooperation": {"text": "analysis", "gripen_score": 8, "f35_score": 6},
+  "geopolitical_analysis": {"text": "analysis", "gripen_score": 6, "f35_score": 8},
+  "sources": ["https://url1.com", "https://url2.com"]
 }
 
-CRITICAL FORMATTING RULES:
-1. Return ONLY valid JSON - no markdown, no code blocks, no explanations
-2. ALL numeric fields are REQUIRED - use your best estimate, never leave undefined
-3. monthly_breakdown MUST contain at least one month with actual numbers
-4. Sentiment values MUST be between -1 and 1 (use decimals like 0.3, -0.2)
-5. Score values MUST be between 0 and 10 (use integers like 7, 8)
-6. All arrays MUST contain at least one item
-7. Do NOT include comments in the JSON
-
-VALIDATION CHECKLIST BEFORE RETURNING:
-- ✓ media_tonality has gripen_sentiment and f35_sentiment as numbers
-- ✓ monthly_breakdown has at least one entry with all 4 numeric fields
-- ✓ All score fields (gripen_score, f35_score) are numbers 0-10
-- ✓ All sentiment fields are numbers between -1 and 1
-- ✓ No undefined or null values in required fields`;
+MANDATORY:
+- Use snake_case (media_presence NOT mediaPresence)
+- NO nesting under fighter_comparison
+- ALL scores 0-10, ALL sentiments -1 to 1
+- monthly_breakdown needs real data`;
     }
     
     // Replace template variables in the prompt
