@@ -154,62 +154,73 @@ CRITICAL SOURCING REQUIREMENTS:
 
 IMPORTANT: For media mentions, count ONLY Portuguese media articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
 
-Return your analysis as a structured JSON object with this exact format:
+You MUST return a valid JSON object with this EXACT structure. Do NOT wrap in markdown code blocks. Return ONLY the JSON:
+
 {
-  "executive_summary": "3-4 paragraph overview",
+  "executive_summary": "3-4 paragraph overview of the competitive landscape",
   "media_presence": {
     "monthly_breakdown": [
       {
-        "month": "2025-01",
-        "gripen_mentions": number,
-        "f35_mentions": number,
-        "gripen_sentiment": number (-1 to 1),
-        "f35_sentiment": number (-1 to 1)
+        "month": "2025-10",
+        "gripen_mentions": 15,
+        "f35_mentions": 12,
+        "gripen_sentiment": 0.3,
+        "f35_sentiment": 0.1
       }
     ],
-    "key_narratives": ["narrative1", "narrative2"],
-    "coverage_balance": "description"
+    "key_narratives": ["Cost effectiveness debate", "NATO interoperability"],
+    "coverage_balance": "Balanced coverage with slight Gripen advantage"
   },
   "media_tonality": {
-    "gripen_sentiment": number (-1 to 1),
-    "f35_sentiment": number (-1 to 1),
-    "gripen_themes": ["theme1", "theme2"],
-    "f35_themes": ["theme1", "theme2"],
-    "sentiment_summary": "description"
+    "gripen_sentiment": 0.2,
+    "f35_sentiment": 0.1,
+    "gripen_themes": ["Cost savings", "Industrial benefits"],
+    "f35_themes": ["Advanced technology", "US alliance"],
+    "sentiment_summary": "Generally positive coverage for both with focus on different strengths"
   },
   "capability_analysis": {
-    "text": "detailed text analysis",
-    "gripen_score": number (0-10, where 10 is strongest capability),
-    "f35_score": number (0-10)
+    "text": "Detailed comparison of technical capabilities...",
+    "gripen_score": 7,
+    "f35_score": 9
   },
   "cost_analysis": {
-    "text": "detailed text analysis",
-    "gripen_score": number (0-10, where 10 is best value/lowest cost),
-    "f35_score": number (0-10)
+    "text": "Detailed cost comparison...",
+    "gripen_score": 8,
+    "f35_score": 5
   },
   "political_analysis": {
-    "text": "detailed text analysis",
-    "gripen_score": number (0-10, where 10 is strongest political support),
-    "f35_score": number (0-10)
+    "text": "Detailed political landscape analysis...",
+    "gripen_score": 6,
+    "f35_score": 7
   },
   "industrial_cooperation": {
-    "text": "detailed text analysis",
-    "gripen_score": number (0-10, where 10 is strongest industrial benefits),
-    "f35_score": number (0-10)
+    "text": "Detailed industrial benefits analysis...",
+    "gripen_score": 8,
+    "f35_score": 6
   },
   "geopolitical_analysis": {
-    "text": "detailed text analysis",
-    "gripen_score": number (0-10, where 10 is strongest geopolitical alignment),
-    "f35_score": number (0-10)
+    "text": "Detailed geopolitical considerations...",
+    "gripen_score": 6,
+    "f35_score": 8
   },
-   "sources": ["https://example.com/article1", "https://example.com/article2"]
+  "sources": ["https://observador.pt/article1", "https://publico.pt/article2"]
 }
 
-CRITICAL: 
-- All source URLs must be from articles published within the last 60 days (after ${new Date(Date.now() - 60*24*60*60*1000).toISOString().split('T')[0]})
-- Prioritize Portuguese news sources
-- Only include real, working URLs to recent articles
-- Be objective in your scoring based on factual analysis`;
+CRITICAL FORMATTING RULES:
+1. Return ONLY valid JSON - no markdown, no code blocks, no explanations
+2. ALL numeric fields are REQUIRED - use your best estimate, never leave undefined
+3. monthly_breakdown MUST contain at least one month with actual numbers
+4. Sentiment values MUST be between -1 and 1 (use decimals like 0.3, -0.2)
+5. Score values MUST be between 0 and 10 (use integers like 7, 8)
+6. All arrays MUST contain at least one item
+7. Do NOT include comments in the JSON
+
+VALIDATION CHECKLIST BEFORE RETURNING:
+- ✓ media_tonality has gripen_sentiment and f35_sentiment as numbers
+- ✓ monthly_breakdown has at least one entry with all 4 numeric fields
+- ✓ All score fields (gripen_score, f35_score) are numbers 0-10
+- ✓ All sentiment fields are numbers between -1 and 1
+- ✓ No undefined or null values in required fields`;
     }
     
     // Replace template variables in the prompt
@@ -254,17 +265,14 @@ CRITICAL:
     
     console.log('AI response received, parsing...');
 
-    // Parse the JSON response
+    // Parse and validate the JSON response
     let analysis;
     try {
-      // Try to extract JSON from markdown code blocks if present
       let jsonStr = content.trim();
       
       // Remove markdown code block markers if present
       if (jsonStr.startsWith('```')) {
-        // Find the first newline after opening ```
         const firstNewline = jsonStr.indexOf('\n');
-        // Find the closing ```
         const lastCodeBlock = jsonStr.lastIndexOf('```');
         
         if (firstNewline !== -1 && lastCodeBlock > firstNewline) {
@@ -273,10 +281,32 @@ CRITICAL:
       }
       
       analysis = JSON.parse(jsonStr);
+      console.log('Parsed analysis structure:', JSON.stringify({
+        hasMediaPresence: !!analysis.media_presence,
+        hasMonthlyBreakdown: !!analysis.media_presence?.monthly_breakdown,
+        monthlyBreakdownLength: analysis.media_presence?.monthly_breakdown?.length,
+        hasMediaTonality: !!analysis.media_tonality,
+        hasSentiments: {
+          gripen: analysis.media_tonality?.gripen_sentiment,
+          f35: analysis.media_tonality?.f35_sentiment
+        }
+      }));
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
       console.error('Raw content:', content);
       throw new Error('Failed to parse AI analysis response');
+    }
+
+    // Validate required structure
+    if (!analysis.media_presence || !analysis.media_tonality) {
+      console.error('Missing required analysis structure:', analysis);
+      throw new Error('AI response missing required fields: media_presence or media_tonality');
+    }
+
+    // Ensure monthly_breakdown exists and is an array
+    if (!Array.isArray(analysis.media_presence.monthly_breakdown)) {
+      console.error('Invalid monthly_breakdown:', analysis.media_presence.monthly_breakdown);
+      analysis.media_presence.monthly_breakdown = [];
     }
 
     console.log('Storing research report...');
@@ -296,21 +326,25 @@ CRITICAL:
       industrial: 30
     };
 
-    // Calculate dimension scores from AI analysis
+    // Safely calculate dimension scores with fallbacks
     const gripenScores = {
-      media: Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5)),
-      political: analysis.political_analysis?.gripen_score || 5,
-      capabilities: analysis.capability_analysis?.gripen_score || 5,
-      cost: analysis.cost_analysis?.gripen_score || 5,
-      industrial: analysis.industrial_cooperation?.gripen_score || 5,
+      media: analysis.media_tonality?.gripen_sentiment !== undefined 
+        ? Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5))
+        : 5,
+      political: analysis.political_analysis?.gripen_score ?? 5,
+      capabilities: analysis.capability_analysis?.gripen_score ?? 5,
+      cost: analysis.cost_analysis?.gripen_score ?? 5,
+      industrial: analysis.industrial_cooperation?.gripen_score ?? 5,
     };
 
     const f35Scores = {
-      media: Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5)),
-      political: analysis.political_analysis?.f35_score || 5,
-      capabilities: analysis.capability_analysis?.f35_score || 5,
-      cost: analysis.cost_analysis?.f35_score || 5,
-      industrial: analysis.industrial_cooperation?.f35_score || 5,
+      media: analysis.media_tonality?.f35_sentiment !== undefined
+        ? Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5))
+        : 5,
+      political: analysis.political_analysis?.f35_score ?? 5,
+      capabilities: analysis.capability_analysis?.f35_score ?? 5,
+      cost: analysis.cost_analysis?.f35_score ?? 5,
+      industrial: analysis.industrial_cooperation?.f35_score ?? 5,
     };
 
     // Calculate weighted total scores (0-100 scale)
