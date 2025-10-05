@@ -238,18 +238,18 @@ VALIDATION CHECKLIST BEFORE RETURNING:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'system',
-            content: 'You are an expert defense intelligence analyst specializing in fighter aircraft procurement. Provide detailed, factual analysis based on recent information. Always return valid JSON in the exact format requested. Be concise but comprehensive - aim for 2-3 paragraphs per analysis section.'
+            content: 'You are an expert defense intelligence analyst. You MUST return ONLY a valid JSON object - no other text, no markdown, no explanations. The JSON must use snake_case for all field names (media_presence not mediaPresence, media_tonality not mediaTonality).'
           },
           {
             role: 'user',
             content: researchPrompt
           }
         ],
-        temperature: 0.7,
+        temperature: 0.3,
         max_tokens: 8000,
       }),
     });
@@ -280,20 +280,32 @@ VALIDATION CHECKLIST BEFORE RETURNING:
         }
       }
       
+      // Remove any leading text before the JSON object
+      const jsonStart = jsonStr.indexOf('{');
+      if (jsonStart > 0) {
+        jsonStr = jsonStr.substring(jsonStart);
+      }
+      
       analysis = JSON.parse(jsonStr);
-      console.log('Parsed analysis structure:', JSON.stringify({
-        hasMediaPresence: !!analysis.media_presence,
-        hasMonthlyBreakdown: !!analysis.media_presence?.monthly_breakdown,
-        monthlyBreakdownLength: analysis.media_presence?.monthly_breakdown?.length,
-        hasMediaTonality: !!analysis.media_tonality,
-        hasSentiments: {
-          gripen: analysis.media_tonality?.gripen_sentiment,
-          f35: analysis.media_tonality?.f35_sentiment
-        }
-      }));
+      console.log('Successfully parsed JSON');
+      
+      // Normalize field names from camelCase to snake_case if needed
+      if (analysis.mediaPresence && !analysis.media_presence) {
+        analysis.media_presence = analysis.mediaPresence;
+        delete analysis.mediaPresence;
+      }
+      if (analysis.mediaTonality && !analysis.media_tonality) {
+        analysis.media_tonality = analysis.mediaTonality;
+        delete analysis.mediaTonality;
+      }
+      if (analysis.executiveSummary && !analysis.executive_summary) {
+        analysis.executive_summary = analysis.executiveSummary;
+        delete analysis.executiveSummary;
+      }
+      
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      console.error('Raw content:', content);
+      console.error('Raw content (first 500 chars):', content.substring(0, 500));
       throw new Error('Failed to parse AI analysis response');
     }
 
