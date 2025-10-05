@@ -82,111 +82,20 @@ serve(async (req) => {
     
     // Use default prompt if no custom prompt is set
     if (!researchPrompt) {
-      researchPrompt = `
-You are a defense intelligence analyst researching the comparison between Gripen and F-35 fighter jets in the context of Portuguese fighter program selection.
+      researchPrompt = `You are analyzing the Gripen vs F-35 fighter comparison for Portugal's fighter program.
 
-TRACKING PERIOD: From ${trackingStartDate} to ${today} (${daysSinceBaseline} days of tracking)
+Tracking period: ${trackingStartDate} to ${today} (${daysSinceBaseline} days)
 
-${hasRealSearchData ? `
-REAL ARTICLE DATA PROVIDED (use this to enhance your analysis):
-Gripen Articles Found: ${gripenArticles.length}
-${gripenArticles.map((a: any, i: number) => `${i+1}. ${a.title}\n   URL: ${a.link}\n   Snippet: ${a.snippet}\n`).join('\n')}
+Provide analysis covering:
+1. Media coverage trends in Portuguese news
+2. Sentiment and key themes for each fighter
+3. Capability comparison
+4. Cost analysis
+5. Political landscape
+6. Industrial cooperation potential
+7. Geopolitical considerations
 
-F-35 Articles Found: ${f35Articles.length}
-${f35Articles.map((a: any, i: number) => `${i+1}. ${a.title}\n   URL: ${a.link}\n   Snippet: ${a.snippet}\n`).join('\n')}
-` : 'Note: Real-time article search not available. Provide analysis based on your knowledge of Portuguese media coverage.'}
-
-Conduct a comprehensive analysis covering these dimensions:
-
-1. MEDIA PRESENCE (Portuguese Media ONLY)
-   - Provide a MONTHLY BREAKDOWN of mentions from ${trackingStartDate} to ${today}
-   ${hasRealSearchData ? '- Use the REAL ARTICLES PROVIDED ABOVE as a starting point, but supplement with your knowledge' : '- Estimate realistic mention counts based on typical coverage patterns'}
-   - Count mentions of each fighter in PORTUGUESE news media ONLY
-   - For EACH MONTH in the tracking period, provide estimated counts of articles published
-   - Include major Portuguese sources (Observador, Público, DN, Expresso, Visão, Jornal de Negócios, RTP, SIC, TVI)
-   - Identify key narratives and story angles that emerged during this period
-
-2. MEDIA TONALITY
-   - Sentiment analysis: positive, negative, neutral coverage
-   - Key themes: technical capability, cost, politics, industrial benefits
-   - Compare tone between Portuguese and international coverage
-   - Note any sentiment shifts during the tracking period
-
-3. CAPABILITY ANALYSIS
-   - Technical specifications comparison
-   - Operational advantages/disadvantages
-   - NATO interoperability considerations
-   - Multi-role vs specialized capabilities
-
-4. COST ANALYSIS
-   - Unit acquisition cost
-   - Lifecycle/operating costs
-   - Maintenance and support costs
-   - Training costs
-
-5. POLITICAL ANALYSIS
-   - Portuguese government positions
-   - Political party stances
-   - Public opinion indicators
-   - Parliamentary debates or statements
-
-6. INDUSTRIAL COOPERATION
-   - Offset deals and technology transfer
-   - Local manufacturing opportunities
-   - Job creation potential
-   - Long-term industrial partnerships
-
-7. GEOPOLITICAL CONSIDERATIONS
-   - US vs European strategic relationships
-   - NATO implications
-   - Sovereignty and autonomy concerns
-   - Regional security dynamics
-
-Current date: ${today}
-Tracking period: ${trackingStartDate} to ${today}
-
-CRITICAL SOURCING REQUIREMENTS:
-- PRIORITIZE Portuguese media sources (e.g., Observador, Público, DN, Expresso, Visão, Jornal de Negócios)
-- ONLY cite sources published within the last 60 days (after ${new Date(Date.now() - 60*24*60*60*1000).toISOString().split('T')[0]})
-- Include publication dates in your research
-- Focus on recent developments and current news
-- Prefer Portuguese-language sources when available
-
-IMPORTANT: For media mentions, count ONLY Portuguese media articles and coverage from ${trackingStartDate} onwards. Focus your detailed analysis on the most recent developments (past 7-14 days) but provide cumulative mention counts for the full tracking period. Provide specific examples with sources when possible.
-
-CRITICAL: Return ONLY a raw JSON object. No markdown. No code blocks. No text before or after. Just the JSON starting with { and ending with }.
-
-Use this EXACT structure with these EXACT field names:
-
-{
-  "executive_summary": "string with 3-4 paragraphs",
-  "media_presence": {
-    "monthly_breakdown": [
-      {"month": "2025-10", "gripen_mentions": 15, "f35_mentions": 12, "gripen_sentiment": 0.3, "f35_sentiment": 0.1}
-    ],
-    "key_narratives": ["narrative1", "narrative2"],
-    "coverage_balance": "description"
-  },
-  "media_tonality": {
-    "gripen_sentiment": 0.2,
-    "f35_sentiment": 0.1,
-    "gripen_themes": ["theme1", "theme2"],
-    "f35_themes": ["theme1", "theme2"],
-    "sentiment_summary": "description"
-  },
-  "capability_analysis": {"text": "analysis", "gripen_score": 7, "f35_score": 9},
-  "cost_analysis": {"text": "analysis", "gripen_score": 8, "f35_score": 5},
-  "political_analysis": {"text": "analysis", "gripen_score": 6, "f35_score": 7},
-  "industrial_cooperation": {"text": "analysis", "gripen_score": 8, "f35_score": 6},
-  "geopolitical_analysis": {"text": "analysis", "gripen_score": 6, "f35_score": 8},
-  "sources": ["https://url1.com", "https://url2.com"]
-}
-
-MANDATORY:
-- Use snake_case (media_presence NOT mediaPresence)
-- NO nesting under fighter_comparison
-- ALL scores 0-10, ALL sentiments -1 to 1
-- monthly_breakdown needs real data`;
+Return structured data using the analysis_report tool.`;
     }
     
     // Replace template variables in the prompt
@@ -208,15 +117,56 @@ MANDATORY:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert defense intelligence analyst. You MUST return ONLY a valid JSON object - no other text, no markdown, no explanations. The JSON must use snake_case for all field names (media_presence not mediaPresence, media_tonality not mediaTonality).'
+            content: 'You are a defense intelligence analyst. Use the analysis_report tool to structure your findings.'
           },
           {
             role: 'user',
             content: researchPrompt
           }
         ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'analysis_report',
+            description: 'Submit fighter comparison analysis report',
+            parameters: {
+              type: 'object',
+              properties: {
+                executive_summary: { type: 'string', description: '2-3 paragraph overview' },
+                gripen_mentions: { type: 'integer', description: 'Total Gripen mentions in tracking period' },
+                f35_mentions: { type: 'integer', description: 'Total F-35 mentions in tracking period' },
+                gripen_sentiment: { type: 'number', description: 'Overall Gripen sentiment -1 to 1' },
+                f35_sentiment: { type: 'number', description: 'Overall F-35 sentiment -1 to 1' },
+                capability_gripen: { type: 'integer', description: 'Gripen capability score 0-10' },
+                capability_f35: { type: 'integer', description: 'F-35 capability score 0-10' },
+                cost_gripen: { type: 'integer', description: 'Gripen cost-effectiveness score 0-10' },
+                cost_f35: { type: 'integer', description: 'F-35 cost-effectiveness score 0-10' },
+                political_gripen: { type: 'integer', description: 'Gripen political support score 0-10' },
+                political_f35: { type: 'integer', description: 'F-35 political support score 0-10' },
+                industrial_gripen: { type: 'integer', description: 'Gripen industrial benefits score 0-10' },
+                industrial_f35: { type: 'integer', description: 'F-35 industrial benefits score 0-10' },
+                geopolitical_gripen: { type: 'integer', description: 'Gripen geopolitical alignment score 0-10' },
+                geopolitical_f35: { type: 'integer', description: 'F-35 geopolitical alignment score 0-10' },
+                capability_text: { type: 'string', description: 'Capability analysis text' },
+                cost_text: { type: 'string', description: 'Cost analysis text' },
+                political_text: { type: 'string', description: 'Political analysis text' },
+                industrial_text: { type: 'string', description: 'Industrial cooperation text' },
+                geopolitical_text: { type: 'string', description: 'Geopolitical analysis text' }
+              },
+              required: [
+                'executive_summary', 'gripen_mentions', 'f35_mentions',
+                'gripen_sentiment', 'f35_sentiment',
+                'capability_gripen', 'capability_f35', 'capability_text',
+                'cost_gripen', 'cost_f35', 'cost_text',
+                'political_gripen', 'political_f35', 'political_text',
+                'industrial_gripen', 'industrial_f35', 'industrial_text',
+                'geopolitical_gripen', 'geopolitical_f35', 'geopolitical_text'
+              ]
+            }
+          }
+        }],
+        tool_choice: { type: 'function', function: { name: 'analysis_report' } },
         temperature: 0.3,
-        max_tokens: 8000,
       }),
     });
 
@@ -227,67 +177,17 @@ MANDATORY:
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices[0].message.content;
+    console.log('AI response received');
     
-    console.log('AI response received, parsing...');
-
-    // Parse and validate the JSON response
-    let analysis;
-    try {
-      let jsonStr = content.trim();
-      
-      // Remove markdown code block markers if present
-      if (jsonStr.startsWith('```')) {
-        const firstNewline = jsonStr.indexOf('\n');
-        const lastCodeBlock = jsonStr.lastIndexOf('```');
-        
-        if (firstNewline !== -1 && lastCodeBlock > firstNewline) {
-          jsonStr = jsonStr.substring(firstNewline + 1, lastCodeBlock).trim();
-        }
-      }
-      
-      // Remove any leading text before the JSON object
-      const jsonStart = jsonStr.indexOf('{');
-      if (jsonStart > 0) {
-        jsonStr = jsonStr.substring(jsonStart);
-      }
-      
-      analysis = JSON.parse(jsonStr);
-      console.log('Successfully parsed JSON');
-      
-      // Normalize field names from camelCase to snake_case if needed
-      if (analysis.mediaPresence && !analysis.media_presence) {
-        analysis.media_presence = analysis.mediaPresence;
-        delete analysis.mediaPresence;
-      }
-      if (analysis.mediaTonality && !analysis.media_tonality) {
-        analysis.media_tonality = analysis.mediaTonality;
-        delete analysis.mediaTonality;
-      }
-      if (analysis.executiveSummary && !analysis.executive_summary) {
-        analysis.executive_summary = analysis.executiveSummary;
-        delete analysis.executiveSummary;
-      }
-      
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      console.error('Raw content (first 500 chars):', content.substring(0, 500));
-      throw new Error('Failed to parse AI analysis response');
+    // Extract tool call results
+    const toolCall = aiData.choices[0].message.tool_calls?.[0];
+    if (!toolCall || toolCall.function.name !== 'analysis_report') {
+      console.error('No tool call found in response');
+      throw new Error('AI did not use the analysis_report tool');
     }
-
-    // Validate required structure
-    if (!analysis.media_presence || !analysis.media_tonality) {
-      console.error('Missing required analysis structure:', analysis);
-      throw new Error('AI response missing required fields: media_presence or media_tonality');
-    }
-
-    // Ensure monthly_breakdown exists and is an array
-    if (!Array.isArray(analysis.media_presence.monthly_breakdown)) {
-      console.error('Invalid monthly_breakdown:', analysis.media_presence.monthly_breakdown);
-      analysis.media_presence.monthly_breakdown = [];
-    }
-
-    console.log('Storing research report...');
+    
+    const analysis = JSON.parse(toolCall.function.arguments);
+    console.log('Tool call extracted successfully');
 
     // Fetch weights from settings
     const { data: weightsData } = await supabase
@@ -304,25 +204,21 @@ MANDATORY:
       industrial: 30
     };
 
-    // Safely calculate dimension scores with fallbacks
+    // Calculate dimension scores
     const gripenScores = {
-      media: analysis.media_tonality?.gripen_sentiment !== undefined 
-        ? Math.max(0, Math.min(10, (analysis.media_tonality.gripen_sentiment + 1) * 5))
-        : 5,
-      political: analysis.political_analysis?.gripen_score ?? 5,
-      capabilities: analysis.capability_analysis?.gripen_score ?? 5,
-      cost: analysis.cost_analysis?.gripen_score ?? 5,
-      industrial: analysis.industrial_cooperation?.gripen_score ?? 5,
+      media: Math.max(0, Math.min(10, (analysis.gripen_sentiment + 1) * 5)),
+      political: analysis.political_gripen,
+      capabilities: analysis.capability_gripen,
+      cost: analysis.cost_gripen,
+      industrial: analysis.industrial_gripen,
     };
 
     const f35Scores = {
-      media: analysis.media_tonality?.f35_sentiment !== undefined
-        ? Math.max(0, Math.min(10, (analysis.media_tonality.f35_sentiment + 1) * 5))
-        : 5,
-      political: analysis.political_analysis?.f35_score ?? 5,
-      capabilities: analysis.capability_analysis?.f35_score ?? 5,
-      cost: analysis.cost_analysis?.f35_score ?? 5,
-      industrial: analysis.industrial_cooperation?.f35_score ?? 5,
+      media: Math.max(0, Math.min(10, (analysis.f35_sentiment + 1) * 5)),
+      political: analysis.political_f35,
+      capabilities: analysis.capability_f35,
+      cost: analysis.cost_f35,
+      industrial: analysis.industrial_f35,
     };
 
     // Calculate weighted total scores (0-100 scale)
@@ -339,51 +235,51 @@ MANDATORY:
     const gripenTotal = calculateWeightedScore(gripenScores);
     const f35Total = calculateWeightedScore(f35Scores);
 
-    // Calculate total mentions from monthly breakdown
-    let totalGripenMentions = 0;
-    let totalF35Mentions = 0;
+    // Generate monthly breakdown from total mentions (distribute across months)
+    const months = [];
+    const monthStart = new Date(trackingStartDate);
+    const monthEnd = new Date(today);
     
-    if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
-      analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
-        totalGripenMentions += monthData.gripen_mentions || 0;
-        totalF35Mentions += monthData.f35_mentions || 0;
-      });
+    while (monthStart <= monthEnd) {
+      months.push(monthStart.toISOString().substring(0, 7));
+      monthStart.setMonth(monthStart.getMonth() + 1);
     }
 
-    // Store the research report with scores
+    const monthlyData = months.map(month => ({
+      month,
+      gripen_mentions: Math.floor(analysis.gripen_mentions / months.length),
+      f35_mentions: Math.floor(analysis.f35_mentions / months.length),
+      gripen_sentiment: analysis.gripen_sentiment,
+      f35_sentiment: analysis.f35_sentiment
+    }));
+
+    // Store the research report
     const { data: report, error: reportError } = await supabase
       .from('research_reports')
       .insert({
         report_date: today,
         executive_summary: analysis.executive_summary,
         media_presence: {
-          ...analysis.media_presence,
-          total_gripen_mentions: totalGripenMentions,
-          total_f35_mentions: totalF35Mentions
+          monthly_breakdown: monthlyData,
+          total_gripen_mentions: analysis.gripen_mentions,
+          total_f35_mentions: analysis.f35_mentions
         },
         media_tonality: {
-          ...analysis.media_tonality,
+          gripen_sentiment: analysis.gripen_sentiment,
+          f35_sentiment: analysis.f35_sentiment,
           gripen_score: gripenTotal,
           f35_score: f35Total,
           dimension_scores: {
             gripen: gripenScores,
-          f35: f35Scores
-        }
-      },
-      capability_analysis: typeof analysis.capability_analysis === 'string' 
-        ? analysis.capability_analysis 
-        : analysis.capability_analysis?.text,
-      cost_analysis: typeof analysis.cost_analysis === 'string'
-        ? analysis.cost_analysis
-        : analysis.cost_analysis?.text,
-      political_analysis: typeof analysis.political_analysis === 'string'
-        ? analysis.political_analysis
-        : analysis.political_analysis?.text,
-      industrial_cooperation: typeof analysis.industrial_cooperation === 'string'
-        ? analysis.industrial_cooperation
-        : analysis.industrial_cooperation?.text,
-      geopolitical_analysis: analysis.geopolitical_analysis,
-        sources: analysis.sources,
+            f35: f35Scores
+          }
+        },
+        capability_analysis: analysis.capability_text,
+        cost_analysis: analysis.cost_text,
+        political_analysis: analysis.political_text,
+        industrial_cooperation: analysis.industrial_text,
+        geopolitical_analysis: analysis.geopolitical_text,
+        sources: [],
         status: 'completed'
       })
       .select()
@@ -396,36 +292,28 @@ MANDATORY:
 
     console.log('Storing comparison metrics...');
 
-    // Use upsert to preserve historical data while allowing updates
-    const metricsData: any[] = [];
-    
-    if (analysis.media_presence.monthly_breakdown && Array.isArray(analysis.media_presence.monthly_breakdown)) {
-      analysis.media_presence.monthly_breakdown.forEach((monthData: any) => {
-        const monthDate = `${monthData.month}-01`; // First day of the month
-        
-        metricsData.push({
-          metric_date: monthDate,
-          fighter: 'Gripen',
-          mentions_count: monthData.gripen_mentions || 0,
-          sentiment_score: monthData.gripen_sentiment || 0,
-          media_reach_score: monthData.gripen_mentions || 0,
-          political_support_score: gripenTotal,
-          dimension_scores: gripenScores
-        });
-        
-        metricsData.push({
-          metric_date: monthDate,
-          fighter: 'F-35',
-          mentions_count: monthData.f35_mentions || 0,
-          sentiment_score: monthData.f35_sentiment || 0,
-          media_reach_score: monthData.f35_mentions || 0,
-          political_support_score: f35Total,
-          dimension_scores: f35Scores
-        });
-      });
-    }
+    // Store metrics for each month
+    const metricsData = monthlyData.map(month => ([
+      {
+        metric_date: `${month.month}-01`,
+        fighter: 'Gripen',
+        mentions_count: month.gripen_mentions,
+        sentiment_score: month.gripen_sentiment,
+        media_reach_score: month.gripen_mentions,
+        political_support_score: gripenTotal,
+        dimension_scores: gripenScores
+      },
+      {
+        metric_date: `${month.month}-01`,
+        fighter: 'F-35',
+        mentions_count: month.f35_mentions,
+        sentiment_score: month.f35_sentiment,
+        media_reach_score: month.f35_mentions,
+        political_support_score: f35Total,
+        dimension_scores: f35Scores
+      }
+    ])).flat();
 
-    // Upsert all metrics (insert new, update existing based on metric_date + fighter)
     if (metricsData.length > 0) {
       const { error: metricsError } = await supabase
         .from('comparison_metrics')
