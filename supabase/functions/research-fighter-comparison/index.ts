@@ -87,13 +87,20 @@ serve(async (req) => {
 Tracking period: ${trackingStartDate} to ${today} (${daysSinceBaseline} days)
 
 Provide analysis covering:
-1. Media coverage trends in Portuguese news
-2. Sentiment and key themes for each fighter
+1. Media coverage trends in Portuguese news with REALISTIC month-by-month variations
+2. Sentiment and key themes for each fighter showing how opinions evolved over time
 3. Capability comparison
 4. Cost analysis
 5. Political landscape
 6. Industrial cooperation potential
 7. Geopolitical considerations
+
+CRITICAL for monthly_breakdown:
+- Generate realistic month-by-month data showing trends and variations
+- Mentions should vary naturally (not evenly distributed)
+- Sentiment should show realistic fluctuations based on events
+- Show how media coverage intensity changed over the tracking period
+- Reflect any momentum shifts or emerging narratives
 
 Return structured data using the analysis_report tool.`;
     }
@@ -151,7 +158,22 @@ Return structured data using the analysis_report tool.`;
                 cost_text: { type: 'string', description: 'Cost analysis text' },
                 political_text: { type: 'string', description: 'Political analysis text' },
                 industrial_text: { type: 'string', description: 'Industrial cooperation text' },
-                geopolitical_text: { type: 'string', description: 'Geopolitical analysis text' }
+                geopolitical_text: { type: 'string', description: 'Geopolitical analysis text' },
+                monthly_breakdown: {
+                  type: 'array',
+                  description: 'Month-by-month data showing realistic trends and variations',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      month: { type: 'string', description: 'Month in YYYY-MM format' },
+                      gripen_mentions: { type: 'integer', description: 'Gripen mentions this month' },
+                      f35_mentions: { type: 'integer', description: 'F-35 mentions this month' },
+                      gripen_sentiment: { type: 'number', description: 'Gripen sentiment this month -1 to 1' },
+                      f35_sentiment: { type: 'number', description: 'F-35 sentiment this month -1 to 1' }
+                    },
+                    required: ['month', 'gripen_mentions', 'f35_mentions', 'gripen_sentiment', 'f35_sentiment']
+                  }
+                }
               },
               required: [
                 'executive_summary', 'gripen_mentions', 'f35_mentions',
@@ -160,7 +182,8 @@ Return structured data using the analysis_report tool.`;
                 'cost_gripen', 'cost_f35', 'cost_text',
                 'political_gripen', 'political_f35', 'political_text',
                 'industrial_gripen', 'industrial_f35', 'industrial_text',
-                'geopolitical_gripen', 'geopolitical_f35', 'geopolitical_text'
+                'geopolitical_gripen', 'geopolitical_f35', 'geopolitical_text',
+                'monthly_breakdown'
               ]
             }
           }
@@ -235,23 +258,8 @@ Return structured data using the analysis_report tool.`;
     const gripenTotal = calculateWeightedScore(gripenScores);
     const f35Total = calculateWeightedScore(f35Scores);
 
-    // Generate monthly breakdown from total mentions (distribute across months)
-    const months = [];
-    const monthStart = new Date(trackingStartDate);
-    const monthEnd = new Date(today);
-    
-    while (monthStart <= monthEnd) {
-      months.push(monthStart.toISOString().substring(0, 7));
-      monthStart.setMonth(monthStart.getMonth() + 1);
-    }
-
-    const monthlyData = months.map(month => ({
-      month,
-      gripen_mentions: Math.floor(analysis.gripen_mentions / months.length),
-      f35_mentions: Math.floor(analysis.f35_mentions / months.length),
-      gripen_sentiment: analysis.gripen_sentiment,
-      f35_sentiment: analysis.f35_sentiment
-    }));
+    // Use monthly breakdown from AI analysis (with realistic trends and variations)
+    const monthlyData = analysis.monthly_breakdown || [];
 
     // Store the research report
     const { data: report, error: reportError } = await supabase
