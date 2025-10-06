@@ -201,11 +201,23 @@ Return structured data using the analysis_report tool.`;
 
     const aiData = await aiResponse.json();
     console.log('AI response received');
+    console.log('AI response structure:', JSON.stringify(aiData, null, 2));
     
-    // Extract tool call results
-    const toolCall = aiData.choices[0].message.tool_calls?.[0];
+    // Extract tool call results with better error handling
+    if (!aiData.choices || !aiData.choices[0]) {
+      console.error('Invalid AI response structure - no choices array');
+      throw new Error('Invalid AI response structure');
+    }
+    
+    const message = aiData.choices[0].message;
+    if (!message) {
+      console.error('Invalid AI response structure - no message in choice');
+      throw new Error('Invalid AI response structure');
+    }
+    
+    const toolCall = message.tool_calls?.[0];
     if (!toolCall || toolCall.function.name !== 'analysis_report') {
-      console.error('No tool call found in response');
+      console.error('No tool call found in response. Message:', JSON.stringify(message, null, 2));
       throw new Error('AI did not use the analysis_report tool');
     }
     
