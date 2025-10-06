@@ -258,7 +258,7 @@ Return structured data using the analysis_report tool.`;
     const gripenTotal = calculateWeightedScore(gripenScores);
     const f35Total = calculateWeightedScore(f35Scores);
 
-    // Use monthly breakdown from AI analysis (with realistic trends and variations)
+    // Use monthly breakdown from AI analysis with realistic trends
     const monthlyData = analysis.monthly_breakdown || [];
 
     // Store the research report
@@ -301,7 +301,7 @@ Return structured data using the analysis_report tool.`;
     console.log('Storing comparison metrics...');
 
     // Store metrics for each month
-    const metricsData = monthlyData.map(month => ([
+    const metricsData = monthlyData.map((month: any) => ([
       {
         metric_date: `${month.month}-01`,
         fighter: 'Gripen',
