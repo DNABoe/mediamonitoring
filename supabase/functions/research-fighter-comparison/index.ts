@@ -188,8 +188,7 @@ Return structured data using the analysis_report tool.`;
             }
           }
         }],
-        tool_choice: { type: 'function', function: { name: 'analysis_report' } },
-        temperature: 0.3,
+        tool_choice: { type: 'function', function: { name: 'analysis_report' } }
       }),
     });
 
