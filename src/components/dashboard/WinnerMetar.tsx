@@ -150,13 +150,14 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     const newValue = value[0];
     const currentTotal = totalWeight - weights[key];
     
-    // Only allow change if it won't exceed 100
-    if (currentTotal + newValue <= 100) {
-      const newWeights = { ...weights, [key]: newValue };
-      setWeights(newWeights);
-      // Auto-save on change
-      saveWeights(newWeights);
-    }
+    // Always allow the change, but cap at what's available
+    const maxAllowed = 100 - currentTotal;
+    const finalValue = Math.min(newValue, maxAllowed);
+    
+    const newWeights = { ...weights, [key]: finalValue };
+    setWeights(newWeights);
+    // Auto-save on change
+    saveWeights(newWeights);
   };
 
   const dimensionOrder: (keyof typeof weights)[] = ['media', 'political', 'industrial', 'cost', 'capabilities'];
