@@ -84,6 +84,8 @@ serve(async (req) => {
     if (!researchPrompt) {
       researchPrompt = `You are a Portuguese defense intelligence analyst specializing in Portugal's fighter aircraft acquisition program. Your analysis must be deeply rooted in PORTUGUESE media coverage, public discourse, and political debate.
 
+**CRITICAL: ALL RESPONSES MUST BE IN ENGLISH. Analyze Portuguese sources but write your analysis in English.**
+
 Tracking period: ${trackingStartDate} to ${today} (${daysSinceBaseline} days)
 
 PRIMARY FOCUS: Analyze coverage and sentiment specifically from PORTUGUESE sources:
@@ -103,12 +105,15 @@ Provide DETAILED analysis covering:
 6. Industrial cooperation potential for Portuguese aerospace industry
 7. Geopolitical considerations from Portuguese NATO and EU membership perspective
 
-EXECUTIVE SUMMARY REQUIREMENTS:
-- Write 4-6 detailed paragraphs (not 2-3)
+**EXECUTIVE SUMMARY REQUIREMENTS:**
+- Write EXACTLY 5-7 FULL PARAGRAPHS (minimum 150 words per paragraph)
+- Each paragraph must be substantial and detailed
 - Focus exclusively on Portuguese situation and Portuguese perspectives
 - Include specific references to Portuguese media themes and political debates
 - Discuss how Portuguese decision-makers and public are viewing this choice
 - Highlight uniquely Portuguese concerns (budget, industrial policy, NATO commitments, operational needs)
+- Provide concrete examples and detailed analysis, not generic statements
+- **WRITE IN ENGLISH ONLY**
 
 CRITICAL for monthly_breakdown:
 - Generate realistic month-by-month data showing trends in PORTUGUESE media
@@ -116,6 +121,8 @@ CRITICAL for monthly_breakdown:
 - Sentiment should reflect Portuguese public and political opinion shifts
 - Show how Portuguese media coverage intensity changed over time
 - Reflect momentum shifts in Portuguese political debate
+
+**ALL TEXT OUTPUTS MUST BE IN ENGLISH. You are analyzing Portuguese sources but writing in English for an international audience.**
 
 Return structured data using the analysis_report tool.`;
     }
@@ -139,7 +146,7 @@ Return structured data using the analysis_report tool.`;
         messages: [
           {
             role: 'system',
-            content: 'You are a defense intelligence analyst. Use the analysis_report tool to structure your findings.'
+            content: 'You are a defense intelligence analyst writing in English. You analyze Portuguese media and sources but ALL your outputs must be written in English. Use the analysis_report tool to structure your findings.'
           },
           {
             role: 'user',
@@ -154,7 +161,7 @@ Return structured data using the analysis_report tool.`;
             parameters: {
               type: 'object',
               properties: {
-                executive_summary: { type: 'string', description: '4-6 detailed paragraphs focusing exclusively on Portuguese media coverage, political debate, and national perspectives on the fighter comparison' },
+                executive_summary: { type: 'string', description: 'EXACTLY 5-7 FULL detailed paragraphs (minimum 150 words each) in ENGLISH focusing exclusively on Portuguese media coverage, political debate, and national perspectives on the fighter comparison. Must be written in English only.' },
                 gripen_mentions: { type: 'integer', description: 'Total Gripen mentions in tracking period' },
                 f35_mentions: { type: 'integer', description: 'Total F-35 mentions in tracking period' },
                 gripen_sentiment: { type: 'number', description: 'Overall Gripen sentiment -1 to 1' },
