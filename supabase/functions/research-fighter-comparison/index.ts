@@ -120,7 +120,7 @@ Return structured data using the analysis_report tool.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5-mini',
+        model: 'openai/gpt-5',
         messages: [
           {
             role: 'system',
