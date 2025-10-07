@@ -82,25 +82,40 @@ serve(async (req) => {
     
     // Use default prompt if no custom prompt is set
     if (!researchPrompt) {
-      researchPrompt = `You are analyzing the Gripen vs F-35 fighter comparison for Portugal's fighter program.
+      researchPrompt = `You are a Portuguese defense intelligence analyst specializing in Portugal's fighter aircraft acquisition program. Your analysis must be deeply rooted in PORTUGUESE media coverage, public discourse, and political debate.
 
 Tracking period: ${trackingStartDate} to ${today} (${daysSinceBaseline} days)
 
-Provide analysis covering:
-1. Media coverage trends in Portuguese news with REALISTIC month-by-month variations
-2. Sentiment and key themes for each fighter showing how opinions evolved over time
-3. Capability comparison
-4. Cost analysis
-5. Political landscape
-6. Industrial cooperation potential
-7. Geopolitical considerations
+PRIMARY FOCUS: Analyze coverage and sentiment specifically from PORTUGUESE sources:
+- Major Portuguese newspapers (Público, Jornal de Notícias, Correio da Manhã, Expresso, Observador)
+- Portuguese defense/military publications
+- Portuguese political commentary and opinion pieces
+- Portuguese parliamentary debates and political party positions
+- Portuguese aerospace industry perspectives
+- Portuguese public opinion and social media discussions
+
+Provide DETAILED analysis covering:
+1. Portuguese media coverage trends - Focus on how Portuguese outlets covered each aircraft, key narratives in Portuguese press, public opinion shifts in Portugal
+2. Sentiment in Portuguese discourse - How Portuguese journalists, politicians, and experts view each option
+3. Capability comparison from Portuguese operational needs perspective
+4. Cost analysis through Portuguese budget constraints lens
+5. Portuguese political landscape - Which parties/politicians favor which option and why
+6. Industrial cooperation potential for Portuguese aerospace industry
+7. Geopolitical considerations from Portuguese NATO and EU membership perspective
+
+EXECUTIVE SUMMARY REQUIREMENTS:
+- Write 4-6 detailed paragraphs (not 2-3)
+- Focus exclusively on Portuguese situation and Portuguese perspectives
+- Include specific references to Portuguese media themes and political debates
+- Discuss how Portuguese decision-makers and public are viewing this choice
+- Highlight uniquely Portuguese concerns (budget, industrial policy, NATO commitments, operational needs)
 
 CRITICAL for monthly_breakdown:
-- Generate realistic month-by-month data showing trends and variations
-- Mentions should vary naturally (not evenly distributed)
-- Sentiment should show realistic fluctuations based on events
-- Show how media coverage intensity changed over the tracking period
-- Reflect any momentum shifts or emerging narratives
+- Generate realistic month-by-month data showing trends in PORTUGUESE media
+- Mentions should vary naturally based on Portuguese news cycles
+- Sentiment should reflect Portuguese public and political opinion shifts
+- Show how Portuguese media coverage intensity changed over time
+- Reflect momentum shifts in Portuguese political debate
 
 Return structured data using the analysis_report tool.`;
     }
@@ -139,7 +154,7 @@ Return structured data using the analysis_report tool.`;
             parameters: {
               type: 'object',
               properties: {
-                executive_summary: { type: 'string', description: '2-3 paragraph overview' },
+                executive_summary: { type: 'string', description: '4-6 detailed paragraphs focusing exclusively on Portuguese media coverage, political debate, and national perspectives on the fighter comparison' },
                 gripen_mentions: { type: 'integer', description: 'Total Gripen mentions in tracking period' },
                 f35_mentions: { type: 'integer', description: 'Total F-35 mentions in tracking period' },
                 gripen_sentiment: { type: 'number', description: 'Overall Gripen sentiment -1 to 1' },
