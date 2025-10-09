@@ -468,20 +468,6 @@ const PDFDocument = ({ data }: PDFDocumentProps) => {
           </View>
         )}
 
-        {settings && settings.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Analysis Weights & Configuration</Text>
-            <Text style={[styles.text, { marginBottom: 10 }]}>
-              These are the weights configured for the analysis dimensions:
-            </Text>
-            {settings.map((setting: any) => (
-              <View key={setting.id} style={styles.metricRow}>
-                <Text style={styles.metricLabel}>{setting.key}:</Text>
-                <Text style={styles.metricValue}>{JSON.stringify(setting.value)}</Text>
-              </View>
-            ))}
-          </View>
-        )}
 
         <Text style={styles.footer}>
           Portuguese Fighter Program Monitor • Page 1
@@ -555,6 +541,23 @@ const PDFDocument = ({ data }: PDFDocumentProps) => {
                   yMax={1}
                 />
               </View>
+              
+              <Text style={styles.subsectionTitle}>Platform-Specific Analysis</Text>
+              <Text style={[styles.text, { marginBottom: 8 }]}>
+                The sentiment trends reveal distinct platform narratives across Portuguese media:
+              </Text>
+              <Text style={[styles.text, { marginBottom: 5 }]}>
+                • News outlets (Público, Observador, DN) tend to frame the F-35 within NATO standardization and alliance credibility contexts, often with neutral-to-positive tonality, while presenting Gripen through fiscal responsibility and industrial cooperation lenses.
+              </Text>
+              <Text style={[styles.text, { marginBottom: 5 }]}>
+                • Business media (Jornal de Negócios, Expresso) emphasize lifecycle costs and offset opportunities, typically showing more favorable sentiment toward Gripen when discussing economic impact, and F-35 skepticism during budget debates.
+              </Text>
+              <Text style={[styles.text, { marginBottom: 5 }]}>
+                • Defense-focused platforms and international sources cited locally maintain more balanced technical coverage, with sentiment fluctuating based on capability demonstrations, procurement delays, or sustainment cost revelations.
+              </Text>
+              <Text style={styles.text}>
+                • Social media and opinion pieces reflect polarized views, with pro-Gripen sentiment stronger among sovereignty and cost-conscious commentators, while pro-F-35 sentiment prevails in strategic and interoperability discussions.
+              </Text>
             </View>
 
             <View style={styles.section}>
