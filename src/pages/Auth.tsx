@@ -93,7 +93,7 @@ export default function Auth() {
       <Card className="w-full max-w-md p-8">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            Portuguese Fighter Program Monitor
+            Log In
           </h1>
           <p className="text-muted-foreground mt-2">
             Sign in to access admin features
