@@ -107,8 +107,22 @@ export const ResearchSources = () => {
     }
   };
 
+  // Helper to check if source is fighter-related
+  const isFighterRelated = (url: string) => {
+    const fighterKeywords = [
+      'gripen', 'f-35', 'f35', 'fighter', 'aircraft', 'aviao', 'aviação',
+      'defesa', 'defense', 'militar', 'military', 'forca aerea', 'air force',
+      'procurement', 'aquisição', 'saab', 'lockheed', 'nato', 'otan'
+    ];
+    const urlLower = url.toLowerCase();
+    return fighterKeywords.some(keyword => urlLower.includes(keyword));
+  };
+
+  // Filter sources to only include fighter-related URLs
+  const fighterSources = sources.filter(isFighterRelated);
+
   // Sort sources: Portuguese domains first, then alphabetically
-  const sortedSources = [...sources].sort((a, b) => {
+  const sortedSources = [...fighterSources].sort((a, b) => {
     const aIsPortuguese = isPortugueseDomain(a);
     const bIsPortuguese = isPortugueseDomain(b);
     
