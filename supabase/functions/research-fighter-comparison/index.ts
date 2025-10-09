@@ -294,28 +294,37 @@ Return structured data using the analysis_report tool.`;
     // Use monthly breakdown from AI analysis with realistic trends
     const monthlyData = analysis.monthly_breakdown || [];
 
-    // Collect sources from Google Search results (if available) + Portuguese media URLs
+    // Fetch real articles from database with fighter tags from last 60 days
+    console.log('Fetching real articles from database...');
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    
+    const { data: realArticles } = await supabase
+      .from('items')
+      .select('id, title_en, url, published_at, fighter_tags')
+      .not('fighter_tags', 'is', null)
+      .gte('published_at', sixtyDaysAgo.toISOString())
+      .order('published_at', { ascending: false })
+      .limit(20);
+
+    // Build sources array from real database articles
     let collectedSources: string[] = [];
     
-    if (hasRealSearchData) {
-      // Extract URLs from Google Search results
+    if (realArticles && realArticles.length > 0) {
+      collectedSources = realArticles.map(article => article.url).filter(Boolean);
+      console.log(`Collected ${collectedSources.length} real article URLs from database`);
+    } else if (hasRealSearchData) {
+      // Fallback to Google Search results if database has no articles
       const gripenUrls = gripenArticles.map(article => article.link).filter(Boolean);
       const f35Urls = f35Articles.map(article => article.link).filter(Boolean);
       collectedSources = [...new Set([...gripenUrls, ...f35Urls])];
       console.log(`Collected ${collectedSources.length} source URLs from search results`);
     } else {
-      // Fallback: Use known Portuguese media URLs as reference sources
+      // Last resort: Use known Portuguese media URLs
       collectedSources = [
         'https://www.publico.pt',
-        'https://www.jornaldenegocios.pt',
         'https://observador.pt',
-        'https://expresso.pt',
-        'https://www.dn.pt',
-        'https://www.cmjornal.pt',
-        'https://www.rtp.pt',
-        'https://www.jornaldenegocios.pt/empresas/detalhe/aviacao',
-        'https://www.defense-aerospace.com',
-        'https://www.janes.com'
+        'https://expresso.pt'
       ];
       console.log(`Using ${collectedSources.length} fallback Portuguese media sources`);
     }
