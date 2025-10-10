@@ -16,30 +16,33 @@ import { BlackHatAnalysis } from "@/components/dashboard/BlackHatAnalysis";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportPDF } from "@/components/dashboard/ExportPDF";
-
 const Index = () => {
-  const { user, isAdmin, loading: authLoading, signOut } = useAuth();
+  const {
+    user,
+    isAdmin,
+    loading: authLoading,
+    signOut
+  } = useAuth();
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [winnerScore, setWinnerScore] = useState({ gripen: 0, f35: 0 });
+  const [winnerScore, setWinnerScore] = useState({
+    gripen: 0,
+    f35: 0
+  });
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-
   useEffect(() => {
     if (!authLoading && !user) {
       window.location.href = "/auth";
     }
   }, [user, authLoading]);
-
   useEffect(() => {
     const fetchScores = async () => {
       // Fetch latest research report scores
-      const { data: report } = await supabase
-        .from('research_reports')
-        .select('media_tonality, created_at')
-        .order('report_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
+      const {
+        data: report
+      } = await supabase.from('research_reports').select('media_tonality, created_at').order('report_date', {
+        ascending: false
+      }).limit(1).maybeSingle();
       if (report?.media_tonality) {
         const tonality = report.media_tonality as any;
         setWinnerScore({
@@ -52,21 +55,16 @@ const Index = () => {
         }
       }
     };
-
     const fetchBaseline = async () => {
-      const { data } = await supabase
-        .from('baselines')
-        .select('start_date')
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
+      const {
+        data
+      } = await supabase.from('baselines').select('start_date').eq('status', 'completed').order('created_at', {
+        ascending: false
+      }).limit(1).maybeSingle();
       if (data?.start_date) {
         setBaselineDate(data.start_date);
       }
     };
-
     fetchScores();
     fetchBaseline();
 
@@ -74,42 +72,28 @@ const Index = () => {
     const interval = setInterval(() => {
       fetchScores();
     }, 30000);
-
-    const reportsChannel = supabase
-      .channel('reports-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'research_reports' },
-        () => fetchScores()
-      )
-      .subscribe();
-
-    const baselinesChannel = supabase
-      .channel('baselines-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'baselines' },
-        () => fetchBaseline()
-      )
-      .subscribe();
-
+    const reportsChannel = supabase.channel('reports-changes').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'research_reports'
+    }, () => fetchScores()).subscribe();
+    const baselinesChannel = supabase.channel('baselines-changes').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'baselines'
+    }, () => fetchBaseline()).subscribe();
     return () => {
       clearInterval(interval);
       supabase.removeChannel(reportsChannel);
       supabase.removeChannel(baselinesChannel);
     };
   }, []);
-
   if (authLoading || !user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+    return <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background text-foreground">
+  return <div className="min-h-screen bg-background text-foreground">
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -118,36 +102,30 @@ const Index = () => {
               <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-primary rounded-full animate-pulse" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                Portuguese Fighter Program Monitor
-              </h1>
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">Fighter Program Media Analysis</h1>
               <p className="text-xs text-muted-foreground">
-                Real-time intelligence dashboard • Last updated: {lastUpdate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {lastUpdate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-                {isAdmin && (
-                  <span className="ml-2">
+                Real-time intelligence dashboard • Last updated: {lastUpdate.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })} {lastUpdate.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+              })}
+                {isAdmin && <span className="ml-2">
                     <BaselineGenerator currentDate={baselineDate} />
-                  </span>
-                )}
+                  </span>}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <ExportPDF />
-            {isAdmin && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSettingsOpen(true)}
-              >
+            {isAdmin && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
                 <Settings className="h-4 w-4" />
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={signOut}
-              title="Sign Out"
-            >
+              </Button>}
+            <Button variant="outline" size="sm" onClick={signOut} title="Sign Out">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -155,11 +133,9 @@ const Index = () => {
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        {isAdmin && (
-          <div className="mb-6">
+        {isAdmin && <div className="mb-6">
             <ResearchControls />
-          </div>
-        )}
+          </div>}
 
         <div className="mb-6">
           <ResearchChanges />
@@ -198,11 +174,7 @@ const Index = () => {
         </div>
       </div>
 
-      {isAdmin && (
-        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      )}
-    </div>
-  );
+      {isAdmin && <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />}
+    </div>;
 };
-
 export default Index;
