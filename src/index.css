@@ -8,57 +8,73 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 220 27% 6%;
-    --foreground: 210 40% 98%;
+    /* Saab Dark Theme - Dark grey backgrounds (HEX: #373532 = RGB: 55/53/50) */
+    --background: 24 5% 21%;
+    --foreground: 60 2% 95%;
 
-    --card: 220 23% 10%;
-    --card-foreground: 210 40% 98%;
+    /* Container colors - Dark grey shades */
+    --card: 24 2% 37%;
+    --card-foreground: 60 2% 95%;
 
-    --popover: 220 23% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 24 2% 37%;
+    --popover-foreground: 60 2% 95%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 220 27% 6%;
+    /* Primary CTA - Saab Yellow (HEX: #FAB900) */
+    --primary: 45 100% 49%;
+    --primary-foreground: 24 5% 21%;
 
-    --secondary: 220 20% 18%;
-    --secondary-foreground: 210 40% 98%;
+    /* Secondary - Medium grey container */
+    --secondary: 20 2% 52%;
+    --secondary-foreground: 60 2% 95%;
 
-    --muted: 220 20% 18%;
-    --muted-foreground: 217 10% 60%;
+    /* Muted - Lighter grey */
+    --muted: 20 2% 52%;
+    --muted-foreground: 60 2% 75%;
 
-    --accent: 45 93% 47%;
-    --accent-foreground: 220 27% 6%;
+    /* Accent - Saab Blue (HEX: #004C97) */
+    --accent: 210 100% 30%;
+    --accent-foreground: 60 2% 95%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive/Invalid - Saab Red (HEX: #DA291C) */
+    --destructive: 4 77% 48%;
+    --destructive-foreground: 60 2% 95%;
 
-    --success: 142 71% 45%;
-    --success-foreground: 220 27% 6%;
+    /* Success/Valid - Saab Green (HEX: #24A148) */
+    --success: 142 64% 39%;
+    --success-foreground: 60 2% 95%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 220 27% 6%;
+    /* Warning - Saab Warning Yellow (HEX: #ffe100) */
+    --warning: 54 100% 50%;
+    --warning-foreground: 24 5% 21%;
 
-    --border: 220 20% 22%;
-    --input: 220 20% 18%;
-    --ring: 217 91% 60%;
+    /* Caution - Saab Orange (HEX: #ff6700) */
+    --caution: 24 100% 50%;
+    --caution-foreground: 60 2% 95%;
 
-    --radius: 0.5rem;
+    --border: 20 2% 37%;
+    --input: 24 2% 37%;
+    --ring: 45 100% 49%;
 
-    --chart-1: 217 91% 60%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 45 93% 47%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 263 70% 50%;
+    --radius: 0.25rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%), hsl(263, 70%, 50%));
-    --gradient-success: linear-gradient(135deg, hsl(142, 71%, 45%), hsl(173, 58%, 39%));
-    --gradient-danger: linear-gradient(135deg, hsl(0, 84%, 60%), hsl(340, 82%, 52%));
-    --gradient-accent: linear-gradient(135deg, hsl(45, 93%, 47%), hsl(38, 92%, 50%));
+    /* Chart colors using Saab palette */
+    --chart-1: 45 100% 49%;
+    --chart-2: 210 100% 30%;
+    --chart-3: 142 64% 39%;
+    --chart-4: 4 77% 48%;
+    --chart-5: 24 100% 50%;
 
-    --glow-primary: 0 0 20px hsl(217 91% 60% / 0.5);
-    --glow-success: 0 0 20px hsl(142 71% 45% / 0.5);
-    --glow-danger: 0 0 20px hsl(0 84% 60% / 0.5);
-    --glow-accent: 0 0 20px hsl(45 93% 47% / 0.5);
+    /* Gradients using Saab colors */
+    --gradient-primary: linear-gradient(135deg, hsl(45, 100%, 49%), hsl(45, 100%, 60%));
+    --gradient-success: linear-gradient(135deg, hsl(142, 64%, 39%), hsl(142, 64%, 50%));
+    --gradient-danger: linear-gradient(135deg, hsl(4, 77%, 48%), hsl(4, 77%, 58%));
+    --gradient-accent: linear-gradient(135deg, hsl(210, 100%, 30%), hsl(210, 100%, 40%));
+
+    /* Glows using Saab colors */
+    --glow-primary: 0 0 20px hsl(45 100% 49% / 0.5);
+    --glow-success: 0 0 20px hsl(142 64% 39% / 0.5);
+    --glow-danger: 0 0 20px hsl(4 77% 48% / 0.5);
+    --glow-accent: 0 0 20px hsl(210 100% 30% / 0.5);
   }
 }
 
@@ -69,5 +85,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Aktiv Grotesk', Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    letter-spacing: -0.01em;
   }
 }
