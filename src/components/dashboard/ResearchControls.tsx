@@ -26,6 +26,7 @@ export const ResearchControls = () => {
   }, []);
 
   const checkBaseline = async () => {
+    // Only check existence, no need for internal fields
     const { data } = await supabase
       .from('baselines')
       .select('id')

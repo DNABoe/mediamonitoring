@@ -748,7 +748,7 @@ export const ExportPDF = () => {
       throw new Error("No report data available");
     }
 
-    // Fetch sentiment timeline data
+    // Fetch sentiment timeline data (only public fields)
     const { data: baselineData } = await supabase
       .from('baselines')
       .select('start_date')

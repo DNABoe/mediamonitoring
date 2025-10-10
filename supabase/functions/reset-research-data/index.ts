@@ -41,6 +41,15 @@ Deno.serve(async (req) => {
     if (!roleData) {
       throw new Error('Only admins can reset research data')
     }
+    
+    // Log admin action
+    await supabase
+      .from('admin_audit_log')
+      .insert({
+        admin_user_id: user.id,
+        action_type: 'reset_research_data',
+        details: {}
+      })
 
     console.log('Starting data reset...')
 

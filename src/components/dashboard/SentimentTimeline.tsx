@@ -53,7 +53,7 @@ export const SentimentTimeline = () => {
 
   const fetchMetrics = async () => {
     try {
-      // Fetch baseline start date to determine tracking period
+      // Fetch baseline start date to determine tracking period (only public fields)
       const { data: baselineData } = await supabase
         .from('baselines')
         .select('start_date')

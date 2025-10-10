@@ -56,6 +56,7 @@ const Index = () => {
       }
     };
     const fetchBaseline = async () => {
+      // Only fetch start_date, not internal fields like created_by
       const {
         data
       } = await supabase.from('baselines').select('start_date').eq('status', 'completed').order('created_at', {

@@ -43,6 +43,15 @@ Deno.serve(async (req) => {
     }
 
     const { start_date } = await req.json()
+    
+    // Log admin action
+    await supabase
+      .from('admin_audit_log')
+      .insert({
+        admin_user_id: user.id,
+        action_type: 'generate_baseline',
+        details: { start_date }
+      })
 
     if (!start_date) {
       throw new Error('start_date is required')
