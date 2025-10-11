@@ -212,38 +212,50 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold">Winner</h3>
+        <h3 className="text-xl font-bold">Weighted Score Comparison</h3>
         <div className="flex items-center gap-2 px-3 py-1 bg-accent/20 rounded-full">
           <TrendingUp className="h-4 w-4 text-accent" />
-          <span className="text-sm font-semibold">Δ {delta}</span>
+          <span className="text-sm font-semibold">Leader: {leader}</span>
         </div>
       </div>
 
-      <div className="relative h-16 rounded-full overflow-hidden bg-gradient-to-r from-success via-warning to-destructive mb-4">
-        <div
-          className="absolute top-0 h-full w-1 bg-foreground shadow-lg transition-all duration-500"
-          style={{ left: `${competitorPercent}%` }}
-        >
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card px-3 py-1 rounded shadow-lg border border-border">
-            <div className="text-xs font-bold whitespace-nowrap">
-              {leader} Likely
-            </div>
+      {/* Score bars for all competitors */}
+      <div className="space-y-3 mb-6">
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-semibold text-success">Gripen</span>
+            <span className="text-sm font-bold">{gripenScore.toFixed(1)}</span>
+          </div>
+          <div className="relative h-8 rounded-full overflow-hidden bg-muted">
+            <div 
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-success to-success/80 transition-all duration-500"
+              style={{ width: `${Math.min(100, (gripenScore / 10) * 100)}%` }}
+            />
           </div>
         </div>
+
+        {allCompetitors.map(comp => {
+          const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const score = competitorScores[key] || 0;
+          return (
+            <div key={comp} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-semibold text-destructive">{comp}</span>
+                <span className="text-sm font-bold">{score.toFixed(1)}</span>
+              </div>
+              <div className="relative h-8 rounded-full overflow-hidden bg-muted">
+                <div 
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-destructive to-destructive/80 transition-all duration-500"
+                  style={{ width: `${Math.min(100, (score / 10) * 100)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="flex justify-between text-sm mb-6">
-        <div className="text-left">
-          <div className="font-bold text-success">Gripen</div>
-          <div className="text-muted-foreground">{gripenPercent.toFixed(1)}%</div>
-        </div>
-        <div className="text-center text-muted-foreground">
-          Likelihood to Win
-        </div>
-        <div className="text-right">
-          <div className="font-bold text-destructive">{strongestCompetitor.name}</div>
-          <div className="text-muted-foreground">{competitorPercent.toFixed(1)}%</div>
-        </div>
+      <div className="text-center text-sm text-muted-foreground mb-6 pb-6 border-b">
+        Scores based on weighted analysis (0-10 scale)
       </div>
 
       <div className="space-y-3">
