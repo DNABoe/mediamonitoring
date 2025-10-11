@@ -32,15 +32,7 @@ const Index = () => {
   });
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [selectedCompetitor, setSelectedCompetitor] = useState<string>('');
   const { settings: userSettings, loading: settingsLoading } = useUserSettings();
-  
-  // Initialize selected competitor from user settings (first one)
-  useEffect(() => {
-    if (userSettings.activeCompetitors.length > 0) {
-      setSelectedCompetitor(userSettings.activeCompetitors[0]);
-    }
-  }, [userSettings.activeCompetitors]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -122,28 +114,23 @@ const Index = () => {
                 <span className="text-2xl">{userSettings.countryFlag}</span>
                 Fighter Program Media Analysis - {userSettings.countryName}
               </h1>
-              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-xs text-muted-foreground">
                   Real-time intelligence dashboard • Competitors:
                 </p>
-                <button
-                  className="px-2 py-0.5 text-xs font-medium rounded-md bg-primary/20 text-primary border border-primary/30 cursor-default"
-                >
+                <span className="text-xs font-medium text-primary">
                   Gripen
-                </button>
+                </span>
                 <span className="text-xs text-muted-foreground">vs</span>
-                {userSettings.activeCompetitors.map((competitor) => (
-                  <button
-                    key={competitor}
-                    onClick={() => setSelectedCompetitor(competitor)}
-                    className={`px-2 py-0.5 text-xs font-medium rounded-md transition-all ${
-                      selectedCompetitor === competitor
-                        ? 'bg-primary/20 text-primary border border-primary/30'
-                        : 'bg-muted text-muted-foreground border border-border hover:bg-muted/80'
-                    }`}
-                  >
-                    {competitor}
-                  </button>
+                {userSettings.activeCompetitors.map((competitor, index) => (
+                  <span key={competitor}>
+                    <span className="text-xs font-medium text-primary">
+                      {competitor}
+                    </span>
+                    {index < userSettings.activeCompetitors.length - 1 && (
+                      <span className="text-xs text-muted-foreground mx-1">•</span>
+                    )}
+                  </span>
                 ))}
                 <span className="text-xs text-muted-foreground">
                   • Last updated: {lastUpdate.toLocaleDateString('en-GB', {
