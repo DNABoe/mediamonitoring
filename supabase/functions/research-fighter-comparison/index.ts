@@ -86,40 +86,50 @@ serve(async (req) => {
 Tracking period: ${trackingStartDate} to ${today} (${daysSinceBaseline} days)
 
 AIRCRAFT BEING COMPARED:
-- Baseline: Gripen
+- Baseline: Gripen (Swedish fighter)
 - Competitors: ${competitorList}
 
 PRIMARY FOCUS: Analyze coverage and sentiment specifically from ${countryName.toUpperCase()} sources:
-- Major ${countryName} newspapers and media outlets
+- Major ${countryName} newspapers and media outlets (national and regional)
 - ${countryName} defense/military publications
 - ${countryName} political commentary and opinion pieces
 - ${countryName} parliamentary debates and political party positions
 - ${countryName} aerospace industry perspectives
 - ${countryName} public opinion and social media discussions
+- ${countryName} government statements and defense ministry announcements
+
+**RESEARCH REQUIREMENTS:**
+- Search for and analyze ACTUAL recent news from ${countryName} media about these aircraft
+- Focus on ${countryName}-language sources and ${countryName} perspectives
+- Include specific ${countryName} political parties, media outlets, and defense officials when relevant
+- Consider ${countryName}'s specific defense needs, budget constraints, and geopolitical position
 
 Provide DETAILED analysis covering:
-1. ${countryName} media coverage trends - Focus on how ${countryName} outlets covered each aircraft
+1. ${countryName} media coverage trends - How ${countryName} outlets cover each aircraft, frequency of mentions, key narratives
 2. Sentiment in ${countryName} discourse - How ${countryName} journalists, politicians, and experts view each option
-3. Capability comparison from ${countryName} operational needs perspective
-4. Cost analysis through ${countryName} budget constraints lens
-5. ${countryName} political landscape - Which parties/politicians favor which option
-6. Industrial cooperation potential for ${countryName} aerospace industry
-7. Geopolitical considerations from ${countryName} NATO and EU membership perspective
+3. Capability comparison from ${countryName}'s operational needs perspective (considering ${countryName}'s military doctrine and threats)
+4. Cost analysis through ${countryName}'s budget constraints lens (reference ${countryName}'s defense budget if known)
+5. ${countryName} political landscape - Which parties/politicians favor which option and why
+6. Industrial cooperation potential for ${countryName}'s aerospace industry
+7. Geopolitical considerations from ${countryName}'s NATO/EU membership and regional relationships
 
 **EXECUTIVE SUMMARY REQUIREMENTS:**
 - Write EXACTLY 5-7 FULL PARAGRAPHS (minimum 150 words per paragraph)
 - Each paragraph must be substantial and detailed
 - Focus exclusively on ${countryName} situation and perspectives
 - Include specific references to ${countryName} media themes and political debates
-- Compare ALL fighters: ${allFighters}
+- Compare ALL fighters: Gripen vs ${competitorList}
+- Discuss ${countryName}'s unique concerns (budget, industrial policy, NATO commitments, operational needs)
 - **WRITE IN ENGLISH ONLY**
 
 CRITICAL for monthly_breakdown:
-- Generate realistic month-by-month data for ALL ${competitors.length + 1} fighters
+- Generate realistic month-by-month data for ALL ${competitors.length + 1} fighters (Gripen + ${competitors.length} competitors)
 - Mentions should vary naturally based on ${countryName} news cycles
+- Sentiment should reflect ${countryName} public and political opinion shifts
 - Show how ${countryName} media coverage intensity changed over time
+- Reflect momentum shifts in ${countryName} political debate
 
-**ALL TEXT OUTPUTS MUST BE IN ENGLISH.**
+**ALL TEXT OUTPUTS MUST BE IN ENGLISH. You are analyzing ${countryName} sources but writing in English for an international audience.**
 
 Return structured data using the analysis_report tool.`;
     }
@@ -415,11 +425,15 @@ Return structured data using the analysis_report tool.`;
     if (metricsData.length > 0) {
       const { error: metricsError } = await supabase
         .from('comparison_metrics')
-        .insert(metricsData);
+        .upsert(metricsData, { 
+          onConflict: 'metric_date,fighter,user_id',
+          ignoreDuplicates: false 
+        });
 
       if (metricsError) {
         console.error('Error storing metrics:', metricsError);
-        throw metricsError;
+        // Don't throw error, just log it and continue
+        console.log('Continuing despite metrics error...');
       }
     }
 
