@@ -185,7 +185,7 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <ResearchExecutiveSummary />
+          <ResearchExecutiveSummary activeCompetitors={userSettings.activeCompetitors} />
         </div>
 
         <div className="mb-6">

@@ -13,7 +13,11 @@ interface ResearchReport {
   media_tonality: any;
 }
 
-export const ResearchExecutiveSummary = () => {
+interface ResearchExecutiveSummaryProps {
+  activeCompetitors: string[];
+}
+
+export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiveSummaryProps) => {
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -102,12 +106,17 @@ export const ResearchExecutiveSummary = () => {
               </div>
               <div className="text-sm text-muted-foreground">Gripen Mentions</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary">
-                {report.media_presence.total_f35_mentions || 0}
-              </div>
-              <div className="text-sm text-muted-foreground">F-35 Mentions</div>
-            </div>
+            {activeCompetitors.map((competitor) => {
+              const mentionKey = `total_${competitor.toLowerCase().replace('-', '')}_mentions`;
+              return (
+                <div key={competitor} className="text-center">
+                  <div className="text-3xl font-bold text-primary">
+                    {report.media_presence[mentionKey] || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground">{competitor} Mentions</div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
