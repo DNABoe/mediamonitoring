@@ -158,9 +158,12 @@ Analyze and suggest a weight distribution of key decision parameters in ${countr
 - **WRITE IN ENGLISH ONLY**
 
 CRITICAL for monthly_breakdown:
-- Generate realistic month-by-month data for ALL ${competitors.length + 1} fighters (Gripen + ${competitors.length} competitors)
-- Mentions should vary naturally based on news cycles
-- Sentiment should reflect public and political opinion shifts
+- Generate month-by-month data covering the ENTIRE tracking period from ${trackingStartDate} to ${today}
+- Include ALL months in this period, even if there were no mentions in some months (use 0 mentions and neutral sentiment)
+- Generate realistic data for ALL ${competitors.length + 1} fighters (Gripen + ${competitors.length} competitors)
+- Mentions should vary naturally based on news cycles and actual media coverage
+- Sentiment should reflect public and political opinion shifts observed in the tracking period
+- Format each month as YYYY-MM (e.g., "2024-10" for October 2024)
 
 **ALL TEXT OUTPUTS MUST BE IN ENGLISH.**
 
