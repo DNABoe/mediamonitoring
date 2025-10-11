@@ -202,15 +202,15 @@ Return structured data using the analysis_report tool.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'openai/gpt-5-mini',
         messages: [
           {
             role: 'system',
-            content: `You are a defense intelligence analyst writing in English. You analyze ${countryName} media and sources but ALL your outputs must be written in English. Use the analysis_report tool to structure your findings.`
+            content: `You are a defense intelligence analyst writing in English. You analyze ${countryName} media and sources but ALL your outputs must be written in English. You MUST use the analysis_report function to structure your findings. Do not write a regular response - only use the analysis_report function.`
           },
           {
             role: 'user',
-            content: researchPrompt
+            content: researchPrompt + '\n\nIMPORTANT: You must respond by calling the analysis_report function. Do not write text directly.'
           }
         ],
         tools: [{
@@ -274,10 +274,14 @@ Return structured data using the analysis_report tool.`;
     console.log('AI response received');
     
     const message = aiData.choices?.[0]?.message;
-    if (!message) throw new Error('Invalid AI response structure');
+    if (!message) {
+      console.error('Invalid AI response structure:', JSON.stringify(aiData));
+      throw new Error('Invalid AI response structure');
+    }
     
     const toolCall = message.tool_calls?.[0];
     if (!toolCall || toolCall.function.name !== 'analysis_report') {
+      console.error('AI did not use tool. Response:', JSON.stringify(message, null, 2));
       throw new Error('AI did not use the analysis_report tool');
     }
     
