@@ -13,6 +13,7 @@ interface ResearchReport {
   capability_analysis: string;
   cost_analysis: string;
   industrial_cooperation: string;
+  competitors: string[];
 }
 
 interface BlackHatIssue {
@@ -30,7 +31,11 @@ interface PlatformAnalysis {
   issues: BlackHatIssue[];
 }
 
-export const BlackHatAnalysis = () => {
+interface BlackHatAnalysisProps {
+  activeCompetitors: string[];
+}
+
+export const BlackHatAnalysis = ({ activeCompetitors }: BlackHatAnalysisProps) => {
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState<PlatformAnalysis[]>([]);
@@ -76,217 +81,157 @@ export const BlackHatAnalysis = () => {
   };
 
   const extractBlackHatIssues = (report: ResearchReport) => {
-    const gripenIssues: BlackHatIssue[] = [];
-    const f35Issues: BlackHatIssue[] = [];
+    const allCompetitors = ['Gripen', ...activeCompetitors];
+    const platformIssues: { [key: string]: BlackHatIssue[] } = {};
+    
+    // Initialize issues arrays for all platforms
+    allCompetitors.forEach(comp => {
+      platformIssues[comp] = [];
+    });
+
+    const searchText = (text: string, platform: string) => {
+      const lowerText = text.toLowerCase();
+      const lowerPlatform = platform.toLowerCase().replace('-', '');
+      return lowerText.includes(lowerPlatform) || lowerText.includes(platform.toLowerCase());
+    };
 
     // Extract vulnerabilities from political analysis
     if (report.political_analysis) {
       const text = report.political_analysis.toLowerCase();
       
-      if (text.includes('gripen') && (text.includes('opposition') || text.includes('criticism') || text.includes('concern'))) {
-        gripenIssues.push({
-          title: 'Political Opposition',
-          description: 'Evidence of political resistance or concerns in Portuguese decision-making circles.',
-          severity: 'high',
-          category: 'Political',
-          impact: 'Could delay or derail procurement process',
-          likelihood: 'Medium',
-          mitigation: 'Strengthen political engagement and address specific concerns raised by opposition'
-        });
-      }
-      
-      if (text.includes('gripen') && (text.includes('sovereignty') || text.includes('independence') || text.includes('autonomy'))) {
-        gripenIssues.push({
-          title: 'Strategic Autonomy Concerns',
-          description: 'Questions about operational independence and reliance on foreign partners.',
-          severity: 'medium',
-          category: 'Strategic',
-          impact: 'May affect long-term operational flexibility',
-          likelihood: 'Low'
-        });
-      }
-      
-      if (text.includes('f-35') && (text.includes('opposition') || text.includes('criticism') || text.includes('concern'))) {
-        f35Issues.push({
-          title: 'Political Opposition',
-          description: 'Evidence of political resistance or concerns in Portuguese decision-making circles.',
-          severity: 'high',
-          category: 'Political',
-          impact: 'Could delay or derail procurement process',
-          likelihood: 'Medium',
-          mitigation: 'Strengthen political engagement and address specific concerns raised by opposition'
-        });
-      }
-      
-      if (text.includes('f-35') && (text.includes('nato') || text.includes('dependency') || text.includes('us control'))) {
-        f35Issues.push({
-          title: 'Strategic Dependency Risk',
-          description: 'Concerns about over-reliance on US-controlled systems and technology.',
-          severity: 'high',
-          category: 'Strategic',
-          impact: 'Reduced operational autonomy in conflicts not aligned with US interests',
-          likelihood: 'High'
-        });
-      }
+      allCompetitors.forEach(platform => {
+        if (searchText(text, platform) && (text.includes('opposition') || text.includes('criticism') || text.includes('concern'))) {
+          platformIssues[platform].push({
+            title: 'Political Opposition',
+            description: 'Evidence of political resistance or concerns in Portuguese decision-making circles.',
+            severity: 'high',
+            category: 'Political',
+            impact: 'Could delay or derail procurement process',
+            likelihood: 'Medium',
+            mitigation: 'Strengthen political engagement and address specific concerns raised by opposition'
+          });
+        }
+        
+        if (platform === 'F-35' && searchText(text, platform) && (text.includes('nato') || text.includes('dependency') || text.includes('us control'))) {
+          platformIssues[platform].push({
+            title: 'Strategic Dependency Risk',
+            description: 'Concerns about over-reliance on US-controlled systems and technology.',
+            severity: 'high',
+            category: 'Strategic',
+            impact: 'Reduced operational autonomy in conflicts not aligned with US interests',
+            likelihood: 'High'
+          });
+        }
+      });
     }
 
     // Extract capability weaknesses
     if (report.capability_analysis) {
       const text = report.capability_analysis.toLowerCase();
       
-      if (text.includes('gripen') && (text.includes('limitation') || text.includes('weakness') || text.includes('inferior'))) {
-        gripenIssues.push({
-          title: 'Capability Limitations',
-          description: 'Technical or operational capabilities identified as inferior or limited compared to alternatives.',
-          severity: 'medium',
-          category: 'Technical',
-          impact: 'Reduced effectiveness in specific mission scenarios',
-          likelihood: 'Medium',
-          mitigation: 'Upgrade packages or complementary systems can address some gaps'
-        });
-      }
-      
-      if (text.includes('gripen') && (text.includes('stealth') || text.includes('radar cross') || text.includes('detectability'))) {
-        gripenIssues.push({
-          title: 'Low Observable Technology Gap',
-          description: 'Limited stealth capabilities compared to 5th generation competitors.',
-          severity: 'medium',
-          category: 'Technical',
-          impact: 'Higher vulnerability in contested airspace',
-          likelihood: 'High'
-        });
-      }
-      
-      if (text.includes('f-35') && (text.includes('limitation') || text.includes('weakness') || text.includes('inferior'))) {
-        f35Issues.push({
-          title: 'Capability Limitations',
-          description: 'Technical or operational capabilities identified as inferior or limited compared to alternatives.',
-          severity: 'medium',
-          category: 'Technical',
-          impact: 'Reduced effectiveness in specific mission scenarios',
-          likelihood: 'Medium',
-          mitigation: 'Software upgrades and Block updates address many limitations'
-        });
-      }
-      
-      if (text.includes('f-35') && (text.includes('maintenance') || text.includes('availability') || text.includes('uptime'))) {
-        f35Issues.push({
-          title: 'Maintenance Complexity',
-          description: 'High maintenance requirements and potential availability issues.',
-          severity: 'high',
-          category: 'Operational',
-          impact: 'Lower fleet availability and higher operational costs',
-          likelihood: 'High'
-        });
-      }
+      allCompetitors.forEach(platform => {
+        if (searchText(text, platform) && (text.includes('limitation') || text.includes('weakness') || text.includes('inferior'))) {
+          platformIssues[platform].push({
+            title: 'Capability Limitations',
+            description: 'Technical or operational capabilities identified as inferior or limited compared to alternatives.',
+            severity: 'medium',
+            category: 'Technical',
+            impact: 'Reduced effectiveness in specific mission scenarios',
+            likelihood: 'Medium',
+            mitigation: platform === 'F-35' ? 'Software upgrades and Block updates address many limitations' : 'Upgrade packages or complementary systems can address some gaps'
+          });
+        }
+        
+        if (platform !== 'F-35' && searchText(text, platform) && (text.includes('stealth') || text.includes('radar cross') || text.includes('detectability'))) {
+          platformIssues[platform].push({
+            title: 'Low Observable Technology Gap',
+            description: 'Limited stealth capabilities compared to 5th generation competitors.',
+            severity: 'medium',
+            category: 'Technical',
+            impact: 'Higher vulnerability in contested airspace',
+            likelihood: 'High'
+          });
+        }
+        
+        if (platform === 'F-35' && searchText(text, platform) && (text.includes('maintenance') || text.includes('availability') || text.includes('uptime'))) {
+          platformIssues[platform].push({
+            title: 'Maintenance Complexity',
+            description: 'High maintenance requirements and potential availability issues.',
+            severity: 'high',
+            category: 'Operational',
+            impact: 'Lower fleet availability and higher operational costs',
+            likelihood: 'High'
+          });
+        }
+      });
     }
 
     // Extract cost concerns
     if (report.cost_analysis) {
       const text = report.cost_analysis.toLowerCase();
       
-      if (text.includes('gripen') && (text.includes('expensive') || text.includes('high cost') || text.includes('budget concern'))) {
-        gripenIssues.push({
-          title: 'Cost Concerns',
-          description: 'Financial vulnerabilities or budget challenges identified in procurement process.',
-          severity: 'high',
-          category: 'Financial',
-          impact: 'Budget overruns or reduced procurement numbers',
-          likelihood: 'Medium',
-          mitigation: 'Negotiate fixed-price contracts with performance guarantees'
-        });
-      }
-      
-      if (text.includes('gripen') && (text.includes('lifecycle') || text.includes('operating cost') || text.includes('sustainment'))) {
-        gripenIssues.push({
-          title: 'Long-term Cost Uncertainty',
-          description: 'Potential increases in lifecycle and operating costs over decades of service.',
-          severity: 'medium',
-          category: 'Financial',
-          impact: 'Higher than projected total ownership costs',
-          likelihood: 'Medium'
-        });
-      }
-      
-      if (text.includes('f-35') && (text.includes('expensive') || text.includes('high cost') || text.includes('budget concern'))) {
-        f35Issues.push({
-          title: 'Cost Concerns',
-          description: 'Financial vulnerabilities or budget challenges identified in procurement process.',
-          severity: 'critical',
-          category: 'Financial',
-          impact: 'Significant budget strain affecting other defense priorities',
-          likelihood: 'High',
-          mitigation: 'Explore multi-year procurement strategies and international cost-sharing'
-        });
-      }
-      
-      if (text.includes('f-35') && (text.includes('cost per flight hour') || text.includes('cpfh') || text.includes('operating cost'))) {
-        f35Issues.push({
-          title: 'High Operating Costs',
-          description: 'Significantly higher cost per flight hour compared to alternatives.',
-          severity: 'critical',
-          category: 'Financial',
-          impact: 'Reduced training hours and operational readiness',
-          likelihood: 'Very High'
-        });
-      }
+      allCompetitors.forEach(platform => {
+        if (searchText(text, platform) && (text.includes('expensive') || text.includes('high cost') || text.includes('budget concern'))) {
+          platformIssues[platform].push({
+            title: 'Cost Concerns',
+            description: 'Financial vulnerabilities or budget challenges identified in procurement process.',
+            severity: platform === 'F-35' ? 'critical' : 'high',
+            category: 'Financial',
+            impact: platform === 'F-35' ? 'Significant budget strain affecting other defense priorities' : 'Budget overruns or reduced procurement numbers',
+            likelihood: platform === 'F-35' ? 'High' : 'Medium',
+            mitigation: platform === 'F-35' ? 'Explore multi-year procurement strategies and international cost-sharing' : 'Negotiate fixed-price contracts with performance guarantees'
+          });
+        }
+        
+        if (platform === 'F-35' && searchText(text, platform) && (text.includes('cost per flight hour') || text.includes('cpfh') || text.includes('operating cost'))) {
+          platformIssues[platform].push({
+            title: 'High Operating Costs',
+            description: 'Significantly higher cost per flight hour compared to alternatives.',
+            severity: 'critical',
+            category: 'Financial',
+            impact: 'Reduced training hours and operational readiness',
+            likelihood: 'Very High'
+          });
+        }
+      });
     }
 
     // Extract industrial cooperation risks
     if (report.industrial_cooperation) {
       const text = report.industrial_cooperation.toLowerCase();
       
-      if (text.includes('gripen') && (text.includes('risk') || text.includes('dependency') || text.includes('limited'))) {
-        gripenIssues.push({
-          title: 'Industrial Partnership Risks',
-          description: 'Concerns about technology transfer, local production, or industrial cooperation agreements.',
-          severity: 'medium',
-          category: 'Industrial',
-          impact: 'Limited domestic industrial benefits',
-          likelihood: 'Medium',
-          mitigation: 'Negotiate comprehensive offset packages and tech transfer agreements'
-        });
-      }
-      
-      if (text.includes('gripen') && (text.includes('supply chain') || text.includes('vendor') || text.includes('parts'))) {
-        gripenIssues.push({
-          title: 'Supply Chain Vulnerability',
-          description: 'Reliance on international suppliers for critical components.',
-          severity: 'medium',
-          category: 'Industrial',
-          impact: 'Potential delays or disruptions in maintenance',
-          likelihood: 'Low'
-        });
-      }
-      
-      if (text.includes('f-35') && (text.includes('risk') || text.includes('dependency') || text.includes('limited'))) {
-        f35Issues.push({
-          title: 'Industrial Partnership Risks',
-          description: 'Concerns about technology transfer, local production, or industrial cooperation agreements.',
-          severity: 'medium',
-          category: 'Industrial',
-          impact: 'Limited domestic industrial benefits',
-          likelihood: 'High',
-          mitigation: 'Seek regional maintenance hub status or specific workshare agreements'
-        });
-      }
-      
-      if (text.includes('f-35') && (text.includes('alis') || text.includes('autonomic logistics') || text.includes('data sharing'))) {
-        f35Issues.push({
-          title: 'ALIS Dependency & Data Sovereignty',
-          description: 'Mandatory use of centralized logistics system with data security implications.',
-          severity: 'high',
-          category: 'Technical',
-          impact: 'Limited operational autonomy and potential data exposure',
-          likelihood: 'Very High'
-        });
-      }
+      allCompetitors.forEach(platform => {
+        if (searchText(text, platform) && (text.includes('risk') || text.includes('dependency') || text.includes('limited'))) {
+          platformIssues[platform].push({
+            title: 'Industrial Partnership Risks',
+            description: 'Concerns about technology transfer, local production, or industrial cooperation agreements.',
+            severity: 'medium',
+            category: 'Industrial',
+            impact: 'Limited domestic industrial benefits',
+            likelihood: platform === 'F-35' ? 'High' : 'Medium',
+            mitigation: platform === 'F-35' ? 'Seek regional maintenance hub status or specific workshare agreements' : 'Negotiate comprehensive offset packages and tech transfer agreements'
+          });
+        }
+        
+        if (platform === 'F-35' && searchText(text, platform) && (text.includes('alis') || text.includes('autonomic logistics') || text.includes('data sharing'))) {
+          platformIssues[platform].push({
+            title: 'ALIS Dependency & Data Sovereignty',
+            description: 'Mandatory use of centralized logistics system with data security implications.',
+            severity: 'high',
+            category: 'Technical',
+            impact: 'Limited operational autonomy and potential data exposure',
+            likelihood: 'Very High'
+          });
+        }
+      });
     }
 
-    setAnalysis([
-      { platform: 'Gripen', issues: gripenIssues },
-      { platform: 'F-35', issues: f35Issues }
-    ]);
+    const analysisResults: PlatformAnalysis[] = allCompetitors.map(platform => ({
+      platform,
+      issues: platformIssues[platform]
+    }));
+    
+    setAnalysis(analysisResults);
   };
 
   const getSeverityColor = (severity: string) => {
