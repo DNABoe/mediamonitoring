@@ -13,10 +13,10 @@ interface MetricData {
 }
 
 interface SentimentTimelineProps {
-  selectedCompetitors?: string[];
+  selectedCompetitor?: string;
 }
 
-export const SentimentTimeline = ({ selectedCompetitors = [] }: SentimentTimelineProps) => {
+export const SentimentTimeline = ({ selectedCompetitor = '' }: SentimentTimelineProps) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -62,7 +62,7 @@ export const SentimentTimeline = ({ selectedCompetitors = [] }: SentimentTimelin
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedCompetitors]);
+  }, [selectedCompetitor]);
 
   const fetchMetrics = async () => {
     try {
@@ -89,8 +89,10 @@ export const SentimentTimeline = ({ selectedCompetitors = [] }: SentimentTimelin
 
       if (error) throw error;
 
-      // Filter metrics to only include Gripen and selected competitors
-      const fightersToShow = ['Gripen', ...selectedCompetitors];
+      // Always show Gripen and the selected competitor
+      const fightersToShow = selectedCompetitor 
+        ? ['Gripen', selectedCompetitor] 
+        : ['Gripen'];
       const filteredMetrics = metrics?.filter(m => fightersToShow.includes(m.fighter)) || [];
 
       // Transform data for chart - group by month
