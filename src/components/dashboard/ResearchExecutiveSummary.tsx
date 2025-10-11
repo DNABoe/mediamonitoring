@@ -107,7 +107,7 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
               <div className="text-sm text-muted-foreground">Gripen Mentions</div>
             </div>
             {activeCompetitors.map((competitor) => {
-              const mentionKey = `total_${competitor.toLowerCase().replace('-', '')}_mentions`;
+              const mentionKey = `total_${competitor.toLowerCase().replace(/[^a-z0-9]/g, '_')}_mentions`;
               return (
                 <div key={competitor} className="text-center">
                   <div className="text-3xl font-bold text-primary">
