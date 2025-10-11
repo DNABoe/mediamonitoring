@@ -14,7 +14,6 @@ import { StrategicSuggestions } from "@/components/dashboard/StrategicSuggestion
 import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { BlackHatAnalysis } from "@/components/dashboard/BlackHatAnalysis";
-import { CompetitorFilter } from "@/components/dashboard/CompetitorFilter";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportPDF } from "@/components/dashboard/ExportPDF";
@@ -123,31 +122,57 @@ const Index = () => {
                 <span className="text-2xl">{userSettings.countryFlag}</span>
                 Fighter Program Media Analysis - {userSettings.countryName}
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Real-time intelligence dashboard • Competitors: Gripen vs {userSettings.activeCompetitors.join(', ')} • Last updated: {lastUpdate.toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-              })} {lastUpdate.toLocaleTimeString('en-GB', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-              })}
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xs text-muted-foreground">
+                  Real-time intelligence dashboard • Competitors:
+                </p>
+                <button
+                  className="px-2 py-0.5 text-xs font-medium rounded-md bg-primary/20 text-primary border border-primary/30 cursor-default"
+                >
+                  Gripen
+                </button>
+                <span className="text-xs text-muted-foreground">vs</span>
+                {userSettings.activeCompetitors.map((competitor) => (
+                  <button
+                    key={competitor}
+                    onClick={() => {
+                      if (selectedCompetitors.includes(competitor)) {
+                        // Don't allow deselecting if it's the last one
+                        if (selectedCompetitors.length > 1) {
+                          setSelectedCompetitors(selectedCompetitors.filter(c => c !== competitor));
+                        }
+                      } else {
+                        setSelectedCompetitors([...selectedCompetitors, competitor]);
+                      }
+                    }}
+                    className={`px-2 py-0.5 text-xs font-medium rounded-md transition-all ${
+                      selectedCompetitors.includes(competitor)
+                        ? 'bg-primary/20 text-primary border border-primary/30'
+                        : 'bg-muted text-muted-foreground border border-border hover:bg-muted/80'
+                    }`}
+                  >
+                    {competitor}
+                  </button>
+                ))}
+                <span className="text-xs text-muted-foreground">
+                  • Last updated: {lastUpdate.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                  })} {lastUpdate.toLocaleTimeString('en-GB', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  })}
+                </span>
                 {isAdmin && <span className="ml-2">
                     <BaselineGenerator currentDate={baselineDate} />
                   </span>}
-              </p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {userSettings.activeCompetitors.length > 1 && (
-              <CompetitorFilter
-                availableCompetitors={userSettings.activeCompetitors}
-                selectedCompetitors={selectedCompetitors}
-                onSelectionChange={setSelectedCompetitors}
-              />
-            )}
             <ExportPDF />
             {isAdmin && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
                 <Settings className="h-4 w-4" />
