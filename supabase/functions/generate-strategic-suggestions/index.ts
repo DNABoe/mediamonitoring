@@ -23,10 +23,25 @@ serve(async (req) => {
 
     console.log('Fetching latest research report...');
 
-    // Fetch the latest research report
-    const { data: report, error: reportError } = await supabase
+    // Get authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Get user from auth
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) throw new Error('Unauthorized');
+
+    // Fetch the latest research report for this user
+    const { data: report, error: reportError } = await supabaseClient
       .from('research_reports')
       .select('*')
+      .eq('user_id', user.id)
       .order('report_date', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -35,26 +50,28 @@ serve(async (req) => {
       throw new Error('No research report found');
     }
 
+    const competitors = report.competitors || ['F-35'];
+    console.log('Generating suggestions for competitors:', competitors);
+
     console.log('Generating strategic suggestions...');
 
-    const prompt = `Based on this fighter jet comparison research for the Portuguese Fighter Program, provide strategic messaging suggestions for both platforms.
+    const prompt = `Based on this fighter jet comparison research for the Portuguese Fighter Program, provide strategic messaging suggestions for ALL platforms: Gripen and ${competitors.join(', ')}.
 
 CURRENT ANALYSIS SUMMARY:
 ${report.executive_summary}
 
 DIMENSION SCORES:
-Gripen: ${JSON.stringify((report.media_tonality as any).dimension_scores?.gripen || {})}
-F-35: ${JSON.stringify((report.media_tonality as any).dimension_scores?.f35 || {})}
+${Object.entries((report.media_tonality as any).dimension_scores || {}).map(([fighter, scores]) => 
+  `${fighter}: ${JSON.stringify(scores)}`
+).join('\n')}
 
 MEDIA SENTIMENT:
-Gripen: ${(report.media_tonality as any).gripen_sentiment}
-F-35: ${(report.media_tonality as any).f35_sentiment}
+${Object.entries(report.media_tonality as any)
+  .filter(([key]) => key.includes('_sentiment'))
+  .map(([key, value]) => `${key.replace('_sentiment', '')}: ${value}`)
+  .join('\n')}
 
-KEY THEMES:
-Gripen: ${JSON.stringify((report.media_tonality as any).gripen_themes || [])}
-F-35: ${JSON.stringify((report.media_tonality as any).f35_themes || [])}
-
-Generate strategic messaging suggestions for BOTH platforms to improve their positioning. Return as JSON:
+Generate strategic messaging suggestions for ALL platforms (Gripen and ${competitors.join(', ')}) to improve their positioning. Return as JSON with this structure:
 
 {
   "gripen": {
@@ -71,7 +88,7 @@ Generate strategic messaging suggestions for BOTH platforms to improve their pos
       ...
     ]
   },
-  "f35": {
+  ${competitors.map((comp: string) => `"${comp.toLowerCase().replace('-', '')}": {
     "media": [
       {"message": "suggestion text", "messenger": "who should deliver this"},
       ...
@@ -84,18 +101,18 @@ Generate strategic messaging suggestions for BOTH platforms to improve their pos
       {"message": "suggestion text", "messenger": "who should deliver this"},
       ...
     ]
-  }
+  }`).join(',\n  ')}
 }
 
 Each suggestion should be:
 - Specific and actionable message
-- Identify the ideal messenger from COMPANY REPRESENTATIVES or CREDIBLE THIRD PARTIES (e.g., "Saab CEO", "Lockheed Martin VP", "Defense Industry Analyst", "Former NATO Official", "Swedish Ambassador", "Aviation Expert", "Think Tank Researcher")
+- Identify the ideal messenger from COMPANY REPRESENTATIVES or CREDIBLE THIRD PARTIES (e.g., "Saab CEO", "Lockheed Martin VP", "Dassault Aviation Director", "Defense Industry Analyst", "Former NATO Official", "Aviation Expert", "Think Tank Researcher")
 - NEVER suggest politicians, military personnel, or public officials as messengers - they are the TARGET audience, not the messengers
 - Based on identified weaknesses or opportunities in the research
 - Tailored to the Portuguese context
 - Concrete messaging points or strategies
 
-Provide 3-4 suggestions per category.`;
+Provide 3-4 suggestions per category for each platform.`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
