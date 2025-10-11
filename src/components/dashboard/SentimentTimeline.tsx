@@ -195,8 +195,12 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
           <XAxis 
             dataKey="date" 
             tickFormatter={(value) => format(new Date(value), 'MMM yyyy')}
+            tick={{ fill: 'hsl(var(--muted-foreground))' }}
           />
-          <YAxis domain={[-1, 1]} />
+          <YAxis 
+            domain={[-1, 1]} 
+            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          />
           <Tooltip content={<CustomTooltip />} />
           <Legend 
             wrapperStyle={{ paddingTop: '20px' }}
@@ -229,8 +233,9 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
             <XAxis 
               dataKey="date" 
               tickFormatter={(value) => format(new Date(value), 'MMM yyyy')}
+              tick={{ fill: 'hsl(var(--muted-foreground))' }}
             />
-            <YAxis />
+            <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} />
             <Tooltip content={<CustomTooltip />} />
             <Legend 
               wrapperStyle={{ paddingTop: '20px' }}
