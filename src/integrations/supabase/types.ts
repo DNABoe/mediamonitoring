@@ -115,6 +115,7 @@ export type Database = {
       }
       comparison_metrics: {
         Row: {
+          country: string | null
           created_at: string
           dimension_scores: Json
           fighter: string
@@ -124,8 +125,10 @@ export type Database = {
           metric_date: string
           political_support_score: number
           sentiment_score: number
+          user_id: string | null
         }
         Insert: {
+          country?: string | null
           created_at?: string
           dimension_scores?: Json
           fighter: string
@@ -135,8 +138,10 @@ export type Database = {
           metric_date?: string
           political_support_score?: number
           sentiment_score?: number
+          user_id?: string | null
         }
         Update: {
+          country?: string | null
           created_at?: string
           dimension_scores?: Json
           fighter?: string
@@ -146,6 +151,7 @@ export type Database = {
           metric_date?: string
           political_support_score?: number
           sentiment_score?: number
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -280,7 +286,9 @@ export type Database = {
       research_reports: {
         Row: {
           capability_analysis: string | null
+          competitors: string[] | null
           cost_analysis: string | null
+          country: string | null
           created_at: string
           executive_summary: string
           geopolitical_analysis: string | null
@@ -292,10 +300,13 @@ export type Database = {
           report_date: string
           sources: Json
           status: string
+          user_id: string | null
         }
         Insert: {
           capability_analysis?: string | null
+          competitors?: string[] | null
           cost_analysis?: string | null
+          country?: string | null
           created_at?: string
           executive_summary: string
           geopolitical_analysis?: string | null
@@ -307,10 +318,13 @@ export type Database = {
           report_date?: string
           sources?: Json
           status?: string
+          user_id?: string | null
         }
         Update: {
           capability_analysis?: string | null
+          competitors?: string[] | null
           cost_analysis?: string | null
+          country?: string | null
           created_at?: string
           executive_summary?: string
           geopolitical_analysis?: string | null
@@ -322,6 +336,7 @@ export type Database = {
           report_date?: string
           sources?: Json
           status?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -434,6 +449,33 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          active_competitors: string[]
+          active_country: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active_competitors?: string[]
+          active_country?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active_competitors?: string[]
+          active_country?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

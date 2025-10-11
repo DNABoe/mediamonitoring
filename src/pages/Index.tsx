@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import { WinnerMetar } from "@/components/dashboard/WinnerMetar";
 import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
 import { SourceArticles } from "@/components/dashboard/SourceArticles";
@@ -30,6 +31,7 @@ const Index = () => {
   });
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { settings: userSettings, loading: settingsLoading } = useUserSettings();
   useEffect(() => {
     if (!authLoading && !user) {
       window.location.href = "/auth";
@@ -37,10 +39,13 @@ const Index = () => {
   }, [user, authLoading]);
   useEffect(() => {
     const fetchScores = async () => {
-      // Fetch latest research report scores
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch latest research report scores for this user
       const {
         data: report
-      } = await supabase.from('research_reports').select('media_tonality, created_at').order('report_date', {
+      } = await supabase.from('research_reports').select('media_tonality, created_at').eq('user_id', user.id).order('report_date', {
         ascending: false
       }).limit(1).maybeSingle();
       if (report?.media_tonality) {
@@ -103,9 +108,12 @@ const Index = () => {
               <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-primary rounded-full animate-pulse" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">Fighter Program Media Analysis</h1>
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <span className="text-2xl">{userSettings.countryFlag}</span>
+                Fighter Program Media Analysis - {userSettings.countryName}
+              </h1>
               <p className="text-xs text-muted-foreground">
-                Real-time intelligence dashboard • Last updated: {lastUpdate.toLocaleDateString('en-GB', {
+                Real-time intelligence dashboard • Competitors: Gripen vs {userSettings.activeCompetitors.join(', ')} • Last updated: {lastUpdate.toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric'

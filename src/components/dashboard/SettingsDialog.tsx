@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trash2, Loader2, FileEdit } from "lucide-react";
 import { toast } from "sonner";
+import { CountryCompetitorSettings } from "./CountryCompetitorSettings";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -175,7 +176,8 @@ CRITICAL SOURCING REQUIREMENTS:
         </DialogHeader>
 
         <Tabs defaultValue="prompt" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="analysis">Analysis Settings</TabsTrigger>
             <TabsTrigger value="prompt">
               <FileEdit className="h-4 w-4 mr-2" />
               Research Prompt
@@ -185,6 +187,10 @@ CRITICAL SOURCING REQUIREMENTS:
               Data Management
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="analysis" className="space-y-4">
+            <CountryCompetitorSettings />
+          </TabsContent>
 
           <TabsContent value="prompt" className="space-y-4">
             <div className="space-y-3">

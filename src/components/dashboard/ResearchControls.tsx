@@ -4,6 +4,7 @@ import { Brain, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ export const ResearchControls = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [hasBaseline, setHasBaseline] = useState(false);
   const { toast } = useToast();
+  const { settings: userSettings } = useUserSettings();
 
   useEffect(() => {
     checkBaseline();
@@ -77,7 +79,12 @@ export const ResearchControls = () => {
       });
 
       // Then generate research
-      const { error: researchError } = await supabase.functions.invoke('research-fighter-comparison');
+      const { error: researchError } = await supabase.functions.invoke('research-fighter-comparison', {
+        body: {
+          country: userSettings.activeCountry,
+          competitors: userSettings.activeCompetitors
+        }
+      });
 
       if (researchError) throw researchError;
 
@@ -111,7 +118,12 @@ export const ResearchControls = () => {
         description: "AI is analyzing fighter comparison data across multiple dimensions...",
       });
 
-      const { data, error } = await supabase.functions.invoke('research-fighter-comparison');
+      const { data, error } = await supabase.functions.invoke('research-fighter-comparison', {
+        body: {
+          country: userSettings.activeCountry,
+          competitors: userSettings.activeCompetitors
+        }
+      });
 
       if (error) throw error;
 

@@ -7,6 +7,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const COUNTRY_NAMES: Record<string, string> = {
+  'PT': 'Portugal',
+  'PL': 'Poland',
+  'RO': 'Romania',
+  'GR': 'Greece',
+  'CZ': 'Czech Republic',
+  'SK': 'Slovakia',
+  'BG': 'Bulgaria',
+  'HR': 'Croatia',
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,45 +32,27 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
-    console.log('Starting AI-powered fighter comparison research...');
+    // Get user from request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) throw new Error('Unauthorized');
+
+    console.log(`Starting AI-powered fighter comparison research for user ${user.id}...`);
+
+    // Get request parameters
+    const requestBody = await req.json().catch(() => ({}));
+    const country = requestBody.country || 'PT';
+    const competitors = requestBody.competitors || ['F-35'];
+    const countryName = COUNTRY_NAMES[country] || country;
+
+    console.log(`Country: ${countryName}, Competitors: ${competitors.join(', ')}`);
 
     const today = new Date().toISOString().split('T')[0];
     
-    // Try to search for real Portuguese news articles (optional enhancement)
-    let gripenArticles: any[] = [];
-    let f35Articles: any[] = [];
-    let hasRealSearchData = false;
-    
-    const googleApiKey = Deno.env.get('GOOGLE_SEARCH_API_KEY');
-    const googleSearchId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
-    
-    if (googleApiKey && googleSearchId) {
-      try {
-        console.log('Searching for real Portuguese media articles...');
-        const searchResults = await Promise.all([
-          fetch(`https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchId}&q=Gripen+Portugal+caças&lr=lang_pt&dateRestrict=m6&num=10`),
-          fetch(`https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchId}&q=F-35+Portugal+caças&lr=lang_pt&dateRestrict=m6&num=10`)
-        ]);
-        
-        const [gripenSearchData, f35SearchData] = await Promise.all([
-          searchResults[0].json(),
-          searchResults[1].json()
-        ]);
-        
-        gripenArticles = gripenSearchData.items || [];
-        f35Articles = f35SearchData.items || [];
-        hasRealSearchData = gripenArticles.length > 0 || f35Articles.length > 0;
-        
-        console.log(`Found ${gripenArticles.length} Gripen articles and ${f35Articles.length} F-35 articles`);
-      } catch (searchError) {
-        console.error('Google Search API error:', searchError);
-        console.log('Continuing with AI knowledge-based analysis');
-      }
-    } else {
-      console.log('Google Search API not configured, using AI knowledge-based analysis');
-    }
-    
-    // Fetch the latest baseline to get tracking start date
+    // Fetch the latest baseline for this user
     const { data: baselineData } = await supabase
       .from('baselines')
       .select('start_date')
@@ -80,49 +73,53 @@ serve(async (req) => {
     
     let researchPrompt = promptData?.value as string;
     
+    // Build competitor list string
+    const competitorList = competitors.join(', ');
+    const allFighters = ['Gripen', ...competitors].join(', ');
+    
     // Use default prompt if no custom prompt is set
     if (!researchPrompt) {
-      researchPrompt = `You are a Portuguese defense intelligence analyst specializing in Portugal's fighter aircraft acquisition program. Your analysis must be deeply rooted in PORTUGUESE media coverage, public discourse, and political debate.
+      researchPrompt = `You are a defense intelligence analyst specializing in ${countryName}'s fighter aircraft acquisition program. Your analysis must be deeply rooted in ${countryName.toUpperCase()} media coverage, public discourse, and political debate.
 
-**CRITICAL: ALL RESPONSES MUST BE IN ENGLISH. Analyze Portuguese sources but write your analysis in English.**
+**CRITICAL: ALL RESPONSES MUST BE IN ENGLISH. Analyze ${countryName} sources but write your analysis in English.**
 
 Tracking period: ${trackingStartDate} to ${today} (${daysSinceBaseline} days)
 
-PRIMARY FOCUS: Analyze coverage and sentiment specifically from PORTUGUESE sources:
-- Major Portuguese newspapers (Público, Jornal de Notícias, Correio da Manhã, Expresso, Observador)
-- Portuguese defense/military publications
-- Portuguese political commentary and opinion pieces
-- Portuguese parliamentary debates and political party positions
-- Portuguese aerospace industry perspectives
-- Portuguese public opinion and social media discussions
+AIRCRAFT BEING COMPARED:
+- Baseline: Gripen
+- Competitors: ${competitorList}
+
+PRIMARY FOCUS: Analyze coverage and sentiment specifically from ${countryName.toUpperCase()} sources:
+- Major ${countryName} newspapers and media outlets
+- ${countryName} defense/military publications
+- ${countryName} political commentary and opinion pieces
+- ${countryName} parliamentary debates and political party positions
+- ${countryName} aerospace industry perspectives
+- ${countryName} public opinion and social media discussions
 
 Provide DETAILED analysis covering:
-1. Portuguese media coverage trends - Focus on how Portuguese outlets covered each aircraft, key narratives in Portuguese press, public opinion shifts in Portugal
-2. Sentiment in Portuguese discourse - How Portuguese journalists, politicians, and experts view each option
-3. Capability comparison from Portuguese operational needs perspective
-4. Cost analysis through Portuguese budget constraints lens
-5. Portuguese political landscape - Which parties/politicians favor which option and why
-6. Industrial cooperation potential for Portuguese aerospace industry
-7. Geopolitical considerations from Portuguese NATO and EU membership perspective
+1. ${countryName} media coverage trends - Focus on how ${countryName} outlets covered each aircraft
+2. Sentiment in ${countryName} discourse - How ${countryName} journalists, politicians, and experts view each option
+3. Capability comparison from ${countryName} operational needs perspective
+4. Cost analysis through ${countryName} budget constraints lens
+5. ${countryName} political landscape - Which parties/politicians favor which option
+6. Industrial cooperation potential for ${countryName} aerospace industry
+7. Geopolitical considerations from ${countryName} NATO and EU membership perspective
 
 **EXECUTIVE SUMMARY REQUIREMENTS:**
 - Write EXACTLY 5-7 FULL PARAGRAPHS (minimum 150 words per paragraph)
 - Each paragraph must be substantial and detailed
-- Focus exclusively on Portuguese situation and Portuguese perspectives
-- Include specific references to Portuguese media themes and political debates
-- Discuss how Portuguese decision-makers and public are viewing this choice
-- Highlight uniquely Portuguese concerns (budget, industrial policy, NATO commitments, operational needs)
-- Provide concrete examples and detailed analysis, not generic statements
+- Focus exclusively on ${countryName} situation and perspectives
+- Include specific references to ${countryName} media themes and political debates
+- Compare ALL fighters: ${allFighters}
 - **WRITE IN ENGLISH ONLY**
 
 CRITICAL for monthly_breakdown:
-- Generate realistic month-by-month data showing trends in PORTUGUESE media
-- Mentions should vary naturally based on Portuguese news cycles
-- Sentiment should reflect Portuguese public and political opinion shifts
-- Show how Portuguese media coverage intensity changed over time
-- Reflect momentum shifts in Portuguese political debate
+- Generate realistic month-by-month data for ALL ${competitors.length + 1} fighters
+- Mentions should vary naturally based on ${countryName} news cycles
+- Show how ${countryName} media coverage intensity changed over time
 
-**ALL TEXT OUTPUTS MUST BE IN ENGLISH. You are analyzing Portuguese sources but writing in English for an international audience.**
+**ALL TEXT OUTPUTS MUST BE IN ENGLISH.**
 
 Return structured data using the analysis_report tool.`;
     }
@@ -131,7 +128,37 @@ Return structured data using the analysis_report tool.`;
     researchPrompt = researchPrompt
       .replace(/\{\{trackingStartDate\}\}/g, trackingStartDate)
       .replace(/\{\{today\}\}/g, today)
-      .replace(/\{\{daysSinceBaseline\}\}/g, daysSinceBaseline.toString());
+      .replace(/\{\{daysSinceBaseline\}\}/g, daysSinceBaseline.toString())
+      .replace(/\{\{country\}\}/g, countryName)
+      .replace(/\{\{competitors\}\}/g, competitorList);
+
+    // Build tool schema dynamically based on competitors
+    const competitorFields: any = {};
+    const monthlyProperties: any = {};
+    const requiredFields: string[] = [
+      'executive_summary', 'gripen_mentions', 'gripen_sentiment'
+    ];
+
+    // Add fields for each competitor
+    competitors.forEach((comp: string) => {
+      const safeName = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      competitorFields[`${safeName}_mentions`] = { type: 'integer', description: `Total ${comp} mentions in tracking period` };
+      competitorFields[`${safeName}_sentiment`] = { type: 'number', description: `Overall ${comp} sentiment -1 to 1` };
+      competitorFields[`capability_${safeName}`] = { type: 'integer', description: `${comp} capability score 0-10` };
+      competitorFields[`cost_${safeName}`] = { type: 'integer', description: `${comp} cost-effectiveness score 0-10` };
+      competitorFields[`political_${safeName}`] = { type: 'integer', description: `${comp} political support score 0-10` };
+      competitorFields[`industrial_${safeName}`] = { type: 'integer', description: `${comp} industrial benefits score 0-10` };
+      competitorFields[`geopolitical_${safeName}`] = { type: 'integer', description: `${comp} geopolitical alignment score 0-10` };
+      
+      monthlyProperties[`${safeName}_mentions`] = { type: 'integer' };
+      monthlyProperties[`${safeName}_sentiment`] = { type: 'number' };
+      
+      requiredFields.push(
+        `${safeName}_mentions`, `${safeName}_sentiment`,
+        `capability_${safeName}`, `cost_${safeName}`,
+        `political_${safeName}`, `industrial_${safeName}`, `geopolitical_${safeName}`
+      );
+    });
 
     console.log('Calling Lovable AI for research...');
 
@@ -142,11 +169,11 @@ Return structured data using the analysis_report tool.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'system',
-            content: 'You are a defense intelligence analyst writing in English. You analyze Portuguese media and sources but ALL your outputs must be written in English. Use the analysis_report tool to structure your findings.'
+            content: `You are a defense intelligence analyst writing in English. You analyze ${countryName} media and sources but ALL your outputs must be written in English. Use the analysis_report tool to structure your findings.`
           },
           {
             role: 'user',
@@ -161,21 +188,15 @@ Return structured data using the analysis_report tool.`;
             parameters: {
               type: 'object',
               properties: {
-                executive_summary: { type: 'string', description: 'EXACTLY 5-7 FULL detailed paragraphs (minimum 150 words each) in ENGLISH focusing exclusively on Portuguese media coverage, political debate, and national perspectives on the fighter comparison. Must be written in English only.' },
+                executive_summary: { type: 'string', description: 'EXACTLY 5-7 FULL detailed paragraphs in ENGLISH' },
                 gripen_mentions: { type: 'integer', description: 'Total Gripen mentions in tracking period' },
-                f35_mentions: { type: 'integer', description: 'Total F-35 mentions in tracking period' },
                 gripen_sentiment: { type: 'number', description: 'Overall Gripen sentiment -1 to 1' },
-                f35_sentiment: { type: 'number', description: 'Overall F-35 sentiment -1 to 1' },
                 capability_gripen: { type: 'integer', description: 'Gripen capability score 0-10' },
-                capability_f35: { type: 'integer', description: 'F-35 capability score 0-10' },
                 cost_gripen: { type: 'integer', description: 'Gripen cost-effectiveness score 0-10' },
-                cost_f35: { type: 'integer', description: 'F-35 cost-effectiveness score 0-10' },
                 political_gripen: { type: 'integer', description: 'Gripen political support score 0-10' },
-                political_f35: { type: 'integer', description: 'F-35 political support score 0-10' },
                 industrial_gripen: { type: 'integer', description: 'Gripen industrial benefits score 0-10' },
-                industrial_f35: { type: 'integer', description: 'F-35 industrial benefits score 0-10' },
                 geopolitical_gripen: { type: 'integer', description: 'Gripen geopolitical alignment score 0-10' },
-                geopolitical_f35: { type: 'integer', description: 'F-35 geopolitical alignment score 0-10' },
+                ...competitorFields,
                 capability_text: { type: 'string', description: 'Capability analysis text' },
                 cost_text: { type: 'string', description: 'Cost analysis text' },
                 political_text: { type: 'string', description: 'Political analysis text' },
@@ -183,29 +204,25 @@ Return structured data using the analysis_report tool.`;
                 geopolitical_text: { type: 'string', description: 'Geopolitical analysis text' },
                 monthly_breakdown: {
                   type: 'array',
-                  description: 'Month-by-month data showing realistic trends and variations',
+                  description: 'Month-by-month data for all fighters',
                   items: {
                     type: 'object',
                     properties: {
                       month: { type: 'string', description: 'Month in YYYY-MM format' },
-                      gripen_mentions: { type: 'integer', description: 'Gripen mentions this month' },
-                      f35_mentions: { type: 'integer', description: 'F-35 mentions this month' },
-                      gripen_sentiment: { type: 'number', description: 'Gripen sentiment this month -1 to 1' },
-                      f35_sentiment: { type: 'number', description: 'F-35 sentiment this month -1 to 1' }
+                      gripen_mentions: { type: 'integer' },
+                      gripen_sentiment: { type: 'number' },
+                      ...monthlyProperties
                     },
-                    required: ['month', 'gripen_mentions', 'f35_mentions', 'gripen_sentiment', 'f35_sentiment']
+                    required: ['month', 'gripen_mentions', 'gripen_sentiment', ...Object.keys(monthlyProperties)]
                   }
                 }
               },
               required: [
-                'executive_summary', 'gripen_mentions', 'f35_mentions',
-                'gripen_sentiment', 'f35_sentiment',
-                'capability_gripen', 'capability_f35', 'capability_text',
-                'cost_gripen', 'cost_f35', 'cost_text',
-                'political_gripen', 'political_f35', 'political_text',
-                'industrial_gripen', 'industrial_f35', 'industrial_text',
-                'geopolitical_gripen', 'geopolitical_f35', 'geopolitical_text',
-                'monthly_breakdown'
+                ...requiredFields,
+                'capability_gripen', 'cost_gripen', 'political_gripen',
+                'industrial_gripen', 'geopolitical_gripen',
+                'capability_text', 'cost_text', 'political_text',
+                'industrial_text', 'geopolitical_text', 'monthly_breakdown'
               ]
             }
           }
@@ -222,23 +239,12 @@ Return structured data using the analysis_report tool.`;
 
     const aiData = await aiResponse.json();
     console.log('AI response received');
-    console.log('AI response structure:', JSON.stringify(aiData, null, 2));
     
-    // Extract tool call results with better error handling
-    if (!aiData.choices || !aiData.choices[0]) {
-      console.error('Invalid AI response structure - no choices array');
-      throw new Error('Invalid AI response structure');
-    }
-    
-    const message = aiData.choices[0].message;
-    if (!message) {
-      console.error('Invalid AI response structure - no message in choice');
-      throw new Error('Invalid AI response structure');
-    }
+    const message = aiData.choices?.[0]?.message;
+    if (!message) throw new Error('Invalid AI response structure');
     
     const toolCall = message.tool_calls?.[0];
     if (!toolCall || toolCall.function.name !== 'analysis_report') {
-      console.error('No tool call found in response. Message:', JSON.stringify(message, null, 2));
       throw new Error('AI did not use the analysis_report tool');
     }
     
@@ -250,7 +256,7 @@ Return structured data using the analysis_report tool.`;
       .from('settings')
       .select('value')
       .eq('key', 'winner_weights')
-      .single();
+      .maybeSingle();
 
     const weights = weightsData?.value || {
       media: 5,
@@ -260,24 +266,21 @@ Return structured data using the analysis_report tool.`;
       industrial: 30
     };
 
-    // Calculate dimension scores
-    const gripenScores = {
-      media: Math.max(0, Math.min(10, (analysis.gripen_sentiment + 1) * 5)),
-      political: analysis.political_gripen,
-      capabilities: analysis.capability_gripen,
-      cost: analysis.cost_gripen,
-      industrial: analysis.industrial_gripen,
+    // Calculate scores for Gripen and all competitors
+    const calculateFighterScores = (fighterName: string) => {
+      const safeName = fighterName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const isGripen = fighterName === 'Gripen';
+      const prefix = isGripen ? 'gripen' : safeName;
+      
+      return {
+        media: Math.max(0, Math.min(10, (analysis[`${prefix}_sentiment`] + 1) * 5)),
+        political: analysis[`political_${prefix}`] || 0,
+        capabilities: analysis[`capability_${prefix}`] || 0,
+        cost: analysis[`cost_${prefix}`] || 0,
+        industrial: analysis[`industrial_${prefix}`] || 0,
+      };
     };
 
-    const f35Scores = {
-      media: Math.max(0, Math.min(10, (analysis.f35_sentiment + 1) * 5)),
-      political: analysis.political_f35,
-      capabilities: analysis.capability_f35,
-      cost: analysis.cost_f35,
-      industrial: analysis.industrial_f35,
-    };
-
-    // Calculate weighted total scores (0-100 scale)
     const calculateWeightedScore = (scores: any) => {
       const total = 
         (scores.media * weights.media) +
@@ -285,17 +288,41 @@ Return structured data using the analysis_report tool.`;
         (scores.capabilities * weights.capabilities) +
         (scores.cost * weights.cost) +
         (scores.industrial * weights.industrial);
-      return total / 10; // Normalize to 0-100 scale
+      return total / 10;
     };
 
+    const gripenScores = calculateFighterScores('Gripen');
     const gripenTotal = calculateWeightedScore(gripenScores);
-    const f35Total = calculateWeightedScore(f35Scores);
 
-    // Use monthly breakdown from AI analysis with realistic trends
+    // Calculate scores for all competitors
+    const competitorScoresMap: any = {};
+    const competitorTotalsMap: any = {};
+    
+    competitors.forEach((comp: string) => {
+      const scores = calculateFighterScores(comp);
+      competitorScoresMap[comp] = scores;
+      competitorTotalsMap[comp] = calculateWeightedScore(scores);
+    });
+
+    // Build media_tonality object with all fighters
+    const mediaTonality: any = {
+      gripen_sentiment: analysis.gripen_sentiment,
+      gripen_score: gripenTotal,
+      dimension_scores: {
+        gripen: gripenScores,
+      }
+    };
+
+    competitors.forEach((comp: string) => {
+      const safeName = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      mediaTonality[`${safeName}_sentiment`] = analysis[`${safeName}_sentiment`];
+      mediaTonality[`${safeName}_score`] = competitorTotalsMap[comp];
+      mediaTonality.dimension_scores[safeName] = competitorScoresMap[comp];
+    });
+
     const monthlyData = analysis.monthly_breakdown || [];
 
-    // Fetch real articles from database with fighter tags from last 60 days
-    console.log('Fetching real articles from database...');
+    // Fetch real articles from database
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     
@@ -307,49 +334,34 @@ Return structured data using the analysis_report tool.`;
       .order('published_at', { ascending: false })
       .limit(20);
 
-    // Build sources array from real database articles
     let collectedSources: string[] = [];
     
     if (realArticles && realArticles.length > 0) {
       collectedSources = realArticles.map(article => article.url).filter(Boolean);
-      console.log(`Collected ${collectedSources.length} real article URLs from database`);
-    } else if (hasRealSearchData) {
-      // Fallback to Google Search results if database has no articles
-      const gripenUrls = gripenArticles.map(article => article.link).filter(Boolean);
-      const f35Urls = f35Articles.map(article => article.link).filter(Boolean);
-      collectedSources = [...new Set([...gripenUrls, ...f35Urls])];
-      console.log(`Collected ${collectedSources.length} source URLs from search results`);
     } else {
-      // Last resort: Use known Portuguese media URLs
-      collectedSources = [
-        'https://www.publico.pt',
-        'https://observador.pt',
-        'https://expresso.pt'
-      ];
-      console.log(`Using ${collectedSources.length} fallback Portuguese media sources`);
+      collectedSources = ['https://www.example.com/defense-news'];
     }
 
     // Store the research report
     const { data: report, error: reportError } = await supabase
       .from('research_reports')
       .insert({
+        user_id: user.id,
+        country: country,
+        competitors: competitors,
         report_date: today,
         executive_summary: analysis.executive_summary,
         media_presence: {
           monthly_breakdown: monthlyData,
           total_gripen_mentions: analysis.gripen_mentions,
-          total_f35_mentions: analysis.f35_mentions
+          ...Object.fromEntries(
+            competitors.map((comp: string) => {
+              const safeName = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+              return [`total_${safeName}_mentions`, analysis[`${safeName}_mentions`]];
+            })
+          )
         },
-        media_tonality: {
-          gripen_sentiment: analysis.gripen_sentiment,
-          f35_sentiment: analysis.f35_sentiment,
-          gripen_score: gripenTotal,
-          f35_score: f35Total,
-          dimension_scores: {
-            gripen: gripenScores,
-            f35: f35Scores
-          }
-        },
+        media_tonality: mediaTonality,
         capability_analysis: analysis.capability_text,
         cost_analysis: analysis.cost_text,
         political_analysis: analysis.political_text,
@@ -368,9 +380,13 @@ Return structured data using the analysis_report tool.`;
 
     console.log('Storing comparison metrics...');
 
-    // Store metrics for each month
-    const metricsData = monthlyData.map((month: any) => ([
-      {
+    // Store metrics for Gripen and all competitors for each month
+    const metricsData: any[] = [];
+    
+    monthlyData.forEach((month: any) => {
+      metricsData.push({
+        user_id: user.id,
+        country: country,
         metric_date: `${month.month}-01`,
         fighter: 'Gripen',
         mentions_count: month.gripen_mentions,
@@ -378,25 +394,28 @@ Return structured data using the analysis_report tool.`;
         media_reach_score: month.gripen_mentions,
         political_support_score: gripenTotal,
         dimension_scores: gripenScores
-      },
-      {
-        metric_date: `${month.month}-01`,
-        fighter: 'F-35',
-        mentions_count: month.f35_mentions,
-        sentiment_score: month.f35_sentiment,
-        media_reach_score: month.f35_mentions,
-        political_support_score: f35Total,
-        dimension_scores: f35Scores
-      }
-    ])).flat();
+      });
+
+      competitors.forEach((comp: string) => {
+        const safeName = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        metricsData.push({
+          user_id: user.id,
+          country: country,
+          metric_date: `${month.month}-01`,
+          fighter: comp,
+          mentions_count: month[`${safeName}_mentions`] || 0,
+          sentiment_score: month[`${safeName}_sentiment`] || 0,
+          media_reach_score: month[`${safeName}_mentions`] || 0,
+          political_support_score: competitorTotalsMap[comp] || 0,
+          dimension_scores: competitorScoresMap[comp]
+        });
+      });
+    });
 
     if (metricsData.length > 0) {
       const { error: metricsError } = await supabase
         .from('comparison_metrics')
-        .upsert(metricsData, { 
-          onConflict: 'metric_date,fighter',
-          ignoreDuplicates: false 
-        });
+        .insert(metricsData);
 
       if (metricsError) {
         console.error('Error storing metrics:', metricsError);
@@ -410,7 +429,9 @@ Return structured data using the analysis_report tool.`;
       JSON.stringify({ 
         success: true, 
         report_id: report.id,
-        scores: { gripen: gripenTotal, f35: f35Total },
+        country: countryName,
+        competitors: competitors,
+        scores: { gripen: gripenTotal, ...competitorTotalsMap },
         summary: analysis.executive_summary.substring(0, 200) + '...'
       }),
       { 
