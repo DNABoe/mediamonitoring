@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ResearchReport {
   id: string;
@@ -39,6 +40,7 @@ export const BlackHatAnalysis = ({ activeCompetitors }: BlackHatAnalysisProps) =
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState<PlatformAnalysis[]>([]);
+  const [selectedTab, setSelectedTab] = useState<string>('gripen');
 
   useEffect(() => {
     fetchLatestReport();
@@ -280,6 +282,66 @@ export const BlackHatAnalysis = ({ activeCompetitors }: BlackHatAnalysisProps) =
 
   const timeAgo = formatDistanceToNow(new Date(report.created_at), { addSuffix: true });
 
+  const renderIssuesForPlatform = (platformAnalysis: PlatformAnalysis) => (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <h3 className="text-lg font-semibold">{platformAnalysis.platform}</h3>
+        <Badge variant="outline">
+          {platformAnalysis.issues.length} {platformAnalysis.issues.length === 1 ? 'issue' : 'issues'}
+        </Badge>
+      </div>
+
+      {platformAnalysis.issues.length === 0 ? (
+        <div className="p-4 rounded-lg bg-background/50 border border-border text-center">
+          <p className="text-sm text-muted-foreground">No significant vulnerabilities detected</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {platformAnalysis.issues.map((issue, idx) => (
+            <div
+              key={idx}
+              className="p-4 rounded-lg bg-background/50 border border-border space-y-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {getSeverityIcon(issue.severity)}
+                  <h4 className="font-semibold text-sm">{issue.title}</h4>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {issue.category}
+                  </Badge>
+                  <Badge variant={getSeverityColor(issue.severity) as any} className="text-xs">
+                    {issue.severity.toUpperCase()}
+                  </Badge>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {issue.description}
+              </p>
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Impact</p>
+                  <p className="text-xs">{issue.impact}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Likelihood</p>
+                  <p className="text-xs">{issue.likelihood}</p>
+                </div>
+              </div>
+              {issue.mitigation && (
+                <div className="pt-2 border-t border-border/50">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Mitigation Strategy</p>
+                  <p className="text-xs text-foreground/80">{issue.mitigation}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Card className="p-6 bg-gradient-to-br from-destructive/5 to-destructive/10">
       <div className="space-y-6">
@@ -295,67 +357,28 @@ export const BlackHatAnalysis = ({ activeCompetitors }: BlackHatAnalysisProps) =
           Adversarial analysis identifying vulnerabilities, weaknesses, and attack vectors for each platform
         </p>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {analysis.map((platformAnalysis) => (
-            <div key={platformAnalysis.platform} className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                {platformAnalysis.platform}
-                <Badge variant="outline" className="ml-2">
-                  {platformAnalysis.issues.length} {platformAnalysis.issues.length === 1 ? 'issue' : 'issues'}
-                </Badge>
-              </h3>
+        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+          <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${activeCompetitors.length + 1}, minmax(0, 1fr))` }}>
+            <TabsTrigger value="gripen">
+              Gripen
+            </TabsTrigger>
+            {activeCompetitors.map((competitor) => (
+              <TabsTrigger key={competitor} value={competitor.toLowerCase()}>
+                {competitor}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-              {platformAnalysis.issues.length === 0 ? (
-                <div className="p-4 rounded-lg bg-background/50 border border-border text-center">
-                  <p className="text-sm text-muted-foreground">No significant vulnerabilities detected</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {platformAnalysis.issues.map((issue, idx) => (
-                    <div
-                      key={idx}
-                      className="p-4 rounded-lg bg-background/50 border border-border space-y-3"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          {getSeverityIcon(issue.severity)}
-                          <h4 className="font-semibold text-sm">{issue.title}</h4>
-                        </div>
-                        <div className="flex gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {issue.category}
-                          </Badge>
-                          <Badge variant={getSeverityColor(issue.severity) as any} className="text-xs">
-                            {issue.severity.toUpperCase()}
-                          </Badge>
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {issue.description}
-                      </p>
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Impact</p>
-                          <p className="text-xs">{issue.impact}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Likelihood</p>
-                          <p className="text-xs">{issue.likelihood}</p>
-                        </div>
-                      </div>
-                      {issue.mitigation && (
-                        <div className="pt-2 border-t border-border/50">
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Mitigation Strategy</p>
-                          <p className="text-xs text-foreground/80">{issue.mitigation}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          <TabsContent value="gripen" className="mt-6">
+            {renderIssuesForPlatform(analysis.find(a => a.platform === 'Gripen') || { platform: 'Gripen', issues: [] })}
+          </TabsContent>
+
+          {activeCompetitors.map((competitor) => (
+            <TabsContent key={competitor} value={competitor.toLowerCase()} className="mt-6">
+              {renderIssuesForPlatform(analysis.find(a => a.platform === competitor) || { platform: competitor, issues: [] })}
+            </TabsContent>
           ))}
-        </div>
+        </Tabs>
       </div>
     </Card>
   );
