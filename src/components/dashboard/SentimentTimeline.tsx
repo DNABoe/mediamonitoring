@@ -198,7 +198,11 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
           />
           <YAxis domain={[-1, 1]} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend />
+          <Legend 
+            wrapperStyle={{ paddingTop: '20px' }}
+            iconType="line"
+            formatter={(value) => <span className="text-foreground font-medium">{value}</span>}
+          />
           {data.fightersToShow.map((fighter: string) => {
             const key = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
             const fields = data.fighterFields[key];
@@ -228,7 +232,11 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
             />
             <YAxis />
             <Tooltip content={<CustomTooltip />} />
-            <Legend />
+            <Legend 
+              wrapperStyle={{ paddingTop: '20px' }}
+              iconType="line"
+              formatter={(value) => <span className="text-foreground font-medium">{value}</span>}
+            />
             {data.fightersToShow.map((fighter: string) => {
               const key = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
               const fields = data.fighterFields[key];
