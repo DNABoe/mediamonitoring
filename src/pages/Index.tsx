@@ -14,9 +14,11 @@ import { StrategicSuggestions } from "@/components/dashboard/StrategicSuggestion
 import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { BlackHatAnalysis } from "@/components/dashboard/BlackHatAnalysis";
+import { CompetitorFilter } from "@/components/dashboard/CompetitorFilter";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportPDF } from "@/components/dashboard/ExportPDF";
+
 const Index = () => {
   const {
     user,
@@ -31,7 +33,16 @@ const Index = () => {
   });
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedCompetitors, setSelectedCompetitors] = useState<string[]>([]);
   const { settings: userSettings, loading: settingsLoading } = useUserSettings();
+  
+  // Initialize selected competitors from user settings
+  useEffect(() => {
+    if (userSettings.activeCompetitors.length > 0) {
+      setSelectedCompetitors(userSettings.activeCompetitors);
+    }
+  }, [userSettings.activeCompetitors]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       window.location.href = "/auth";
@@ -130,6 +141,13 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {userSettings.activeCompetitors.length > 1 && (
+              <CompetitorFilter
+                availableCompetitors={userSettings.activeCompetitors}
+                selectedCompetitors={selectedCompetitors}
+                onSelectionChange={setSelectedCompetitors}
+              />
+            )}
             <ExportPDF />
             {isAdmin && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
                 <Settings className="h-4 w-4" />
