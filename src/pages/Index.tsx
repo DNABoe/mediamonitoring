@@ -201,7 +201,7 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <StrategicSuggestions />
+          <StrategicSuggestions activeCompetitors={userSettings.activeCompetitors} />
         </div>
 
         <div className="mb-6">

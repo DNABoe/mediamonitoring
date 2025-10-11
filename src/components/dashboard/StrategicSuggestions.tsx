@@ -11,20 +11,22 @@ interface MessageSuggestion {
   messenger: string;
 }
 
-interface Suggestions {
-  gripen: {
-    media: MessageSuggestion[];
-    politicians: MessageSuggestion[];
-    airforce: MessageSuggestion[];
-  };
-  f35: {
-    media: MessageSuggestion[];
-    politicians: MessageSuggestion[];
-    airforce: MessageSuggestion[];
-  };
+interface FighterSuggestions {
+  media: MessageSuggestion[];
+  politicians: MessageSuggestion[];
+  airforce: MessageSuggestion[];
 }
 
-export const StrategicSuggestions = () => {
+interface Suggestions {
+  gripen: FighterSuggestions;
+  [key: string]: FighterSuggestions;
+}
+
+interface StrategicSuggestionsProps {
+  activeCompetitors: string[];
+}
+
+export const StrategicSuggestions = ({ activeCompetitors }: StrategicSuggestionsProps) => {
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -90,13 +92,15 @@ export const StrategicSuggestions = () => {
 
       {suggestions && !loading && (
         <Tabs defaultValue="gripen" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className={`grid w-full grid-cols-${activeCompetitors.length + 1}`}>
             <TabsTrigger value="gripen" className="text-success">
               Gripen
             </TabsTrigger>
-            <TabsTrigger value="f35" className="text-destructive">
-              F-35
-            </TabsTrigger>
+            {activeCompetitors.map((competitor) => (
+              <TabsTrigger key={competitor} value={competitor.toLowerCase()} className="text-destructive">
+                {competitor}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="gripen" className="mt-6 space-y-6">
@@ -164,70 +168,79 @@ export const StrategicSuggestions = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="f35" className="mt-6 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Newspaper className="h-4 w-4" />
-                <span>Media Strategy</span>
-              </div>
-              <div className="space-y-3 ml-6">
-                {suggestions.f35.media.map((suggestion, i) => (
-                  <div key={i} className="flex flex-col gap-1 p-3 bg-muted/30 rounded-lg border border-border">
-                    <div className="text-sm text-foreground flex gap-2">
-                      <span className="text-destructive font-bold">•</span>
-                      <span>{suggestion.message}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground ml-4 flex items-center gap-2">
-                      <span className="font-semibold">Messenger:</span>
-                      <span className="italic">{suggestion.messenger}</span>
-                    </div>
+          {activeCompetitors.map((competitor) => {
+            const competitorKey = competitor.toLowerCase().replace('-', '');
+            const competitorData = suggestions[competitorKey] || suggestions[competitor.toLowerCase()];
+            
+            if (!competitorData) return null;
+            
+            return (
+              <TabsContent key={competitor} value={competitor.toLowerCase()} className="mt-6 space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Newspaper className="h-4 w-4" />
+                    <span>Media Strategy</span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-3 ml-6">
+                    {competitorData.media.map((suggestion, i) => (
+                      <div key={i} className="flex flex-col gap-1 p-3 bg-muted/30 rounded-lg border border-border">
+                        <div className="text-sm text-foreground flex gap-2">
+                          <span className="text-destructive font-bold">•</span>
+                          <span>{suggestion.message}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground ml-4 flex items-center gap-2">
+                          <span className="font-semibold">Messenger:</span>
+                          <span className="italic">{suggestion.messenger}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Users className="h-4 w-4" />
-                <span>Political Engagement</span>
-              </div>
-              <div className="space-y-3 ml-6">
-                {suggestions.f35.politicians.map((suggestion, i) => (
-                  <div key={i} className="flex flex-col gap-1 p-3 bg-muted/30 rounded-lg border border-border">
-                    <div className="text-sm text-foreground flex gap-2">
-                      <span className="text-destructive font-bold">•</span>
-                      <span>{suggestion.message}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground ml-4 flex items-center gap-2">
-                      <span className="font-semibold">Messenger:</span>
-                      <span className="italic">{suggestion.messenger}</span>
-                    </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>Political Engagement</span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-3 ml-6">
+                    {competitorData.politicians.map((suggestion, i) => (
+                      <div key={i} className="flex flex-col gap-1 p-3 bg-muted/30 rounded-lg border border-border">
+                        <div className="text-sm text-foreground flex gap-2">
+                          <span className="text-destructive font-bold">•</span>
+                          <span>{suggestion.message}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground ml-4 flex items-center gap-2">
+                          <span className="font-semibold">Messenger:</span>
+                          <span className="italic">{suggestion.messenger}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Plane className="h-4 w-4" />
-                <span>Portuguese Air Force Messaging</span>
-              </div>
-              <div className="space-y-3 ml-6">
-                {suggestions.f35.airforce.map((suggestion, i) => (
-                  <div key={i} className="flex flex-col gap-1 p-3 bg-muted/30 rounded-lg border border-border">
-                    <div className="text-sm text-foreground flex gap-2">
-                      <span className="text-destructive font-bold">•</span>
-                      <span>{suggestion.message}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground ml-4 flex items-center gap-2">
-                      <span className="font-semibold">Messenger:</span>
-                      <span className="italic">{suggestion.messenger}</span>
-                    </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Plane className="h-4 w-4" />
+                    <span>Portuguese Air Force Messaging</span>
                   </div>
-                ))}
-              </div>
-            </div>
-          </TabsContent>
+                  <div className="space-y-3 ml-6">
+                    {competitorData.airforce.map((suggestion, i) => (
+                      <div key={i} className="flex flex-col gap-1 p-3 bg-muted/30 rounded-lg border border-border">
+                        <div className="text-sm text-foreground flex gap-2">
+                          <span className="text-destructive font-bold">•</span>
+                          <span>{suggestion.message}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground ml-4 flex items-center gap-2">
+                          <span className="font-semibold">Messenger:</span>
+                          <span className="italic">{suggestion.messenger}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+            );
+          })}
         </Tabs>
       )}
     </Card>
