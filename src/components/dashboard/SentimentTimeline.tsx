@@ -108,28 +108,38 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
         };
       });
 
+      // Create all months from start date to today
+      const start = new Date(startDate);
+      const today = new Date();
+      const currentMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+      
+      while (currentMonth <= today) {
+        const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-01`;
+        const monthEntry: any = { date: monthKey };
+        Object.values(fighterFields).forEach((fields: any) => {
+          monthEntry[fields.mentionsKey] = 0;
+          monthEntry[fields.sumKey] = 0;
+          monthEntry[fields.countKey] = 0;
+        });
+        monthMap.set(monthKey, monthEntry);
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+      }
+
+      // Fill in actual data
       filteredMetrics.forEach((metric: MetricData) => {
         const date = new Date(metric.metric_date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
         
-        if (!monthMap.has(monthKey)) {
-          const monthEntry: any = { date: monthKey };
-          Object.values(fighterFields).forEach((fields: any) => {
-            monthEntry[fields.mentionsKey] = 0;
-            monthEntry[fields.sumKey] = 0;
-            monthEntry[fields.countKey] = 0;
-          });
-          monthMap.set(monthKey, monthEntry);
-        }
-        
-        const entry = monthMap.get(monthKey);
-        const fighterKey = metric.fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const fields = fighterFields[fighterKey];
-        
-        if (fields) {
-          entry[fields.mentionsKey] += metric.mentions_count;
-          entry[fields.sumKey] += metric.sentiment_score;
-          entry[fields.countKey] += 1;
+        if (monthMap.has(monthKey)) {
+          const entry = monthMap.get(monthKey);
+          const fighterKey = metric.fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const fields = fighterFields[fighterKey];
+          
+          if (fields) {
+            entry[fields.mentionsKey] += metric.mentions_count;
+            entry[fields.sumKey] += metric.sentiment_score;
+            entry[fields.countKey] += 1;
+          }
         }
       });
 
