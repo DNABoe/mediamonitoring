@@ -12,9 +12,22 @@ interface MetricData {
   mentions_count: number;
 }
 
-export const SentimentTimeline = () => {
-  const [data, setData] = useState<any[]>([]);
+interface SentimentTimelineProps {
+  selectedCompetitors?: string[];
+}
+
+export const SentimentTimeline = ({ selectedCompetitors = [] }: SentimentTimelineProps) => {
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const FIGHTER_COLORS: Record<string, string> = {
+    'Gripen': '#10b981',
+    'F-35': '#3b82f6',
+    'Rafale': '#f59e0b',
+    'F-16V': '#8b5cf6',
+    'Eurofighter': '#ef4444',
+    'F/A-50': '#ec4899'
+  };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -49,11 +62,14 @@ export const SentimentTimeline = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedCompetitors]);
 
   const fetchMetrics = async () => {
     try {
-      // Fetch baseline start date to determine tracking period (only public fields)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch baseline start date to determine tracking period
       const { data: baselineData } = await supabase
         .from('baselines')
         .select('start_date')
@@ -67,51 +83,69 @@ export const SentimentTimeline = () => {
       const { data: metrics, error } = await supabase
         .from('comparison_metrics')
         .select('*')
+        .eq('user_id', user.id)
         .gte('metric_date', startDate)
         .order('metric_date', { ascending: true });
 
       if (error) throw error;
 
+      // Filter metrics to only include Gripen and selected competitors
+      const fightersToShow = ['Gripen', ...selectedCompetitors];
+      const filteredMetrics = metrics?.filter(m => fightersToShow.includes(m.fighter)) || [];
+
       // Transform data for chart - group by month
       const monthMap = new Map();
+      const fighterFields: Record<string, any> = {};
       
-      metrics?.forEach((metric: MetricData) => {
+      // Initialize fighter fields dynamically
+      fightersToShow.forEach(fighter => {
+        const key = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
+        fighterFields[key] = {
+          mentionsKey: `${key}Mentions`,
+          sentimentKey: `${key}Sentiment`,
+          sumKey: `${key}SentimentSum`,
+          countKey: `${key}Count`
+        };
+      });
+
+      filteredMetrics.forEach((metric: MetricData) => {
         const date = new Date(metric.metric_date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
         
         if (!monthMap.has(monthKey)) {
-          monthMap.set(monthKey, { 
-            date: monthKey,
-            gripenMentions: 0,
-            f35Mentions: 0,
-            gripenSentimentSum: 0,
-            f35SentimentSum: 0,
-            gripenCount: 0,
-            f35Count: 0
+          const monthEntry: any = { date: monthKey };
+          Object.values(fighterFields).forEach((fields: any) => {
+            monthEntry[fields.mentionsKey] = 0;
+            monthEntry[fields.sumKey] = 0;
+            monthEntry[fields.countKey] = 0;
           });
+          monthMap.set(monthKey, monthEntry);
         }
         
         const entry = monthMap.get(monthKey);
-        if (metric.fighter === 'Gripen') {
-          entry.gripenMentions += metric.mentions_count;
-          entry.gripenSentimentSum += metric.sentiment_score;
-          entry.gripenCount += 1;
-        } else {
-          entry.f35Mentions += metric.mentions_count;
-          entry.f35SentimentSum += metric.sentiment_score;
-          entry.f35Count += 1;
+        const fighterKey = metric.fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fields = fighterFields[fighterKey];
+        
+        if (fields) {
+          entry[fields.mentionsKey] += metric.mentions_count;
+          entry[fields.sumKey] += metric.sentiment_score;
+          entry[fields.countKey] += 1;
         }
       });
 
       // Calculate average sentiment for each month
-      const chartData = Array.from(monthMap.values()).map(entry => ({
-        date: entry.date,
-        gripenMentions: entry.gripenMentions,
-        f35Mentions: entry.f35Mentions,
-        gripenSentiment: entry.gripenCount > 0 ? entry.gripenSentimentSum / entry.gripenCount : 0,
-        f35Sentiment: entry.f35Count > 0 ? entry.f35SentimentSum / entry.f35Count : 0
-      })).sort((a, b) => a.date.localeCompare(b.date));
-      setData(chartData);
+      const chartData = Array.from(monthMap.values()).map(entry => {
+        const result: any = { date: entry.date };
+        Object.entries(fighterFields).forEach(([key, fields]: [string, any]) => {
+          result[fields.mentionsKey] = entry[fields.mentionsKey] || 0;
+          result[fields.sentimentKey] = entry[fields.countKey] > 0 
+            ? entry[fields.sumKey] / entry[fields.countKey] 
+            : 0;
+        });
+        return result;
+      }).sort((a, b) => a.date.localeCompare(b.date));
+      
+      setData({ chartData, fightersToShow, fighterFields });
     } catch (error) {
       console.error('Error fetching metrics:', error);
     } finally {
@@ -129,7 +163,7 @@ export const SentimentTimeline = () => {
     );
   }
 
-  if (data.length === 0) {
+  if (!data || data.chartData.length === 0) {
     return (
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-4">Sentiment Timeline</h2>
@@ -143,10 +177,10 @@ export const SentimentTimeline = () => {
   return (
     <Card className="p-6">
       <h2 className="text-2xl font-bold mb-1">Media Sentiment Trends</h2>
-      <p className="text-sm text-muted-foreground mb-6">Portuguese media sources only</p>
+      <p className="text-sm text-muted-foreground mb-6">Tracking period sentiment analysis</p>
       
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
+        <LineChart data={data.chartData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
             dataKey="date" 
@@ -155,28 +189,28 @@ export const SentimentTimeline = () => {
           <YAxis domain={[-1, 1]} />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
-          <Line 
-            type="monotone" 
-            dataKey="gripenSentiment" 
-            stroke="#10b981" 
-            name="Gripen Sentiment"
-            strokeWidth={2}
-          />
-          <Line 
-            type="monotone" 
-            dataKey="f35Sentiment" 
-            stroke="#3b82f6" 
-            name="F-35 Sentiment"
-            strokeWidth={2}
-          />
+          {data.fightersToShow.map((fighter: string) => {
+            const key = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const fields = data.fighterFields[key];
+            return (
+              <Line
+                key={fighter}
+                type="monotone"
+                dataKey={fields.sentimentKey}
+                stroke={FIGHTER_COLORS[fighter] || '#6b7280'}
+                name={`${fighter} Sentiment`}
+                strokeWidth={2}
+              />
+            );
+          })}
         </LineChart>
       </ResponsiveContainer>
 
       <div className="mt-6 pt-6 border-t">
         <h3 className="text-lg font-semibold mb-1">Media Mentions Over Time</h3>
-        <p className="text-sm text-muted-foreground mb-4">Portuguese media sources only</p>
+        <p className="text-sm text-muted-foreground mb-4">Article count trends</p>
         <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={data}>
+          <LineChart data={data.chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
               dataKey="date" 
@@ -185,20 +219,20 @@ export const SentimentTimeline = () => {
             <YAxis />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="gripenMentions" 
-              stroke="#10b981" 
-              name="Gripen Mentions"
-              strokeWidth={2}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="f35Mentions" 
-              stroke="#3b82f6" 
-              name="F-35 Mentions"
-              strokeWidth={2}
-            />
+            {data.fightersToShow.map((fighter: string) => {
+              const key = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const fields = data.fighterFields[key];
+              return (
+                <Line
+                  key={fighter}
+                  type="monotone"
+                  dataKey={fields.mentionsKey}
+                  stroke={FIGHTER_COLORS[fighter] || '#6b7280'}
+                  name={`${fighter} Mentions`}
+                  strokeWidth={2}
+                />
+              );
+            })}
           </LineChart>
         </ResponsiveContainer>
       </div>

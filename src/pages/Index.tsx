@@ -198,7 +198,7 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <SentimentTimeline />
+          <SentimentTimeline selectedCompetitors={selectedCompetitors} />
         </div>
 
         <div className="mb-6">
