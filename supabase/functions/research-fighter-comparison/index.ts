@@ -83,19 +83,34 @@ serve(async (req) => {
 
 TRACKING PERIOD: From ${trackingStartDate} to ${today} (${daysSinceBaseline} days of tracking)
 
+CRITICAL SOURCING REQUIREMENTS:
+- PRIORITIZE ${countryName}'s most reputable newspapers, defense journals, and established media outlets
+- Focus on major ${countryName} discussion forums and defense community platforms
+- Include statements from ${countryName} government officials and defense experts
+- Cite ${countryName}-language sources when available and relevant
+- Include publication dates in your research
+- Focus on recent developments and current news from ${countryName} media landscape
+
+Examples of reputable sources to prioritize (country-specific):
+- Major national newspapers and news agencies in ${countryName}
+- Defense and security-focused publications in ${countryName}
+- Official government and military communications from ${countryName}
+- Established defense analysis forums and think tanks in ${countryName}
+- Parliamentary records and official transcripts from ${countryName}
+
 Conduct a comprehensive analysis covering these dimensions:
 
 1. MEDIA PRESENCE (${countryName} & International)
-   - Count ALL mentions of each fighter in news media since ${trackingStartDate}
-   - Identify key narratives and story angles that emerged during this period
-   - Note which sources are covering each fighter
-   - Track momentum and trends over the ${daysSinceBaseline}-day period
+   - Count ALL mentions of each fighter in reputable ${countryName} news media since ${trackingStartDate}
+   - Identify key narratives and story angles that emerged in ${countryName} during this period
+   - Note which ${countryName} sources are covering each fighter
+   - Track momentum and trends over the ${daysSinceBaseline}-day period in ${countryName} media
 
 2. MEDIA TONALITY
-   - Sentiment analysis: positive, negative, neutral coverage
-   - Key themes: technical capability, cost, politics, industrial benefits
+   - Sentiment analysis from ${countryName} media: positive, negative, neutral coverage
+   - Key themes in ${countryName} discourse: technical capability, cost, politics, industrial benefits
    - Compare tone between ${countryName} and international coverage
-   - Note any sentiment shifts during the tracking period
+   - Note any sentiment shifts in ${countryName} media during the tracking period
 
 3. CAPABILITY ANALYSIS
    - Technical specifications comparison
@@ -111,18 +126,18 @@ Conduct a comprehensive analysis covering these dimensions:
    - Costs of future mandatory upgrades
 
 5. POLITICAL ANALYSIS
-   - ${countryName} government positions
-   - Political party stances
-   - Public opinion indicators
-   - Parliamentary debates or statements
+   - ${countryName} government positions and official statements
+   - ${countryName} political party stances from reputable sources
+   - Public opinion indicators in ${countryName}
+   - ${countryName} parliamentary debates or statements
    - Bilateral ${countryName} and countries that supplies ${competitorList} interactions
    - Bilateral ${countryName} and Swedish interactions
 
 6. INDUSTRIAL COOPERATION
-   - Offset deals and technology transfer
-   - Local manufacturing opportunities
-   - Job creation potential
-   - Long-term industrial partnerships
+   - Offset deals and technology transfer relevant to ${countryName}
+   - Local manufacturing opportunities in ${countryName}
+   - Job creation potential in ${countryName}
+   - Long-term industrial partnerships with ${countryName}
 
 7. GEOPOLITICAL CONSIDERATIONS
    - US vs European strategic relationships
@@ -133,18 +148,13 @@ Conduct a comprehensive analysis covering these dimensions:
 Current date: ${today}
 Tracking period: ${trackingStartDate} to ${today}
 
-CRITICAL SOURCING REQUIREMENTS:
-- PRIORITIZE ${countryName} media sources
-- Include publication dates in your research
-- Focus on recent developments and current news
-- Prefer ${countryName}-language sources when available
-
 Analyze and suggest a weight distribution of key decision parameters in ${countryName} choice of future fighter given that the decision will be taken by defence minister of ${countryName}.
 
 **EXECUTIVE SUMMARY REQUIREMENTS:**
 - Write EXACTLY 5-7 FULL PARAGRAPHS (minimum 150 words per paragraph)
 - Each paragraph must be substantial and detailed
 - Compare ALL fighters: Gripen vs ${competitorList}
+- Base analysis on reputable ${countryName} sources and official statements
 - **WRITE IN ENGLISH ONLY**
 
 CRITICAL for monthly_breakdown:
