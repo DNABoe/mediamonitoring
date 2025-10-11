@@ -11,6 +11,14 @@ interface WinnerMetarProps {
 }
 
 export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
+  const FIGHTER_COLORS: Record<string, string> = {
+    'Gripen': '#10b981',
+    'F-35': '#3b82f6',
+    'Rafale': '#f59e0b',
+    'F-16V': '#8b5cf6',
+    'Eurofighter': '#ef4444',
+    'F/A-50': '#ec4899'
+  };
   const [showSettings, setShowSettings] = useState(false);
   const [showScores, setShowScores] = useState(false);
   const [weights, setWeights] = useState({
@@ -223,13 +231,16 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
       <div className="space-y-3 mb-6">
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold text-success">Gripen</span>
+            <span className="text-sm font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen</span>
             <span className="text-sm font-bold">{gripenScore.toFixed(1)}</span>
           </div>
           <div className="relative h-8 rounded-full overflow-hidden bg-muted">
             <div 
-              className="absolute top-0 left-0 h-full bg-gradient-to-r from-success to-success/80 transition-all duration-500"
-              style={{ width: `${Math.min(100, (gripenScore / 10) * 100)}%` }}
+              className="absolute top-0 left-0 h-full transition-all duration-500"
+              style={{ 
+                width: `${Math.min(100, (gripenScore / 10) * 100)}%`,
+                background: `linear-gradient(to right, ${FIGHTER_COLORS['Gripen']}, ${FIGHTER_COLORS['Gripen']}cc)`
+              }}
             />
           </div>
         </div>
@@ -237,16 +248,20 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
         {allCompetitors.map(comp => {
           const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
           const score = competitorScores[key] || 0;
+          const color = FIGHTER_COLORS[comp] || '#6b7280';
           return (
             <div key={comp} className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold text-destructive">{comp}</span>
+                <span className="text-sm font-semibold" style={{ color }}>{comp}</span>
                 <span className="text-sm font-bold">{score.toFixed(1)}</span>
               </div>
               <div className="relative h-8 rounded-full overflow-hidden bg-muted">
                 <div 
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-destructive to-destructive/80 transition-all duration-500"
-                  style={{ width: `${Math.min(100, (score / 10) * 100)}%` }}
+                  className="absolute top-0 left-0 h-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.min(100, (score / 10) * 100)}%`,
+                    background: `linear-gradient(to right, ${color}, ${color}cc)`
+                  }}
                 />
               </div>
             </div>
