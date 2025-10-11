@@ -7,11 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface WinnerMetarProps {
-  gripenScore: number;
-  f35Score: number;
+  activeCompetitors: string[];
 }
 
-export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
+export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
   const [showSettings, setShowSettings] = useState(false);
   const [showScores, setShowScores] = useState(false);
   const [weights, setWeights] = useState({
@@ -21,10 +20,8 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     cost: 10,
     capabilities: 10,
   });
-  const [dimensionScores, setDimensionScores] = useState<{
-    gripen: Record<string, number>;
-    f35: Record<string, number>;
-  } | null>(null);
+  const [dimensionScores, setDimensionScores] = useState<Record<string, Record<string, number>> | null>(null);
+  const [competitorScores, setCompetitorScores] = useState<Record<string, number>>({});
   const [aiSuggestion, setAiSuggestion] = useState<{
     rationale: string;
     weights: typeof weights;
@@ -32,7 +29,7 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
 
   const calculateWeightedScores = (currentWeights: typeof weights) => {
-    if (!dimensionScores) return { gripen: 0, f35: 0 };
+    if (!dimensionScores) return {};
 
     const calculateTotal = (scores: Record<string, number>) => {
       return (
@@ -44,10 +41,12 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
       );
     };
 
-    return {
-      gripen: calculateTotal(dimensionScores.gripen),
-      f35: calculateTotal(dimensionScores.f35),
-    };
+    const results: Record<string, number> = {};
+    Object.keys(dimensionScores).forEach(fighter => {
+      results[fighter] = calculateTotal(dimensionScores[fighter]);
+    });
+
+    return results;
   };
 
   const fetchDimensionScores = async () => {
@@ -63,10 +62,11 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
       const scores = tonality.dimension_scores;
       
       if (scores) {
-        setDimensionScores({
-          gripen: scores.gripen || {},
-          f35: scores.f35 || {},
-        });
+        setDimensionScores(scores);
+        
+        // Calculate initial weighted scores
+        const weighted = calculateWeightedScores(weights);
+        setCompetitorScores(weighted);
       }
     }
   };
@@ -134,15 +134,33 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
     }
   };
 
-  const calculatedScores = calculateWeightedScores(weights);
-  const displayGripen = calculatedScores.gripen || gripenScore;
-  const displayF35 = calculatedScores.f35 || f35Score;
-  const total = displayGripen + displayF35;
-  const gripenPercent = total > 0 ? (displayGripen / total) * 100 : 50;
-  const f35Percent = total > 0 ? (displayF35 / total) * 100 : 50;
+  // Recalculate scores when weights change
+  useEffect(() => {
+    if (dimensionScores) {
+      const weighted = calculateWeightedScores(weights);
+      setCompetitorScores(weighted);
+    }
+  }, [weights, dimensionScores]);
 
-  const leader = displayGripen > displayF35 ? "Gripen" : "F-35";
-  const delta = Math.abs(displayGripen - displayF35).toFixed(1);
+  const gripenScore = competitorScores['gripen'] || 0;
+  const allCompetitors = activeCompetitors.filter(c => competitorScores[c.toLowerCase().replace(/[^a-z0-9]/g, '_')] !== undefined);
+  
+  // Calculate comparison with strongest competitor
+  const competitorScoreValues = allCompetitors.map(comp => {
+    const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    return { name: comp, score: competitorScores[key] || 0 };
+  });
+  
+  const strongestCompetitor = competitorScoreValues.reduce((max, current) => 
+    current.score > max.score ? current : max
+  , { name: allCompetitors[0] || 'F-35', score: 0 });
+
+  const total = gripenScore + strongestCompetitor.score;
+  const gripenPercent = total > 0 ? (gripenScore / total) * 100 : 50;
+  const competitorPercent = total > 0 ? (strongestCompetitor.score / total) * 100 : 50;
+
+  const leader = gripenScore > strongestCompetitor.score ? "Gripen" : strongestCompetitor.name;
+  const delta = Math.abs(gripenScore - strongestCompetitor.score).toFixed(1);
 
   const totalWeight = Object.values(weights).reduce((sum, val) => sum + val, 0);
 
@@ -162,7 +180,7 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
 
   const dimensionOrder: (keyof typeof weights)[] = ['media', 'political', 'industrial', 'cost', 'capabilities'];
 
-  const hasScores = dimensionScores && dimensionScores.gripen && dimensionScores.f35;
+  const hasScores = dimensionScores && Object.keys(dimensionScores).length > 0;
 
   const fetchAiSuggestion = async () => {
     setLoadingSuggestion(true);
@@ -204,7 +222,7 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
       <div className="relative h-16 rounded-full overflow-hidden bg-gradient-to-r from-success via-warning to-destructive mb-4">
         <div
           className="absolute top-0 h-full w-1 bg-foreground shadow-lg transition-all duration-500"
-          style={{ left: `${f35Percent}%` }}
+          style={{ left: `${competitorPercent}%` }}
         >
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card px-3 py-1 rounded shadow-lg border border-border">
             <div className="text-xs font-bold whitespace-nowrap">
@@ -223,8 +241,8 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
           Likelihood to Win
         </div>
         <div className="text-right">
-          <div className="font-bold text-destructive">F-35</div>
-          <div className="text-muted-foreground">{f35Percent.toFixed(1)}%</div>
+          <div className="font-bold text-destructive">{strongestCompetitor.name}</div>
+          <div className="text-muted-foreground">{competitorPercent.toFixed(1)}%</div>
         </div>
       </div>
 
@@ -288,21 +306,29 @@ export const WinnerMetar = ({ gripenScore, f35Score }: WinnerMetarProps) => {
                 <div className="text-xs font-semibold text-muted-foreground mb-3">
                   Raw AI Analysis Scores (0-10 scale)
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="font-medium text-muted-foreground">Dimension</div>
-                  <div className="font-medium text-success text-center">Gripen</div>
-                  <div className="font-medium text-destructive text-center">F-35</div>
+                  <div className="font-medium text-center">Scores</div>
                   
                   {dimensionOrder.map((key) => (
                     <>
                       <div key={`${key}-label`} className="capitalize text-foreground">
                         {key}
                       </div>
-                      <div key={`${key}-gripen`} className="text-center font-semibold text-success">
-                        {dimensionScores.gripen[key]?.toFixed(1) || 'N/A'}
-                      </div>
-                      <div key={`${key}-f35`} className="text-center font-semibold text-destructive">
-                        {dimensionScores.f35[key]?.toFixed(1) || 'N/A'}
+                      <div key={`${key}-scores`} className="text-xs space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-success">Gripen:</span>
+                          <span className="font-semibold">{dimensionScores.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
+                        </div>
+                        {allCompetitors.map(comp => {
+                          const compKey = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                          return (
+                            <div key={comp} className="flex justify-between">
+                              <span className="text-destructive">{comp}:</span>
+                              <span className="font-semibold">{dimensionScores[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </>
                   ))}

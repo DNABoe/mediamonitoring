@@ -25,11 +25,7 @@ const Index = () => {
     loading: authLoading,
     signOut
   } = useAuth();
-  const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [winnerScore, setWinnerScore] = useState({
-    gripen: 0,
-    f35: 0
-  });
+  const [lastUpdate, setLastUpdate] = useState(new Date);
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { settings: userSettings, loading: settingsLoading } = useUserSettings();
@@ -40,26 +36,21 @@ const Index = () => {
     }
   }, [user, authLoading]);
   useEffect(() => {
-    const fetchScores = async () => {
+    const fetchLastUpdate = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch latest research report scores for this user
-      const {
-        data: report
-      } = await supabase.from('research_reports').select('media_tonality, created_at').eq('user_id', user.id).order('report_date', {
-        ascending: false
-      }).limit(1).maybeSingle();
-      if (report?.media_tonality) {
-        const tonality = report.media_tonality as any;
-        setWinnerScore({
-          gripen: tonality.gripen_score || 0,
-          f35: tonality.f35_score || 0
-        });
-        // Set last update to when the report was actually created
-        if (report.created_at) {
-          setLastUpdate(new Date(report.created_at));
-        }
+      // Fetch latest research report to get last update time
+      const { data: report } = await supabase
+        .from('research_reports')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .order('report_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (report?.created_at) {
+        setLastUpdate(new Date(report.created_at));
       }
     };
     const fetchBaseline = async () => {
@@ -73,25 +64,20 @@ const Index = () => {
         setBaselineDate(data.start_date);
       }
     };
-    fetchScores();
+    fetchLastUpdate();
     fetchBaseline();
 
-    // Refresh scores every 30 seconds (but don't update timestamp)
-    const interval = setInterval(() => {
-      fetchScores();
-    }, 30000);
     const reportsChannel = supabase.channel('reports-changes').on('postgres_changes', {
       event: '*',
       schema: 'public',
       table: 'research_reports'
-    }, () => fetchScores()).subscribe();
+    }, () => fetchLastUpdate()).subscribe();
     const baselinesChannel = supabase.channel('baselines-changes').on('postgres_changes', {
       event: '*',
       schema: 'public',
       table: 'baselines'
     }, () => fetchBaseline()).subscribe();
     return () => {
-      clearInterval(interval);
       supabase.removeChannel(reportsChannel);
       supabase.removeChannel(baselinesChannel);
     };
@@ -184,7 +170,7 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <WinnerMetar gripenScore={winnerScore.gripen} f35Score={winnerScore.f35} />
+          <WinnerMetar activeCompetitors={userSettings.activeCompetitors} />
         </div>
 
         <div className="mb-6">
