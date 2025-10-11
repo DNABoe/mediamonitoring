@@ -79,57 +79,80 @@ serve(async (req) => {
     
     // Use default prompt if no custom prompt is set
     if (!researchPrompt) {
-      researchPrompt = `You are a defense intelligence analyst specializing in ${countryName}'s fighter aircraft acquisition program. Your analysis must be deeply rooted in ${countryName.toUpperCase()} media coverage, public discourse, and political debate.
+      researchPrompt = `You are a defense intelligence analyst researching the comparison between Gripen and ${competitorList} fighter jets in the context of ${countryName} fighter program selection.
 
-**CRITICAL: ALL RESPONSES MUST BE IN ENGLISH. Analyze ${countryName} sources but write your analysis in English.**
+TRACKING PERIOD: From ${trackingStartDate} to ${today} (${daysSinceBaseline} days of tracking)
 
-Tracking period: ${trackingStartDate} to ${today} (${daysSinceBaseline} days)
+Conduct a comprehensive analysis covering these dimensions:
 
-AIRCRAFT BEING COMPARED:
-- Baseline: Gripen (Swedish fighter)
-- Competitors: ${competitorList}
+1. MEDIA PRESENCE (${countryName} & International)
+   - Count ALL mentions of each fighter in news media since ${trackingStartDate}
+   - Identify key narratives and story angles that emerged during this period
+   - Note which sources are covering each fighter
+   - Track momentum and trends over the ${daysSinceBaseline}-day period
 
-PRIMARY FOCUS: Analyze coverage and sentiment specifically from ${countryName.toUpperCase()} sources:
-- Major ${countryName} newspapers and media outlets (national and regional)
-- ${countryName} defense/military publications
-- ${countryName} political commentary and opinion pieces
-- ${countryName} parliamentary debates and political party positions
-- ${countryName} aerospace industry perspectives
-- ${countryName} public opinion and social media discussions
-- ${countryName} government statements and defense ministry announcements
+2. MEDIA TONALITY
+   - Sentiment analysis: positive, negative, neutral coverage
+   - Key themes: technical capability, cost, politics, industrial benefits
+   - Compare tone between ${countryName} and international coverage
+   - Note any sentiment shifts during the tracking period
 
-**RESEARCH REQUIREMENTS:**
-- Search for and analyze ACTUAL recent news from ${countryName} media about these aircraft
-- Focus on ${countryName}-language sources and ${countryName} perspectives
-- Include specific ${countryName} political parties, media outlets, and defense officials when relevant
-- Consider ${countryName}'s specific defense needs, budget constraints, and geopolitical position
+3. CAPABILITY ANALYSIS
+   - Technical specifications comparison
+   - Operational advantages/disadvantages
+   - NATO interoperability considerations
+   - Multi-role vs specialized capabilities
 
-Provide DETAILED analysis covering:
-1. ${countryName} media coverage trends - How ${countryName} outlets cover each aircraft, frequency of mentions, key narratives
-2. Sentiment in ${countryName} discourse - How ${countryName} journalists, politicians, and experts view each option
-3. Capability comparison from ${countryName}'s operational needs perspective (considering ${countryName}'s military doctrine and threats)
-4. Cost analysis through ${countryName}'s budget constraints lens (reference ${countryName}'s defense budget if known)
-5. ${countryName} political landscape - Which parties/politicians favor which option and why
-6. Industrial cooperation potential for ${countryName}'s aerospace industry
-7. Geopolitical considerations from ${countryName}'s NATO/EU membership and regional relationships
+4. COST ANALYSIS
+   - Unit acquisition cost
+   - Lifecycle/operating costs
+   - Maintenance and support costs
+   - Training costs
+   - Costs of future mandatory upgrades
+
+5. POLITICAL ANALYSIS
+   - ${countryName} government positions
+   - Political party stances
+   - Public opinion indicators
+   - Parliamentary debates or statements
+   - Bilateral ${countryName} and countries that supplies ${competitorList} interactions
+   - Bilateral ${countryName} and Swedish interactions
+
+6. INDUSTRIAL COOPERATION
+   - Offset deals and technology transfer
+   - Local manufacturing opportunities
+   - Job creation potential
+   - Long-term industrial partnerships
+
+7. GEOPOLITICAL CONSIDERATIONS
+   - US vs European strategic relationships
+   - NATO implications
+   - Sovereignty and autonomy concerns
+   - Regional security dynamics
+
+Current date: ${today}
+Tracking period: ${trackingStartDate} to ${today}
+
+CRITICAL SOURCING REQUIREMENTS:
+- PRIORITIZE ${countryName} media sources
+- Include publication dates in your research
+- Focus on recent developments and current news
+- Prefer ${countryName}-language sources when available
+
+Analyze and suggest a weight distribution of key decision parameters in ${countryName} choice of future fighter given that the decision will be taken by defence minister of ${countryName}.
 
 **EXECUTIVE SUMMARY REQUIREMENTS:**
 - Write EXACTLY 5-7 FULL PARAGRAPHS (minimum 150 words per paragraph)
 - Each paragraph must be substantial and detailed
-- Focus exclusively on ${countryName} situation and perspectives
-- Include specific references to ${countryName} media themes and political debates
 - Compare ALL fighters: Gripen vs ${competitorList}
-- Discuss ${countryName}'s unique concerns (budget, industrial policy, NATO commitments, operational needs)
 - **WRITE IN ENGLISH ONLY**
 
 CRITICAL for monthly_breakdown:
 - Generate realistic month-by-month data for ALL ${competitors.length + 1} fighters (Gripen + ${competitors.length} competitors)
-- Mentions should vary naturally based on ${countryName} news cycles
-- Sentiment should reflect ${countryName} public and political opinion shifts
-- Show how ${countryName} media coverage intensity changed over time
-- Reflect momentum shifts in ${countryName} political debate
+- Mentions should vary naturally based on news cycles
+- Sentiment should reflect public and political opinion shifts
 
-**ALL TEXT OUTPUTS MUST BE IN ENGLISH. You are analyzing ${countryName} sources but writing in English for an international audience.**
+**ALL TEXT OUTPUTS MUST BE IN ENGLISH.**
 
 Return structured data using the analysis_report tool.`;
     }
