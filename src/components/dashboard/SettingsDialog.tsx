@@ -36,27 +36,31 @@ export const SettingsDialog = ({ open, onOpenChange, onSettingsSaved }: Settings
   const [customPrompt, setCustomPrompt] = useState("");
   const [isSavingPrompt, setIsSavingPrompt] = useState(false);
 
-  const defaultPrompt = `You are a defense intelligence analyst researching the comparison between Gripen and F-35 fighter jets in the context of Portuguese fighter program selection.
+  const defaultPrompt = `You are a defense intelligence analyst researching the comparison between Gripen and competitor fighter jets in the context of {{country}}'s fighter program selection.
 
 TRACKING PERIOD: From {{trackingStartDate}} to {{today}} ({{daysSinceBaseline}} days of tracking)
 
+AIRCRAFT BEING COMPARED:
+- Baseline: Gripen (Swedish fighter)
+- Competitors: {{competitors}}
+
 Conduct a comprehensive analysis covering these dimensions:
 
-1. MEDIA PRESENCE (Portuguese & International)
+1. MEDIA PRESENCE ({{country}} & International)
    - Count ALL mentions of each fighter in news media since {{trackingStartDate}}
    - Identify key narratives and story angles that emerged during this period
-   - Note which sources are covering each fighter
+   - Note which {{country}} sources are covering each fighter
    - Track momentum and trends over the {{daysSinceBaseline}}-day period
 
 2. MEDIA TONALITY
-   - Sentiment analysis: positive, negative, neutral coverage
+   - Sentiment analysis: positive, negative, neutral coverage in {{country}} media
    - Key themes: technical capability, cost, politics, industrial benefits
-   - Compare tone between Portuguese and international coverage
+   - Compare tone between {{country}} and international coverage
    - Note any sentiment shifts during the tracking period
 
 3. CAPABILITY ANALYSIS
    - Technical specifications comparison
-   - Operational advantages/disadvantages
+   - Operational advantages/disadvantages for {{country}}'s needs
    - NATO interoperability considerations
    - Multi-role vs specialized capabilities
 
@@ -64,23 +68,23 @@ Conduct a comprehensive analysis covering these dimensions:
    - Unit acquisition cost
    - Lifecycle/operating costs
    - Maintenance and support costs
-   - Training costs
+   - Training costs within {{country}}'s budget constraints
 
 5. POLITICAL ANALYSIS
-   - Portuguese government positions
-   - Political party stances
-   - Public opinion indicators
+   - {{country}} government positions
+   - Political party stances in {{country}}
+   - Public opinion indicators in {{country}}
    - Parliamentary debates or statements
 
 6. INDUSTRIAL COOPERATION
-   - Offset deals and technology transfer
-   - Local manufacturing opportunities
-   - Job creation potential
+   - Offset deals and technology transfer to {{country}}
+   - Local manufacturing opportunities in {{country}}
+   - Job creation potential in {{country}}
    - Long-term industrial partnerships
 
 7. GEOPOLITICAL CONSIDERATIONS
-   - US vs European strategic relationships
-   - NATO implications
+   - Strategic relationships relevant to {{country}}
+   - NATO implications for {{country}}
    - Sovereignty and autonomy concerns
    - Regional security dynamics
 
@@ -88,11 +92,13 @@ Current date: {{today}}
 Tracking period: {{trackingStartDate}} to {{today}}
 
 CRITICAL SOURCING REQUIREMENTS:
-- PRIORITIZE Portuguese media sources (e.g., Observador, Público, DN, Expresso, Visão, Jornal de Negócios)
+- PRIORITIZE {{country}} media sources (national newspapers, defense publications, political commentary)
 - ONLY cite sources published within the last 60 days
 - Include publication dates in your research
 - Focus on recent developments and current news
-- Prefer Portuguese-language sources when available`;
+- Prefer {{country}}-language sources when available
+
+**ALL RESPONSES MUST BE IN ENGLISH** - analyze {{country}} sources but write your analysis in English.`;
 
   useEffect(() => {
     const loadPrompt = async () => {
@@ -199,7 +205,7 @@ CRITICAL SOURCING REQUIREMENTS:
                 <div>
                   <h3 className="font-semibold">AI Research Prompt</h3>
                   <p className="text-sm text-muted-foreground">
-                    Customize the prompt used for AI research generation. Variables: {"{{trackingStartDate}}"}, {"{{today}}"}, {"{{daysSinceBaseline}}"}
+                    Customize the prompt used for AI research generation. Variables: {"{{trackingStartDate}}"}, {"{{today}}"}, {"{{daysSinceBaseline}}"}, {"{{country}}"}, {"{{competitors}}"}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={resetToDefault}>
