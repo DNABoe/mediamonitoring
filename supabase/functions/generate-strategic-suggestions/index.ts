@@ -23,33 +23,10 @@ serve(async (req) => {
 
     console.log('Fetching latest research report...');
 
-    // Get authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('No authorization header found');
-      throw new Error('No authorization header');
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // Get user from auth
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      console.error('Auth error:', userError);
-      throw new Error('Unauthorized');
-    }
-
-    console.log('Fetching research report for user:', user.id);
-
-    // Fetch the latest research report for this user
-    const { data: report, error: reportError } = await supabaseClient
+    // Use service role to fetch the latest report
+    const { data: report, error: reportError } = await supabase
       .from('research_reports')
       .select('*')
-      .eq('user_id', user.id)
       .order('report_date', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -60,7 +37,7 @@ serve(async (req) => {
     }
     
     if (!report) {
-      console.error('No research report found for user');
+      console.error('No research report found');
       throw new Error('No research report found');
     }
 
