@@ -28,9 +28,10 @@ import { CountryCompetitorSettings } from "./CountryCompetitorSettings";
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSettingsSaved?: () => void;
 }
 
-export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
+export const SettingsDialog = ({ open, onOpenChange, onSettingsSaved }: SettingsDialogProps) => {
   const [isResetting, setIsResetting] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isSavingPrompt, setIsSavingPrompt] = useState(false);
@@ -189,7 +190,7 @@ CRITICAL SOURCING REQUIREMENTS:
           </TabsList>
 
           <TabsContent value="analysis" className="space-y-4">
-            <CountryCompetitorSettings />
+            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} />
           </TabsContent>
 
           <TabsContent value="prompt" className="space-y-4">

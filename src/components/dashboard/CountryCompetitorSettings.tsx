@@ -20,7 +20,11 @@ const COUNTRIES = [
 
 const COMPETITORS = ['F-35', 'Rafale', 'F-16V', 'Eurofighter', 'F/A-50'];
 
-export const CountryCompetitorSettings = () => {
+interface CountryCompetitorSettingsProps {
+  onSettingsSaved?: () => void;
+}
+
+export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitorSettingsProps) => {
   const [activeCountry, setActiveCountry] = useState<string>('PT');
   const [activeCompetitors, setActiveCompetitors] = useState<string[]>(['F-35']);
   const [loading, setLoading] = useState(true);
@@ -78,6 +82,11 @@ export const CountryCompetitorSettings = () => {
       if (error) throw error;
 
       toast.success('Analysis settings saved successfully');
+      
+      // Notify parent component that settings were saved
+      if (onSettingsSaved) {
+        onSettingsSaved();
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
       toast.error('Failed to save settings');

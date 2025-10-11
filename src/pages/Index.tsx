@@ -183,7 +183,7 @@ const Index = () => {
         </div>
       </div>
 
-      {isAdmin && <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />}
+      {isAdmin && <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} onSettingsSaved={() => window.location.reload()} />}
     </div>;
 };
 export default Index;
