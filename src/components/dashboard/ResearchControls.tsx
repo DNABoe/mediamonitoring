@@ -20,11 +20,26 @@ export const ResearchControls = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [hasBaseline, setHasBaseline] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const { toast } = useToast();
   const { settings: userSettings } = useUserSettings();
 
   useEffect(() => {
     checkBaseline();
+    fetchLastUpdate();
+
+    const reportsChannel = supabase
+      .channel('reports-changes-controls')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'research_reports'
+      }, () => fetchLastUpdate())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(reportsChannel);
+    };
   }, []);
 
   const checkBaseline = async () => {
@@ -37,6 +52,23 @@ export const ResearchControls = () => {
       .maybeSingle();
     
     setHasBaseline(!!data);
+  };
+
+  const fetchLastUpdate = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: report } = await supabase
+      .from('research_reports')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .order('report_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (report?.created_at) {
+      setLastUpdate(new Date(report.created_at));
+    }
   };
 
   const handleGenerateResearch = async () => {
@@ -156,23 +188,37 @@ export const ResearchControls = () => {
               Generate comprehensive fighter comparison analysis
             </p>
           </div>
-          <Button 
-            onClick={handleGenerateResearch}
-            disabled={isGenerating}
-            size="lg"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Researching...
-              </>
-            ) : (
-              <>
-                <Brain className="mr-2 h-4 w-4" />
-                Generate Research
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button 
+              onClick={handleGenerateResearch}
+              disabled={isGenerating}
+              size="lg"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Researching...
+                </>
+              ) : (
+                <>
+                  <Brain className="mr-2 h-4 w-4" />
+                  Generate Research
+                </>
+              )}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Last updated: {lastUpdate.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })} {lastUpdate.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+              })}
+            </span>
+          </div>
         </div>
       </Card>
 
