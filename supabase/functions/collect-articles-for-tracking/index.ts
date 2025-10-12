@@ -427,12 +427,17 @@ serve(async (req) => {
 For each article, identify:
 1. Which fighters are mentioned (Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50)
 2. Sentiment: positive (0.7), neutral (0.0), or negative (-0.7)
-3. Source country: "${country}" for local domains ending in ${domainSuffix}, otherwise "INTERNATIONAL"
+3. Source country: 
+   - "${country}" if the URL ends with ${domainSuffix} (e.g., .cz, .pt)
+   - "INTERNATIONAL" for all other domains (e.g., .com, .org, .co.uk, .eu, etc.)
 
-IMPORTANT: Return ONLY the title for each article. Do NOT include URLs.
+IMPORTANT: 
+- Return ONLY the title for each article. Do NOT include URLs.
+- Most .com, .org, .net, .co.uk domains should be marked as INTERNATIONAL
+- Only mark as "${country}" if you see ${domainSuffix} in the source
 
 Articles:
-${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title })), null, 2)}`
+${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, url_hint: r.url.includes(domainSuffix) ? 'local' : 'international' })), null, 2)}`
         }],
         tools: [{
           type: 'function',
@@ -532,9 +537,12 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title }))
         return null;
       }
       
-      // Use the URL from the original search result
-      article.url = normalizeUrl(matchingResult.url);
-      console.log(`Matched "${article.title?.substring(0, 50)}" to URL: ${article.url.substring(0, 80)}`);
+      // Decode and normalize the URL from the original search result
+      let decodedUrl = decodeDuckDuckGoUrl(matchingResult.url);
+      decodedUrl = normalizeUrl(decodedUrl);
+      
+      article.url = decodedUrl;
+      console.log(`✓ Matched "${article.title?.substring(0, 40)}" -> ${decodedUrl.substring(0, 60)}`);
       
       
       // Ensure fighter_tags is array
@@ -573,10 +581,11 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title }))
     
     for (const article of validArticles) {
       try {
-        // Match to source
+        // Match to source and determine country
         let sourceId = null;
         let sourceCountry = article.source_country || 'INTERNATIONAL';
         
+        // First try to match against configured sources
         if (sources) {
           for (const source of sources) {
             const sourceDomain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
@@ -588,9 +597,24 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title }))
           }
         }
 
-        // Derive country from domain if no source match
-        if (!sourceId && domainSuffix && article.url.includes(domainSuffix)) {
-          sourceCountry = country;
+        // If no source match, detect from URL domain
+        if (!sourceId) {
+          try {
+            const urlObj = new URL(article.url);
+            const hostname = urlObj.hostname;
+            
+            // Check if it's a local country domain
+            if (hostname.endsWith(domainSuffix)) {
+              sourceCountry = country;
+            } else {
+              // International domain (.com, .org, .net, .co.uk, etc.)
+              sourceCountry = 'INTERNATIONAL';
+            }
+            
+            console.log(`Detected country from URL: ${hostname} -> ${sourceCountry}`);
+          } catch (urlError) {
+            console.error('Error parsing URL for country detection:', article.url, urlError);
+          }
         }
 
         // Try to extract or estimate publication date
