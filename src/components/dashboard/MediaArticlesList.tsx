@@ -94,6 +94,58 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
     );
   }
 
+  // Separate articles by local vs international
+  const localArticles = mediaArticles.filter(article => article.sourceCountry === activeCountry);
+  const internationalArticles = mediaArticles.filter(article => article.sourceCountry !== activeCountry);
+
+  const ArticleCard = ({ article, index }: { article: MediaArticle; index: number }) => (
+    <div 
+      key={`${article.url}-${index}`}
+      className="p-3 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
+    >
+      <a 
+        href={article.url} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="group"
+      >
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors flex-1 leading-snug">
+            {article.title}
+          </h3>
+          <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-0.5" />
+        </div>
+      </a>
+      
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+        <span className="font-medium">{article.source}</span>
+        <span>•</span>
+        <Badge variant="outline" className="text-xs py-0 h-5">
+          {article.sourceCountry}
+        </Badge>
+        <span>•</span>
+        <span>
+          {(() => {
+            const date = new Date(article.publishedAt);
+            return isNaN(date.getTime()) ? 'Recent' : format(date, 'MMM d, yyyy');
+          })()}
+        </span>
+      </div>
+      
+      <div className="flex flex-wrap gap-1">
+        {article.fighters.map((fighter) => (
+          <Badge 
+            key={fighter} 
+            variant="secondary" 
+            className="text-xs py-0 h-5"
+          >
+            {fighter}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <Card className="p-6">
       <div className="space-y-4">
@@ -114,7 +166,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         </div>
         
         <p className="text-sm text-muted-foreground">
-          Articles discussing fighter procurement programs and selected platforms from {activeCountry} and international sources
+          Articles discussing fighter procurement programs from {activeCountry} and international sources
         </p>
 
         {mediaArticles.length === 0 ? (
@@ -122,57 +174,49 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
             No media articles found
           </div>
         ) : (
-          <ScrollArea className="h-[600px] pr-4">
-            <div className="space-y-2">
-              {mediaArticles.map((article, index) => (
-                <div 
-                  key={`${article.url}-${index}`}
-                  className="p-3 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
-                >
-                  <a 
-                    href={article.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="group"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors flex-1 leading-snug">
-                        {article.title}
-                      </h3>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-0.5" />
-                    </div>
-                  </a>
-                  
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                    <span className="font-medium">{article.source}</span>
-                    <span>•</span>
-                    <Badge variant="outline" className="text-xs py-0 h-5">
-                      {article.sourceCountry}
-                    </Badge>
-                    <span>•</span>
-                    <span>
-                      {(() => {
-                        const date = new Date(article.publishedAt);
-                        return isNaN(date.getTime()) ? 'Recent' : format(date, 'MMM d, yyyy');
-                      })()}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-1">
-                    {article.fighters.map((fighter) => (
-                      <Badge 
-                        key={fighter} 
-                        variant="secondary" 
-                        className="text-xs py-0 h-5"
-                      >
-                        {fighter}
-                      </Badge>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Local Media Column */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Local Media ({activeCountry})</h3>
+                <Badge variant="secondary">{localArticles.length}</Badge>
+              </div>
+              {localArticles.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  No local articles found
+                </div>
+              ) : (
+                <ScrollArea className="h-[600px] pr-4">
+                  <div className="space-y-2">
+                    {localArticles.map((article, index) => (
+                      <ArticleCard key={`local-${article.url}-${index}`} article={article} index={index} />
                     ))}
                   </div>
-                </div>
-              ))}
+                </ScrollArea>
+              )}
             </div>
-          </ScrollArea>
+
+            {/* International Media Column */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">International Media</h3>
+                <Badge variant="secondary">{internationalArticles.length}</Badge>
+              </div>
+              {internationalArticles.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  No international articles found
+                </div>
+              ) : (
+                <ScrollArea className="h-[600px] pr-4">
+                  <div className="space-y-2">
+                    {internationalArticles.map((article, index) => (
+                      <ArticleCard key={`intl-${article.url}-${index}`} article={article} index={index} />
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </Card>
