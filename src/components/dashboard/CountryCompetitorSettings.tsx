@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Globe, Loader2, ChevronsUpDown, Check, Plus, X, Newspaper, Pause, Play } from "lucide-react";
+import { Globe, Loader2, ChevronsUpDown, Check, Plus, X, Newspaper, Pause, Play, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const COUNTRIES = [
   { code: 'AF', name: 'Afghanistan', flag: '🇦🇫' },
@@ -113,6 +115,10 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
+  const [generatingOutlets, setGeneratingOutlets] = useState(false);
+  const [generatedOutlets, setGeneratedOutlets] = useState<string[]>([]);
+  const [showGeneratedDialog, setShowGeneratedDialog] = useState(false);
+  const [selectedGenerated, setSelectedGenerated] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadSettings();
@@ -250,6 +256,65 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
     );
   };
 
+  const generateMediaOutlets = async () => {
+    setGeneratingOutlets(true);
+    try {
+      const selectedCountry = COUNTRIES.find(c => c.code === activeCountry);
+      if (!selectedCountry) {
+        toast.error('Please select a country first');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-media-outlets', {
+        body: { 
+          country: activeCountry,
+          countryName: selectedCountry.name
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data.outlets) {
+        setGeneratedOutlets(data.outlets);
+        setSelectedGenerated(new Set(data.outlets));
+        setShowGeneratedDialog(true);
+        toast.success(`Generated ${data.outlets.length} media outlets`);
+      } else {
+        toast.error('Failed to generate media outlets');
+      }
+    } catch (error) {
+      console.error('Error generating outlets:', error);
+      toast.error('Failed to generate media outlets');
+    } finally {
+      setGeneratingOutlets(false);
+    }
+  };
+
+  const toggleGeneratedOutlet = (outlet: string) => {
+    setSelectedGenerated(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(outlet)) {
+        newSet.delete(outlet);
+      } else {
+        newSet.add(outlet);
+      }
+      return newSet;
+    });
+  };
+
+  const addSelectedOutlets = () => {
+    const newOutlets = Array.from(selectedGenerated)
+      .filter(outlet => !prioritizedOutlets.some(o => o.name === outlet))
+      .map(name => ({ name, active: true }));
+    
+    setPrioritizedOutlets(prev => [...prev, ...newOutlets]);
+    setShowGeneratedDialog(false);
+    setGeneratedOutlets([]);
+    setSelectedGenerated(new Set());
+    
+    toast.success(`Added ${newOutlets.length} outlet${newOutlets.length !== 1 ? 's' : ''}`);
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center p-8">
       <Loader2 className="h-6 w-6 animate-spin" />
@@ -348,9 +413,30 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Newspaper className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Prioritized Media Outlets</h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Newspaper className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Prioritized Media Outlets</h3>
+          </div>
+          <Button
+            onClick={generateMediaOutlets}
+            disabled={generatingOutlets || !activeCountry}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            {generatingOutlets ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Generate List
+              </>
+            )}
+          </Button>
         </div>
         <p className="text-sm text-muted-foreground">
           Add specific media outlets that should be prioritized in the analysis. Enter the outlet name or domain, or paste a list of URLs (one per line, or separated by commas)
@@ -426,6 +512,57 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
           Please select at least one competitor
         </p>
       )}
+
+      <Dialog open={showGeneratedDialog} onOpenChange={setShowGeneratedDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Generated Media Outlets for {COUNTRIES.find(c => c.code === activeCountry)?.name}</DialogTitle>
+            <DialogDescription>
+              Select the outlets you want to add to your prioritized list
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-2">
+              {generatedOutlets.map((outlet) => (
+                <div key={outlet} className="flex items-center space-x-2 p-2 rounded hover:bg-secondary/50">
+                  <Checkbox
+                    id={outlet}
+                    checked={selectedGenerated.has(outlet)}
+                    onCheckedChange={() => toggleGeneratedOutlet(outlet)}
+                  />
+                  <Label
+                    htmlFor={outlet}
+                    className="text-sm font-normal cursor-pointer flex-1"
+                  >
+                    {outlet}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <div className="flex justify-between items-center pt-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              {selectedGenerated.size} of {generatedOutlets.length} selected
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowGeneratedDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={addSelectedOutlets}
+                disabled={selectedGenerated.size === 0}
+              >
+                Add Selected ({selectedGenerated.size})
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
