@@ -230,43 +230,43 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
       {/* Score bars for all competitors */}
       <div className="space-y-3 mb-6">
         <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen</span>
-            <span className="text-sm font-bold">{gripenScore.toFixed(1)}</span>
-          </div>
-          <div className="relative h-8 rounded-full overflow-hidden bg-muted">
-            <div 
-              className="absolute top-0 left-0 h-full transition-all duration-500"
-              style={{ 
-                width: `${Math.min(100, (gripenScore / 10) * 100)}%`,
-                background: `linear-gradient(to right, ${FIGHTER_COLORS['Gripen']}, ${FIGHTER_COLORS['Gripen']}cc)`
-              }}
-            />
-          </div>
-        </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen</span>
+                        <span className="text-sm font-bold">{gripenScore.toFixed(1)}</span>
+                      </div>
+                      <div className="relative h-8 rounded-full overflow-hidden bg-muted">
+                        <div 
+                          className="absolute top-0 left-0 h-full transition-all duration-500"
+                          style={{ 
+                            width: `${Math.min(100, (gripenScore / 10) * 100)}%`,
+                            background: `linear-gradient(to right, ${FIGHTER_COLORS['Gripen']}, ${FIGHTER_COLORS['Gripen']}cc)`
+                          }}
+                        />
+                      </div>
+                    </div>
 
-        {allCompetitors.map(comp => {
-          const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
-          const score = competitorScores[key] || 0;
-          const color = FIGHTER_COLORS[comp] || '#6b7280';
-          return (
-            <div key={comp} className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold" style={{ color }}>{comp}</span>
-                <span className="text-sm font-bold">{score.toFixed(1)}</span>
-              </div>
-              <div className="relative h-8 rounded-full overflow-hidden bg-muted">
-                <div 
-                  className="absolute top-0 left-0 h-full transition-all duration-500"
-                  style={{ 
-                    width: `${Math.min(100, (score / 10) * 100)}%`,
-                    background: `linear-gradient(to right, ${color}, ${color}cc)`
-                  }}
-                />
-              </div>
-            </div>
-          );
-        })}
+                    {allCompetitors.map(comp => {
+                      const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                      const score = competitorScores[key] || 0;
+                      const color = FIGHTER_COLORS[comp] || '#6b7280';
+                      return (
+                        <div key={comp} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold" style={{ color }}>{comp}</span>
+                            <span className="text-sm font-bold">{score.toFixed(1)}</span>
+                          </div>
+                          <div className="relative h-8 rounded-full overflow-hidden bg-muted">
+                            <div 
+                              className="absolute top-0 left-0 h-full transition-all duration-500"
+                              style={{ 
+                                width: `${Math.min(100, (score / 10) * 100)}%`,
+                                background: `linear-gradient(to right, ${color}, ${color}cc)`
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
       </div>
 
       <div className="text-center text-sm text-muted-foreground mb-6 pb-6 border-b">
@@ -344,14 +344,15 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
                       </div>
                       <div key={`${key}-scores`} className="text-xs space-y-1">
                         <div className="flex justify-between">
-                          <span className="text-success">Gripen:</span>
+                          <span style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen:</span>
                           <span className="font-semibold">{dimensionScores.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
                         </div>
                         {allCompetitors.map(comp => {
                           const compKey = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                          const color = FIGHTER_COLORS[comp] || '#6b7280';
                           return (
                             <div key={comp} className="flex justify-between">
-                              <span className="text-destructive">{comp}:</span>
+                              <span style={{ color }}>{comp}:</span>
                               <span className="font-semibold">{dimensionScores[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
                             </div>
                           );
