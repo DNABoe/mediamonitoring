@@ -49,11 +49,11 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
     fetchMetrics();
 
     const channel = supabase
-      .channel('research-reports-sentiment')
+      .channel('items-sentiment')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'research_reports'
+        table: 'items'
       }, () => {
         fetchMetrics();
       })
@@ -69,53 +69,103 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch the latest research report
-      const { data: report } = await supabase
-        .from('research_reports')
-        .select('media_presence')
-        .eq('user_id', user.id)
+      // Fetch the baseline to get the tracking period
+      const { data: baseline } = await supabase
+        .from('baselines')
+        .select('start_date, end_date')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      const mediaPresence = report?.media_presence as any;
-      if (!report || !mediaPresence?.monthly_breakdown) {
+      if (!baseline) {
         setData({ chartData: [], fightersToShow: [], fighterFields: {} });
         setLoading(false);
         return;
       }
 
+      const startDate = new Date(baseline.start_date);
+      const endDate = baseline.end_date ? new Date(baseline.end_date) : new Date();
+
+      const { data: articles, error } = await supabase
+        .from('items')
+        .select('*')
+        .gte('published_at', startDate.toISOString())
+        .lte('published_at', endDate.toISOString())
+        .order('published_at', { ascending: true });
+
+      if (error) throw error;
+
       // Show Gripen and all active competitors
       const fightersToShow = ['Gripen', ...activeCompetitors];
       
-      // Create fighter fields mapping
+      // Filter articles that mention any of our fighters
+      const filteredArticles = articles?.filter(article => 
+        article.fighter_tags?.some((tag: string) => fightersToShow.includes(tag))
+      ) || [];
+
+      // Transform data for chart - group by month and fighter
+      const monthMap = new Map();
       const fighterFields: Record<string, any> = {};
+      
+      // Initialize fighter fields dynamically
       fightersToShow.forEach(fighter => {
         const key = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
         fighterFields[key] = {
           mentionsKey: `${key}Mentions`,
-          sentimentKey: `${key}Sentiment`
+          sentimentKey: `${key}Sentiment`,
+          sumKey: `${key}SentimentSum`,
+          countKey: `${key}Count`
         };
       });
 
-      // Transform the monthly breakdown data from the report
-      const monthlyBreakdown = mediaPresence.monthly_breakdown || [];
+      // Create all months from baseline start to end date
+      const currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
       
-      const chartData = monthlyBreakdown.map((monthData: any) => {
-        const result: any = { date: monthData.month + '-01' };
-        
-        // Map the data for each fighter
-        fightersToShow.forEach(fighter => {
-          const fighterKey = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const fields = fighterFields[fighterKey];
-          
-          const mentionsProp = `${fighterKey}_mentions`;
-          const sentimentProp = `${fighterKey}_sentiment`;
-          
-          result[fields.mentionsKey] = monthData[mentionsProp] || 0;
-          result[fields.sentimentKey] = monthData[sentimentProp] || 0;
+      while (currentMonth <= endDate) {
+        const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-01`;
+        const monthEntry: any = { date: monthKey };
+        Object.values(fighterFields).forEach((fields: any) => {
+          monthEntry[fields.mentionsKey] = 0;
+          monthEntry[fields.sumKey] = 0;
+          monthEntry[fields.countKey] = 0;
         });
+        monthMap.set(monthKey, monthEntry);
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+      }
+
+      // Fill in actual data from articles
+      filteredArticles.forEach((article: any) => {
+        const date = new Date(article.published_at);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
         
+        if (monthMap.has(monthKey)) {
+          const entry = monthMap.get(monthKey);
+          
+          // Process each fighter tag in the article
+          article.fighter_tags?.forEach((fighter: string) => {
+            if (fightersToShow.includes(fighter)) {
+              const fighterKey = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const fields = fighterFields[fighterKey];
+              
+              if (fields) {
+                entry[fields.mentionsKey] += 1;
+                entry[fields.sumKey] += article.sentiment || 0;
+                entry[fields.countKey] += 1;
+              }
+            }
+          });
+        }
+      });
+
+      // Calculate average sentiment for each month
+      const chartData = Array.from(monthMap.values()).map(entry => {
+        const result: any = { date: entry.date };
+        Object.entries(fighterFields).forEach(([key, fields]: [string, any]) => {
+          result[fields.mentionsKey] = entry[fields.mentionsKey] || 0;
+          result[fields.sentimentKey] = entry[fields.countKey] > 0 
+            ? entry[fields.sumKey] / entry[fields.countKey] 
+            : 0;
+        });
         return result;
       }).sort((a, b) => a.date.localeCompare(b.date));
       
