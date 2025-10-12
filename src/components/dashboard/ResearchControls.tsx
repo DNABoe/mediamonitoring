@@ -20,7 +20,7 @@ export const ResearchControls = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [hasBaseline, setHasBaseline] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const { toast } = useToast();
   const { settings: userSettings } = useUserSettings();
 
@@ -207,16 +207,22 @@ export const ResearchControls = () => {
               )}
             </Button>
             <span className="text-xs text-muted-foreground">
-              Last updated: {lastUpdate.toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-              })} {lastUpdate.toLocaleTimeString('en-GB', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-              })}
+              {lastUpdate ? (
+                <>
+                  Last updated: {lastUpdate.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                  })} {lastUpdate.toLocaleTimeString('en-GB', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  })}
+                </>
+              ) : (
+                'No Research'
+              )}
             </span>
           </div>
         </div>
