@@ -8,12 +8,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface MediaArticle {
   id: string;
-  title_en: string;
+  title_en: string | null;
+  title_pt: string | null;
   url: string;
   published_at: string;
   source: {
     name: string;
     type: string;
+    country: string;
   };
   fighter_tags: string[];
 }
@@ -50,26 +52,29 @@ export const MediaArticlesList = () => {
         .select(`
           id,
           title_en,
+          title_pt,
           url,
           published_at,
           fighter_tags,
           sources (
             name,
-            type
+            type,
+            country
           )
         `)
         .gte('published_at', sixtyDaysAgo.toISOString())
         .not('fighter_tags', 'is', null)
-        .not('title_en', 'is', null)
         .order('published_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
 
       // Filter for articles that actually have fighter tags (not empty arrays) and valid sources
+      // Prioritize local Portuguese media (country = 'PT')
       const articlesWithSources = items?.map(item => ({
         id: item.id,
-        title_en: item.title_en || '',
+        title_en: item.title_en,
+        title_pt: item.title_pt,
         url: item.url,
         published_at: item.published_at,
         fighter_tags: item.fighter_tags || [],
@@ -77,9 +82,16 @@ export const MediaArticlesList = () => {
       }))
       .filter(article => 
         article.source && 
-        article.title_en && 
+        (article.title_en || article.title_pt) && 
         article.fighter_tags.length > 0
-      ) || [];
+      )
+      .sort((a, b) => {
+        // Prioritize PT sources first
+        if (a.source.country === 'PT' && b.source.country !== 'PT') return -1;
+        if (a.source.country !== 'PT' && b.source.country === 'PT') return 1;
+        // Then sort by date
+        return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+      }) || [];
 
       setMediaArticles(articlesWithSources);
     } catch (error) {
@@ -131,7 +143,7 @@ export const MediaArticlesList = () => {
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors flex-1 leading-snug">
-                        {article.title_en}
+                        {article.title_en || article.title_pt}
                       </h3>
                       <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-0.5" />
                     </div>
@@ -139,6 +151,10 @@ export const MediaArticlesList = () => {
                   
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                     <span className="font-medium">{article.source.name}</span>
+                    <span>•</span>
+                    <Badge variant="outline" className="text-xs py-0 h-5">
+                      {article.source.country}
+                    </Badge>
                     <span>•</span>
                     <span>{format(new Date(article.published_at), 'MMM d, yyyy')}</span>
                   </div>
