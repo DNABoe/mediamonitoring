@@ -176,7 +176,7 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <BlackHatAnalysis activeCompetitors={userSettings.activeCompetitors} />
+          <BlackHatAnalysis activeCompetitors={userSettings.activeCompetitors} activeCountry={userSettings.activeCountry} />
         </div>
 
         <div className="mb-6">

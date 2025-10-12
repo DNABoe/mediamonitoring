@@ -1,10 +1,12 @@
 import { Card } from "@/components/ui/card";
-import { Loader2, AlertCircle, Shield, AlertTriangle } from "lucide-react";
+import { Loader2, AlertCircle, Shield, AlertTriangle, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface ResearchReport {
   id: string;
@@ -34,13 +36,16 @@ interface PlatformAnalysis {
 
 interface BlackHatAnalysisProps {
   activeCompetitors: string[];
+  activeCountry: string;
 }
 
-export const BlackHatAnalysis = ({ activeCompetitors }: BlackHatAnalysisProps) => {
+export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatAnalysisProps) => {
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [analysis, setAnalysis] = useState<PlatformAnalysis[]>([]);
   const [selectedTab, setSelectedTab] = useState<string>('gripen');
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchLatestReport();
@@ -79,6 +84,48 @@ export const BlackHatAnalysis = ({ activeCompetitors }: BlackHatAnalysisProps) =
       console.error('Error fetching research report:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateAISuggestions = async () => {
+    if (!report) return;
+    
+    try {
+      setGenerating(true);
+      
+      const { data, error } = await supabase.functions.invoke('generate-blackhat-analysis', {
+        body: {
+          country: activeCountry,
+          competitors: activeCompetitors,
+          report: {
+            political_analysis: report.political_analysis,
+            capability_analysis: report.capability_analysis,
+            cost_analysis: report.cost_analysis,
+            industrial_cooperation: report.industrial_cooperation
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.analysis) {
+        setAnalysis(data.analysis);
+        toast({
+          title: "AI Analysis Generated",
+          description: `Comprehensive black hat analysis created for ${activeCompetitors.length + 1} platforms`,
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error('Error generating AI suggestions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate AI analysis. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -350,7 +397,18 @@ export const BlackHatAnalysis = ({ activeCompetitors }: BlackHatAnalysisProps) =
             <Shield className="h-6 w-6 text-destructive" />
             <h2 className="text-2xl font-bold">Black Hat Analysis</h2>
           </div>
-          <span className="text-sm text-muted-foreground">Updated {timeAgo}</span>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={generateAISuggestions}
+              disabled={generating || !report}
+              size="sm"
+              variant="outline"
+            >
+              <Sparkles className={`h-4 w-4 mr-2 ${generating ? 'animate-spin' : ''}`} />
+              {generating ? 'Generating...' : 'Generate AI Suggestions'}
+            </Button>
+            <span className="text-sm text-muted-foreground">Updated {timeAgo}</span>
+          </div>
         </div>
 
         <p className="text-sm text-muted-foreground">
