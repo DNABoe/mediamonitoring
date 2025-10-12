@@ -175,46 +175,29 @@ serve(async (req) => {
       });
     }
 
-    // AI analysis with MUCH simpler, more reliable prompt
-    const analysisPrompt = `Extract fighter aircraft mentions from these search results.
+    // Pre-filter articles by fighter keywords BEFORE AI analysis
+    const fighterKeywords = ['Gripen', 'F-35', 'F35', 'Rafale', 'F-16V', 'F16V', 'Eurofighter', 'Typhoon', 'F/A-50'];
+    const preFilteredResults = uniqueResults.filter(r => {
+      const combined = `${r.title} ${r.snippet}`.toLowerCase();
+      return fighterKeywords.some(kw => combined.includes(kw.toLowerCase()));
+    });
+    
+    console.log(`Pre-filtered to ${preFilteredResults.length} articles mentioning fighters`);
+    
+    if (preFilteredResults.length === 0) {
+      console.log('No articles mention fighters, skipping AI analysis');
+      return new Response(JSON.stringify({ 
+        success: true,
+        articlesFound: uniqueResults.length,
+        articlesStored: 0,
+        message: 'No fighter mentions found'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-FIGHTERS LIST (use these exact names):
-- Gripen
-- F-35
-- Rafale
-- F-16V
-- Eurofighter
-- F/A-50
-
-IMPORTANT RULES:
-1. For each article, check if the title mentions ANY fighter from the list
-2. If yes, add it to the results with the fighter name(s) in fighter_tags
-3. If no fighter is mentioned, SKIP that article completely
-4. Always include source_country: "${country}" for local sources or "INTERNATIONAL" for others
-5. Estimate sentiment: positive=0.7, neutral=0.0, negative=-0.7
-
-SEARCH RESULTS (${uniqueResults.length} articles):
-${JSON.stringify(uniqueResults.slice(0, 150).map(r => ({ 
-  title: r.title, 
-  url: r.url 
-})), null, 2)}
-
-Return ONLY a valid JSON array like this (no other text):
-[
-  {
-    "title": "Article title here",
-    "url": "https://example.com/article",
-    "source": "Source name",
-    "published_at": "${new Date().toISOString().split('T')[0]}",
-    "fighter_tags": ["Gripen"],
-    "source_country": "${country}",
-    "sentiment": 0.0
-  }
-]
-
-ONLY include articles that mention fighters. Return empty array [] if none found.`;
-
-    console.log('Sending to AI for analysis...');
+    // Use AI with tool calling for structured output
+    console.log('Sending to AI for structured analysis...');
     
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -224,78 +207,117 @@ ONLY include articles that mention fighters. Return empty array [] if none found
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'user', content: analysisPrompt }
-        ],
-        temperature: 0.1,
+        messages: [{
+          role: 'user',
+          content: `Extract fighter jet information from these ${preFilteredResults.length} articles.
+
+For each article, identify:
+1. Which fighters are mentioned (Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50)
+2. Sentiment: positive (0.7), neutral (0.0), or negative (-0.7)
+3. Source country: "${country}" for local domains ending in ${domainSuffix}, otherwise "INTERNATIONAL"
+
+Articles:
+${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, url: r.url })), null, 2)}`
+        }],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'extract_articles',
+            description: 'Extract structured article data',
+            parameters: {
+              type: 'object',
+              properties: {
+                articles: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      title: { type: 'string' },
+                      url: { type: 'string' },
+                      fighter_tags: { 
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Exact names: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50'
+                      },
+                      sentiment: { type: 'number', description: 'Between -1 and 1' },
+                      source_country: { type: 'string' }
+                    },
+                    required: ['title', 'url', 'fighter_tags', 'sentiment', 'source_country']
+                  }
+                }
+              },
+              required: ['articles']
+            }
+          }
+        }],
+        tool_choice: { type: 'function', function: { name: 'extract_articles' } }
       }),
     });
 
     if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('AI API error:', aiResponse.status, errorText);
       throw new Error(`AI API error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
-    const aiContent = aiData.choices[0].message.content;
+    console.log('AI response received');
     
-    console.log('AI response received, parsing...');
-
-    let structuredArticles = [];
-    try {
-      // Try to extract JSON array from the response
-      const jsonMatch = aiContent.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        structuredArticles = JSON.parse(jsonMatch[0]);
-      } else {
-        // If AI returns non-JSON response, log it and return empty
-        console.warn('AI did not return JSON:', aiContent.substring(0, 200));
-        structuredArticles = [];
-      }
-    } catch (e) {
-      console.error('Error parsing AI response:', e);
-      console.error('AI content:', aiContent.substring(0, 500));
-      structuredArticles = [];
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      console.error('AI did not use tool:', JSON.stringify(aiData.choices?.[0]?.message));
+      throw new Error('AI did not return structured data');
     }
+    
+    const extractedData = JSON.parse(toolCall.function.arguments);
+    const structuredArticles = extractedData.articles || [];
+    
+    console.log(`AI extracted ${structuredArticles.length} articles with fighter mentions`);
 
-    console.log(`AI structured ${structuredArticles.length} articles`);
-
-    // Validate and enhance articles
+    // Validate articles and apply fallback fighter detection
     const validArticles = structuredArticles.filter((article: any) => {
-      // Must have fighter tags
-      if (!article.fighter_tags || article.fighter_tags.length === 0) {
-        console.warn('Article missing fighter_tags:', article.title);
-        
-        // Fallback: keyword matching
-        const title = article.title.toLowerCase();
-        const tags = [];
-        if (title.includes('gripen')) tags.push('Gripen');
-        if (title.includes('f-35') || title.includes('f35')) tags.push('F-35');
-        if (title.includes('rafale')) tags.push('Rafale');
-        if (title.includes('f-16') || title.includes('f16')) tags.push('F-16V');
-        if (title.includes('eurofighter') || title.includes('typhoon')) tags.push('Eurofighter');
-        
-        if (tags.length > 0) {
-          article.fighter_tags = tags;
-        } else {
-          return false; // Skip articles with no fighter mentions
-        }
+      if (!article.url || !article.url.startsWith('http')) {
+        console.warn('Invalid URL, skipping:', article.title);
+        return false;
       }
       
-      // Must have valid URL
-      if (!article.url || !article.url.startsWith('http')) {
-        return false;
+      // Ensure fighter_tags is array
+      if (!article.fighter_tags || !Array.isArray(article.fighter_tags)) {
+        article.fighter_tags = [];
+      }
+      
+      // Fallback fighter detection if AI missed them
+      if (article.fighter_tags.length === 0) {
+        const combined = `${article.title}`.toLowerCase();
+        const detected = [];
+        if (combined.includes('gripen')) detected.push('Gripen');
+        if (combined.includes('f-35') || combined.includes('f35')) detected.push('F-35');
+        if (combined.includes('rafale')) detected.push('Rafale');
+        if (combined.includes('f-16') || combined.includes('f16')) detected.push('F-16V');
+        if (combined.includes('eurofighter') || combined.includes('typhoon')) detected.push('Eurofighter');
+        if (combined.includes('f/a-50') || combined.includes('fa-50')) detected.push('F/A-50');
+        
+        if (detected.length > 0) {
+          console.log(`Fallback detection for "${article.title}": ${detected.join(', ')}`);
+          article.fighter_tags = detected;
+        } else {
+          console.warn('No fighters detected, skipping:', article.title);
+          return false;
+        }
       }
       
       return true;
     });
 
-    console.log(`${validArticles.length} valid articles after filtering`);
+    console.log(`${validArticles.length} valid articles after validation and fallback`);
 
-    // Match articles to sources and store in database
+    // Store articles in database with robust error handling
     let storedCount = 0;
+    const errors = [];
+    
     for (const article of validArticles) {
       try {
-        // Try to match to a source
+        // Match to source
         let sourceId = null;
         let sourceCountry = article.source_country || 'INTERNATIONAL';
         
@@ -310,35 +332,43 @@ ONLY include articles that mention fighters. Return empty array [] if none found
           }
         }
 
-        // If no source match, derive country from domain
-        if (!sourceId && article.url.includes(domainSuffix)) {
+        // Derive country from domain if no source match
+        if (!sourceId && domainSuffix && article.url.includes(domainSuffix)) {
           sourceCountry = country;
         }
 
+        // Store with all available data, using defaults for missing fields
         const { error: insertError } = await supabaseClient
           .from('items')
           .upsert({
             url: article.url,
-            title_en: article.title,
+            title_en: article.title || 'Untitled',
             source_id: sourceId,
             source_country: sourceCountry,
             published_at: article.published_at || new Date().toISOString(),
             fighter_tags: article.fighter_tags,
-            sentiment: article.sentiment || 0,
+            sentiment: typeof article.sentiment === 'number' ? article.sentiment : 0,
             fetched_at: new Date().toISOString()
           }, {
             onConflict: 'url'
           });
 
-        if (!insertError) {
+        if (insertError) {
+          errors.push({ url: article.url, error: insertError.message });
+          console.error('Insert error for', article.url, ':', insertError.message);
+        } else {
           storedCount++;
         }
       } catch (e) {
-        console.error('Error storing article:', e);
+        errors.push({ url: article.url, error: e instanceof Error ? e.message : 'Unknown' });
+        console.error('Exception storing article:', article.url, e);
       }
     }
 
-    console.log(`Stored ${storedCount} articles in database`);
+    console.log(`Successfully stored ${storedCount}/${validArticles.length} articles`);
+    if (errors.length > 0) {
+      console.log(`Errors: ${errors.length}`, errors.slice(0, 5));
+    }
 
     return new Response(JSON.stringify({ 
       success: true,
