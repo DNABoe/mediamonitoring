@@ -91,37 +91,8 @@ Deno.serve(async (req) => {
       console.log('✓ Research reports and metrics deleted')
     }
 
-    // Delete black hat analysis if selected
-    if (blackHatAnalysis) {
-      const { error } = await supabase
-        .from('research_reports')
-        .update({ black_hat_analysis: null })
-        .not('black_hat_analysis', 'is', null)
-
-      if (error) {
-        console.error('Error clearing black hat analysis:', error)
-        throw error
-      }
-      
-      deletedItems.push('black hat analysis')
-      console.log('✓ Black hat analysis cleared')
-    }
-
-    // Delete strategic messaging if selected
-    if (strategicMessaging) {
-      const { error } = await supabase
-        .from('research_reports')
-        .update({ strategic_suggestions: null })
-        .not('strategic_suggestions', 'is', null)
-
-      if (error) {
-        console.error('Error clearing strategic messaging:', error)
-        throw error
-      }
-      
-      deletedItems.push('strategic messaging')
-      console.log('✓ Strategic messaging cleared')
-    }
+    // Note: Black hat analysis and strategic messaging are generated on-demand,
+    // not stored in database, so no deletion needed
 
     // Delete media list (items) if selected
     if (mediaList) {
