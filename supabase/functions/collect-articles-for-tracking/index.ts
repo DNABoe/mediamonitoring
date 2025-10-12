@@ -42,9 +42,13 @@ serve(async (req) => {
         native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição', 'compra', 'substituição'],
         english: ['fighter', 'jet', 'aircraft', 'procurement']
       },
+      CZ: {
+        native: ['stíhačka', 'stíhací letoun', 'bojový letoun', 'nákup', 'pořízení', 'modernizace'],
+        english: ['fighter', 'jet', 'aircraft', 'procurement', 'acquisition']
+      },
       DEFAULT: { 
         native: [],
-        english: ['fighter', 'jet', 'aircraft', 'procurement']
+        english: ['fighter', 'jet', 'aircraft', 'procurement', 'acquisition']
       }
     };
 
@@ -53,7 +57,7 @@ serve(async (req) => {
     console.log('Using search terms:', { native: searchTerms.native, english: searchTerms.english });
 
     // Country-specific domain suffix
-    const domainSuffix = country === 'PT' ? '.pt' : '';
+    const domainSuffix = country === 'PT' ? '.pt' : (country === 'CZ' ? '.cz' : '');
 
     // Helper: batch fetch with rate limiting
     async function batchFetch(urls: string[], batchSize = 10, delayMs = 500) {
