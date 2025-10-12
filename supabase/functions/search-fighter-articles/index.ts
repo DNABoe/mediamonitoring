@@ -190,16 +190,17 @@ TODAY'S DATE: ${currentDate.toISOString().split('T')[0]}
 ONLY INCLUDE ARTICLES FROM THE LAST 60 DAYS (after ${sixtyDaysAgo.toISOString().split('T')[0]})
 
 ${prioritizedOutlets.length > 0 ? `
-🔴 CRITICAL PRIORITY - PRIORITIZED MEDIA OUTLETS:
+🔴 CRITICAL PRIORITY - PRIORITIZED MEDIA OUTLETS (ALL FROM ${country}):
 ${prioritizedOutlets.map((outlet: string) => `- ${outlet}`).join('\n')}
 
 **MANDATORY REQUIREMENTS FOR PRIORITIZED OUTLETS:**
-1. Articles from these outlets MUST appear FIRST in your results
-2. You MUST include AT LEAST 60-70% of articles from these prioritized outlets
-3. Articles from prioritized outlets take precedence over ALL other sources
-4. If an article is from a prioritized outlet, it should be included even if slightly less relevant
-5. MAXIMUM importance on ${currentMonth} ${currentYear} articles from these outlets
-6. The first 10-15 results MUST be from prioritized outlets if available
+1. Articles from these outlets MUST have sourceCountry: "${country}" (NON-NEGOTIABLE)
+2. Articles from these outlets MUST appear FIRST in your results
+3. You MUST include AT LEAST 60-70% of articles from these prioritized outlets
+4. Articles from prioritized outlets take precedence over ALL other sources
+5. If an article is from a prioritized outlet, it should be included even if slightly less relevant
+6. MAXIMUM importance on ${currentMonth} ${currentYear} articles from these outlets
+7. The first 10-15 results MUST be from prioritized outlets if available
 
 Only after exhausting relevant articles from prioritized outlets, then include other sources.
 ` : ''}
@@ -218,8 +219,14 @@ ${allResults.map((r, i) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Sn
 
 REQUIREMENTS:
 - MUST include ALL relevant local ${country} articles (especially ${countryDomain} domains)
+- **CRITICAL**: Articles from prioritized outlets MUST have sourceCountry: "${country}"
 - ONLY articles from the last 60 days
-- Identify source country accurately from domain (${countryDomain} = ${country}, .uk = GB, .com = US unless clearly from another country)
+- Identify source country accurately:
+  * Prioritized outlets listed above = "${country}" (MANDATORY)
+  * ${countryDomain} domains = "${country}"
+  * .uk domains = "GB"
+  * .com domains = "US" unless clearly from another country
+  * Use domain TLD to determine country when not a prioritized outlet
 - Include international coverage as secondary
 - Only articles about fighter procurement/defense
 
