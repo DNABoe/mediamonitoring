@@ -177,8 +177,8 @@ serve(async (req) => {
     if (prioritizedOutlets.length > 0) {
       console.log(`Prioritizing ${prioritizedOutlets.length} media outlets with native language search`);
       
-      // Limit to top 10 outlets to avoid timeout
-      const topOutlets = prioritizedOutlets.slice(0, 10);
+      // Increase to top 15 outlets for more coverage (batch processing handles this safely)
+      const topOutlets = prioritizedOutlets.slice(0, 15);
       
       // Search each prioritized outlet with native + English terms
       topOutlets.forEach((outlet: string) => {
@@ -207,6 +207,13 @@ serve(async (req) => {
               `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} ${currentMonth}`
             )}`
           );
+          
+          // Search 3: Procurement terms + fighters (catches different article types)
+          prioritizedSearchUrls.push(
+            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+              `site:${domain} (${searchTerms.combined.procurement}) ${allFighters}`
+            )}`
+          );
         });
       });
       
@@ -228,6 +235,16 @@ serve(async (req) => {
       // Air force name + fighters
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
         `(${searchTerms.combined.airForce}) ${allFighters} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
+      )}`,
+      
+      // Native aircraft terms + country domain
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+        `(${searchTerms.combined.aircraft}) ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`
+      )}`,
+      
+      // Last month coverage for local sources
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+        `(${searchTerms.combined.fighter}) ${allFighters} ${lastMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
       )}`,
     ];
     
