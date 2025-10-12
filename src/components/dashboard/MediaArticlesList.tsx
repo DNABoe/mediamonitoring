@@ -18,13 +18,16 @@ interface MediaArticle {
     country: string;
   };
   fighter_tags: string[];
+  fulltext_en?: string | null;
+  fulltext_pt?: string | null;
 }
 
 interface MediaArticlesListProps {
   activeCountry: string;
+  activeCompetitors: string[];
 }
 
-export const MediaArticlesList = ({ activeCountry }: MediaArticlesListProps) => {
+export const MediaArticlesList = ({ activeCountry, activeCompetitors }: MediaArticlesListProps) => {
   const [mediaArticles, setMediaArticles] = useState<MediaArticle[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,12 +54,19 @@ export const MediaArticlesList = ({ activeCountry }: MediaArticlesListProps) => 
     try {
       const sixtyDaysAgo = subDays(new Date(), 60);
       
+      // Build search pattern for fighter mentions
+      // Search for Gripen and all active competitors
+      const fighters = ['Gripen', ...activeCompetitors];
+      
+      // Query items that mention any of the fighters in title or content
       const { data: items, error } = await supabase
         .from('items')
         .select(`
           id,
           title_en,
           title_pt,
+          fulltext_en,
+          fulltext_pt,
           url,
           published_at,
           fighter_tags,
@@ -67,37 +77,48 @@ export const MediaArticlesList = ({ activeCountry }: MediaArticlesListProps) => 
           )
         `)
         .gte('published_at', sixtyDaysAgo.toISOString())
-        .not('fighter_tags', 'is', null)
         .order('published_at', { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (error) throw error;
 
-      // Filter for articles that actually have fighter tags (not empty arrays) and valid sources
-      // Prioritize local Portuguese media (country = 'PT')
-      const articlesWithSources = items?.map(item => ({
+      // Filter articles that mention fighters in title or content
+      const articlesWithFighterMentions = items?.map(item => ({
         id: item.id,
         title_en: item.title_en,
         title_pt: item.title_pt,
         url: item.url,
         published_at: item.published_at,
         fighter_tags: item.fighter_tags || [],
-        source: Array.isArray(item.sources) ? item.sources[0] : item.sources
+        source: Array.isArray(item.sources) ? item.sources[0] : item.sources,
+        fulltext_en: item.fulltext_en,
+        fulltext_pt: item.fulltext_pt
       }))
-      .filter(article => 
-        article.source && 
-        (article.title_en || article.title_pt) && 
-        article.fighter_tags.length > 0
-      )
+      .filter(article => {
+        if (!article.source || !(article.title_en || article.title_pt)) return false;
+        
+        // Check if any fighter is mentioned in title or content
+        const textToSearch = [
+          article.title_en?.toLowerCase() || '',
+          article.title_pt?.toLowerCase() || '',
+          article.fulltext_en?.toLowerCase() || '',
+          article.fulltext_pt?.toLowerCase() || ''
+        ].join(' ');
+        
+        return fighters.some(fighter => 
+          textToSearch.includes(fighter.toLowerCase())
+        );
+      })
       .sort((a, b) => {
         // Prioritize active country sources first
         if (a.source.country === activeCountry && b.source.country !== activeCountry) return -1;
         if (a.source.country !== activeCountry && b.source.country === activeCountry) return 1;
         // Then sort by date
         return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
-      }) || [];
+      })
+      .slice(0, 100) || []; // Limit to 100 most relevant articles
 
-      setMediaArticles(articlesWithSources);
+      setMediaArticles(articlesWithFighterMentions);
     } catch (error) {
       console.error('Error fetching media articles:', error);
     } finally {
