@@ -175,50 +175,44 @@ serve(async (req) => {
       });
     }
 
-    // AI analysis with improved fighter detection
-    const analysisPrompt = `You are analyzing news articles about fighter aircraft procurement for ${country}.
+    // AI analysis with MUCH simpler, more reliable prompt
+    const analysisPrompt = `Extract fighter aircraft mentions from these search results.
 
-TRACKING PERIOD: ${startDate} to ${endDate}
+FIGHTERS LIST (use these exact names):
+- Gripen
+- F-35
+- Rafale
+- F-16V
+- Eurofighter
+- F/A-50
 
-FIGHTERS TO DETECT:
-- Gripen / JAS 39 / Gripen E / Gripen NG
-- F-35 / F-35A / Lightning II / Joint Strike Fighter
-- Rafale / Dassault Rafale
-- F-16 / F-16V / Viper / Fighting Falcon
-- Eurofighter / Typhoon / EF-2000
-- F/A-50 / FA-50 / Golden Eagle
-- F-15 / F-15EX / Eagle / Strike Eagle
-- Super Hornet / F/A-18 / F-18
+IMPORTANT RULES:
+1. For each article, check if the title mentions ANY fighter from the list
+2. If yes, add it to the results with the fighter name(s) in fighter_tags
+3. If no fighter is mentioned, SKIP that article completely
+4. Always include source_country: "${country}" for local sources or "INTERNATIONAL" for others
+5. Estimate sentiment: positive=0.7, neutral=0.0, negative=-0.7
 
-CRITICAL INSTRUCTIONS:
-1. For EACH article, carefully read the title and snippet
-2. Identify ALL fighters mentioned - be thorough!
-3. If a fighter is mentioned, add it to fighter_tags array (use standardized names: "Gripen", "F-35", "Rafale", "F-16V", "Eurofighter", "F/A-50", "F-15", "Super Hornet")
-4. Parse the publication date from the URL or title if possible
-5. Determine if the source is from ${country} (local) or international
-6. Estimate sentiment: positive (0.5 to 1.0), neutral (0 to 0.5), negative (-1.0 to 0)
+SEARCH RESULTS (${uniqueResults.length} articles):
+${JSON.stringify(uniqueResults.slice(0, 150).map(r => ({ 
+  title: r.title, 
+  url: r.url 
+})), null, 2)}
 
-SEARCH RESULTS:
-${JSON.stringify(uniqueResults.slice(0, 100), null, 2)}
-
-Return a JSON array of articles with this EXACT structure:
+Return ONLY a valid JSON array like this (no other text):
 [
   {
-    "title": "Article title",
-    "url": "https://...",
+    "title": "Article title here",
+    "url": "https://example.com/article",
     "source": "Source name",
-    "published_at": "2024-10-12" or null,
-    "fighter_tags": ["Gripen", "F-35"],
-    "source_country": "${country}" or "INTERNATIONAL",
-    "sentiment": 0.5
+    "published_at": "${new Date().toISOString().split('T')[0]}",
+    "fighter_tags": ["Gripen"],
+    "source_country": "${country}",
+    "sentiment": 0.0
   }
 ]
 
-IMPORTANT:
-- Only include articles that mention fighter aircraft or military procurement
-- fighter_tags MUST NOT be empty if the article is about fighters
-- Use "INTERNATIONAL" for source_country if not from ${country}
-- Return ONLY valid JSON, no extra text`;
+ONLY include articles that mention fighters. Return empty array [] if none found.`;
 
     console.log('Sending to AI for analysis...');
     
@@ -231,7 +225,6 @@ IMPORTANT:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are a precise data extraction assistant. Return only valid JSON.' },
           { role: 'user', content: analysisPrompt }
         ],
         temperature: 0.1,
@@ -245,22 +238,26 @@ IMPORTANT:
     const aiData = await aiResponse.json();
     const aiContent = aiData.choices[0].message.content;
     
-    console.log('AI analysis response received');
+    console.log('AI response received, parsing...');
 
     let structuredArticles = [];
     try {
+      // Try to extract JSON array from the response
       const jsonMatch = aiContent.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         structuredArticles = JSON.parse(jsonMatch[0]);
       } else {
-        structuredArticles = JSON.parse(aiContent);
+        // If AI returns non-JSON response, log it and return empty
+        console.warn('AI did not return JSON:', aiContent.substring(0, 200));
+        structuredArticles = [];
       }
     } catch (e) {
       console.error('Error parsing AI response:', e);
+      console.error('AI content:', aiContent.substring(0, 500));
       structuredArticles = [];
     }
 
-    console.log(`Structured ${structuredArticles.length} articles`);
+    console.log(`AI structured ${structuredArticles.length} articles`);
 
     // Validate and enhance articles
     const validArticles = structuredArticles.filter((article: any) => {
