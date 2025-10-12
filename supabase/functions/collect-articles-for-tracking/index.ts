@@ -151,6 +151,10 @@ serve(async (req) => {
         native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea de Chile'],
         countryName: 'Chile'
       },
+      PE: {
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea del Perú', 'FAP'],
+        countryName: 'Peru'
+      },
       BR: {
         native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição militar', 'Força Aérea Brasileira'],
         countryName: 'Brazil'
