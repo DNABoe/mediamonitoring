@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Globe, Loader2 } from "lucide-react";
+import { Globe, Loader2, ChevronsUpDown, Check } from "lucide-react";
 import { toast } from "sonner";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const COUNTRIES = [
   { code: 'AF', name: 'Afghanistan', flag: '🇦🇫' },
@@ -101,6 +103,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
   const [activeCompetitors, setActiveCompetitors] = useState<string[]>(['F-35']);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -194,28 +197,57 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
           Select the country for media analysis and political context
         </p>
         
-        <Select value={activeCountry} onValueChange={setActiveCountry}>
-          <SelectTrigger className="w-full">
-            <SelectValue>
-              {selectedCountry && (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className="w-full justify-between"
+            >
+              {selectedCountry ? (
                 <span className="flex items-center gap-2">
                   <span className="text-2xl">{selectedCountry.flag}</span>
                   <span>{selectedCountry.name}</span>
                 </span>
+              ) : (
+                "Select country..."
               )}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {COUNTRIES.map((country) => (
-              <SelectItem key={country.code} value={country.code}>
-                <span className="flex items-center gap-2">
-                  <span className="text-2xl">{country.flag}</span>
-                  <span>{country.name}</span>
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[400px] p-0 bg-popover" align="start">
+            <Command>
+              <CommandInput placeholder="Search country..." className="h-9" />
+              <CommandList>
+                <CommandEmpty>No country found.</CommandEmpty>
+                <CommandGroup>
+                  {COUNTRIES.map((country) => (
+                    <CommandItem
+                      key={country.code}
+                      value={`${country.name} ${country.code}`}
+                      onSelect={() => {
+                        setActiveCountry(country.code);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className="flex items-center gap-2 flex-1">
+                        <span className="text-2xl">{country.flag}</span>
+                        <span>{country.name}</span>
+                      </span>
+                      <Check
+                        className={cn(
+                          "ml-auto h-4 w-4",
+                          activeCountry === country.code ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="space-y-3">
