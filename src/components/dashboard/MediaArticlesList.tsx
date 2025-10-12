@@ -60,19 +60,26 @@ export const MediaArticlesList = () => {
         `)
         .gte('published_at', sixtyDaysAgo.toISOString())
         .not('fighter_tags', 'is', null)
+        .not('title_en', 'is', null)
         .order('published_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (error) throw error;
 
+      // Filter for articles that actually have fighter tags (not empty arrays) and valid sources
       const articlesWithSources = items?.map(item => ({
         id: item.id,
-        title_en: item.title_en || 'Untitled',
+        title_en: item.title_en || '',
         url: item.url,
         published_at: item.published_at,
         fighter_tags: item.fighter_tags || [],
         source: Array.isArray(item.sources) ? item.sources[0] : item.sources
-      })).filter(article => article.source) || [];
+      }))
+      .filter(article => 
+        article.source && 
+        article.title_en && 
+        article.fighter_tags.length > 0
+      ) || [];
 
       setMediaArticles(articlesWithSources);
     } catch (error) {
@@ -110,11 +117,11 @@ export const MediaArticlesList = () => {
           </div>
         ) : (
           <ScrollArea className="h-[600px] pr-4">
-            <div className="space-y-3">
+            <div className="space-y-2">
               {mediaArticles.map((article) => (
                 <div 
                   key={article.id}
-                  className="p-4 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
+                  className="p-3 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
                 >
                   <a 
                     href={article.url} 
@@ -122,31 +129,31 @@ export const MediaArticlesList = () => {
                     rel="noopener noreferrer"
                     className="group"
                   >
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors flex-1">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors flex-1 leading-snug">
                         {article.title_en}
                       </h3>
-                      <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
+                      <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-0.5" />
                     </div>
                   </a>
                   
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                     <span className="font-medium">{article.source.name}</span>
                     <span>•</span>
-                    <span>{format(new Date(article.published_at), 'MMMM d, yyyy')}</span>
+                    <span>{format(new Date(article.published_at), 'MMM d, yyyy')}</span>
                   </div>
                   
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1">
                     {article.fighter_tags.map((tag) => (
                       <Badge 
                         key={tag} 
                         variant="secondary" 
-                        className="text-xs"
+                        className="text-xs py-0 h-5"
                       >
                         {tag}
                       </Badge>
                     ))}
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs py-0 h-5">
                       {article.source.type}
                     </Badge>
                   </div>
