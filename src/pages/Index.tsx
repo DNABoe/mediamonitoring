@@ -93,10 +93,13 @@ const Index = () => {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-start gap-4">
             <span className="text-6xl leading-none">{userSettings.countryFlag}</span>
-            <div className="flex flex-col items-start">
-              <h1 className="text-xl font-bold text-foreground text-left">
-                Fighter Program Media Analysis - {userSettings.countryName}
-              </h1>
+            <div className="flex flex-col items-start gap-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold text-foreground text-left">
+                  Fighter Program Media Analysis - {userSettings.countryName}
+                </h1>
+                {isAdmin && <BaselineGenerator currentDate={baselineDate} />}
+              </div>
                 <div className="flex items-center gap-2 flex-wrap text-left">
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
@@ -128,9 +131,6 @@ const Index = () => {
                     hour12: false
                   })}
                 </span>
-                {isAdmin && <span className="ml-2">
-                    <BaselineGenerator currentDate={baselineDate} />
-                  </span>}
               </div>
             </div>
           </div>
