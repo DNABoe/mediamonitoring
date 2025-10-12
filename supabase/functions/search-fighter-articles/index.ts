@@ -43,7 +43,7 @@ serve(async (req) => {
     const countryDomain = countryDomains[country] || '';
     const localTerms = countryTerms[country] || ['fighter jets', 'air force', 'defense', 'military aviation'];
     
-    // Multiple LOCAL searches with different approaches
+    // Multiple LOCAL searches with different approaches - COMPREHENSIVE
     const localSearches = await Promise.all([
       // Search 1: Local domain with English terms
       fetch(
@@ -55,26 +55,47 @@ serve(async (req) => {
         `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${localTerms[0]} ${localTerms[1]} ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
-      // Search 3: Each fighter individually in local domain
+      // Search 3: Recent news specific
+      fetch(
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} 2025 news${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+      ),
+      // Search 4: Latest updates
+      fetch(
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} latest ${allFighters} update${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+      ),
+      // Search 5-N: Each fighter individually in local domain
       ...fighters.map(fighter =>
         fetch(
           `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${fighter} ${country}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
           { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
         )
+      ),
+      // Additional: Recent negotiations/deals for each fighter
+      ...fighters.map(fighter =>
+        fetch(
+          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${fighter} negociação contrato 2025${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+          { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+        )
       )
     ]);
 
-    // International search (limited)
-    const intlSearchResponse = await fetch(
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters} news`)}`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      }
-    );
+    // International search (more comprehensive)
+    const intlSearches = await Promise.all([
+      fetch(
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters} news 2025`)}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+      ),
+      fetch(
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} defense contract latest`)}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+      )
+    ]);
 
-    const intlHtml = intlSearchResponse.ok ? await intlSearchResponse.text() : '';
+    const intlHtmls = await Promise.all(
+      intlSearches.map(async (response: Response) => response.ok ? await response.text() : '')
+    );
     
     // Extract search results from HTML
     const extractResults = (htmlText: string) => {
@@ -108,18 +129,18 @@ serve(async (req) => {
       return results;
     };
     
-    // Process all local search results
+    // Process all local search results - NO LIMITS, get everything
     const localHtmls = await Promise.all(
       localSearches.map(async (response: Response) => response.ok ? await response.text() : '')
     );
     const localResults = localHtmls.flatMap((html: string) => extractResults(html));
     
-    const intlResults = extractResults(intlHtml);
+    const intlResults = intlHtmls.flatMap((html: string) => extractResults(html));
     
-    // Heavily prioritize local results: 30 local, 5 international
+    // Take ALL results, prioritize local but don't limit
     const allResultsWithDupes = [
-      ...localResults.slice(0, 30),
-      ...intlResults.slice(0, 5)
+      ...localResults,  // All local results first
+      ...intlResults    // Then all international
     ];
     
     const seenUrls = new Set<string>();
@@ -129,7 +150,7 @@ serve(async (req) => {
       return true;
     });
 
-    console.log(`Found ${localResults.length} local + ${intlResults.length} international = ${allResults.length} unique results`);
+    console.log(`Found ${localResults.length} local + ${intlResults.length} international = ${allResults.length} unique results (NO LIMITS)`);
 
     if (allResults.length === 0) {
       return new Response(
@@ -147,7 +168,10 @@ serve(async (req) => {
 TODAY'S DATE: ${currentDate.toISOString().split('T')[0]}
 ONLY INCLUDE ARTICLES FROM THE LAST 60 DAYS (after ${sixtyDaysAgo.toISOString().split('T')[0]})
 
-CRITICAL: Prioritize LOCAL ${country} media sources. The first results in the list are local sources - these are MOST IMPORTANT.
+CRITICAL INSTRUCTIONS:
+1. Prioritize LOCAL ${country} media sources - these appear first in the list
+2. Include ALL relevant articles - do not limit the number
+3. Focus on the MOST RECENT articles - prefer October 2025, September 2025, August 2025 over older dates
 
 Fighter aircraft we're tracking: ${fighters.join(', ')}
 
