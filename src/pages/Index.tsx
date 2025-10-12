@@ -92,17 +92,14 @@ const Index = () => {
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <Plane className="h-8 w-8 text-primary -rotate-45 scale-x-[-1]" />
-              <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-primary rounded-full animate-pulse" />
-            </div>
             <div>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <span className="text-2xl">{userSettings.countryFlag}</span>
                 Fighter Program Media Analysis - {userSettings.countryName}
               </h1>
                 <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
                   Real-time intelligence dashboard • Competitors:
                 </p>
                 <span className="text-xs font-medium text-primary">
