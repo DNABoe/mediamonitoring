@@ -362,14 +362,34 @@ export const MediaOutletsSettings = ({ onSettingsSaved }: MediaOutletsSettingsPr
         {prioritizedOutlets.length > 0 && (
           <ScrollArea className="h-[300px] border rounded-lg p-3">
             <div className="space-y-2 pr-4">
-              {prioritizedOutlets.map((outlet) => (
-                <div key={outlet.name} className="flex items-center justify-between gap-2 p-2 rounded bg-secondary/50">
-                  <span className={cn(
-                    "text-sm flex-1",
-                    !outlet.active && "text-muted-foreground line-through"
-                  )}>
-                    {outlet.name}
-                  </span>
+              {prioritizedOutlets.map((outlet) => {
+                const isUrl = outlet.name.includes('.') && !outlet.name.includes(' ');
+                const url = isUrl && !outlet.name.startsWith('http') 
+                  ? `https://${outlet.name}` 
+                  : outlet.name;
+                
+                return (
+                  <div key={outlet.name} className="flex items-center justify-between gap-2 p-2 rounded bg-secondary/50">
+                    {isUrl ? (
+                      <a 
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn(
+                          "text-sm flex-1 hover:underline",
+                          !outlet.active && "text-muted-foreground line-through"
+                        )}
+                      >
+                        {outlet.name}
+                      </a>
+                    ) : (
+                      <span className={cn(
+                        "text-sm flex-1",
+                        !outlet.active && "text-muted-foreground line-through"
+                      )}>
+                        {outlet.name}
+                      </span>
+                    )}
                   <div className="flex items-center gap-1">
                     <Button
                       onClick={() => toggleOutletActive(outlet.name)}
@@ -392,9 +412,10 @@ export const MediaOutletsSettings = ({ onSettingsSaved }: MediaOutletsSettingsPr
                     >
                       <X className="h-3 w-3" />
                     </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </ScrollArea>
         )}
