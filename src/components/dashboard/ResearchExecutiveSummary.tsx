@@ -1,22 +1,9 @@
 import { Card } from "@/components/ui/card";
-import { Loader2, AlertCircle, Newspaper, ExternalLink } from "lucide-react";
+import { Loader2, AlertCircle, Newspaper } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow, format, subDays } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface MediaArticle {
-  id: string;
-  title_en: string;
-  url: string;
-  published_at: string;
-  source: {
-    name: string;
-    type: string;
-  };
-  fighter_tags: string[];
-}
 
 interface TopSource {
   name: string;
@@ -43,12 +30,10 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [topSources, setTopSources] = useState<TopSource[]>([]);
-  const [mediaArticles, setMediaArticles] = useState<MediaArticle[]>([]);
 
   useEffect(() => {
     fetchLatestReport();
     fetchTopSources();
-    fetchMediaArticles();
 
     const channel = supabase
       .channel('research-reports')
@@ -69,7 +54,6 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
         table: 'items'
       }, () => {
         fetchTopSources();
-        fetchMediaArticles();
       })
       .subscribe();
 
@@ -148,44 +132,6 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
     }
   };
 
-  const fetchMediaArticles = async () => {
-    try {
-      const sixtyDaysAgo = subDays(new Date(), 60);
-      
-      const { data: items, error } = await supabase
-        .from('items')
-        .select(`
-          id,
-          title_en,
-          url,
-          published_at,
-          fighter_tags,
-          sources (
-            name,
-            type
-          )
-        `)
-        .gte('published_at', sixtyDaysAgo.toISOString())
-        .not('fighter_tags', 'is', null)
-        .order('published_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-
-      const articlesWithSources = items?.map(item => ({
-        id: item.id,
-        title_en: item.title_en || 'Untitled',
-        url: item.url,
-        published_at: item.published_at,
-        fighter_tags: item.fighter_tags || [],
-        source: Array.isArray(item.sources) ? item.sources[0] : item.sources
-      })).filter(article => article.source) || [];
-
-      setMediaArticles(articlesWithSources);
-    } catch (error) {
-      console.error('Error fetching media articles:', error);
-    }
-  };
 
   if (loading) {
     return (
@@ -296,59 +242,6 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
           </div>
         )}
 
-        {mediaArticles.length > 0 && (
-          <div className="pt-4 border-t space-y-3">
-            <div className="flex items-center gap-2">
-              <ExternalLink className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold">Key Media References (Last 60 Days)</h3>
-            </div>
-            <ScrollArea className="h-[400px] pr-4">
-              <div className="space-y-3">
-                {mediaArticles.map((article) => (
-                  <div 
-                    key={article.id}
-                    className="p-4 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
-                  >
-                    <a 
-                      href={article.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="group"
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors flex-1 line-clamp-2">
-                          {article.title_en}
-                        </h4>
-                        <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
-                      </div>
-                    </a>
-                    
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                      <span className="font-medium">{article.source.name}</span>
-                      <span>•</span>
-                      <span>{format(new Date(article.published_at), 'MMM d, yyyy')}</span>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-1.5">
-                      {article.fighter_tags.map((tag) => (
-                        <Badge 
-                          key={tag} 
-                          variant="secondary" 
-                          className="text-xs"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                      <Badge variant="outline" className="text-xs">
-                        {article.source.type}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
       </div>
     </Card>
   );
