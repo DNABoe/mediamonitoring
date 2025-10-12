@@ -7,6 +7,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Decode DuckDuckGo redirect URLs to get real article URLs
+function decodeDuckDuckGoUrl(url: string): string {
+  try {
+    // Check if it's a DuckDuckGo redirect URL
+    if (url.includes('duckduckgo.com/l/?') || url.includes('uddg=')) {
+      const urlObj = new URL(url);
+      const uddg = urlObj.searchParams.get('uddg');
+      if (uddg) {
+        return decodeURIComponent(uddg);
+      }
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+// Normalize URLs by removing tracking parameters and cleaning up
+function normalizeUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    // Remove common tracking parameters
+    const paramsToRemove = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'];
+    paramsToRemove.forEach(param => urlObj.searchParams.delete(param));
+    return urlObj.toString();
+  } catch {
+    return url;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -196,13 +226,24 @@ serve(async (req) => {
       const titles: string[] = [];
       
       while ((match = resultRegex.exec(html)) !== null) {
-        urls.push(match[1]);
+        // Decode DuckDuckGo redirect URLs immediately
+        let url = match[1];
+        url = decodeDuckDuckGoUrl(url);
+        urls.push(url);
         titles.push(match[2].trim());
       }
       
       const snippets: string[] = [];
       while ((match = snippetRegex.exec(html)) !== null) {
         snippets.push(match[1].trim());
+      }
+      
+      // Log sample of extracted URLs for debugging
+      if (urls.length > 0) {
+        console.log('Sample extracted URLs:', urls.slice(0, 3).map((url, i) => ({ 
+          title: titles[i]?.substring(0, 50), 
+          url: url.substring(0, 100) 
+        })));
       }
       
       for (let i = 0; i < urls.length; i++) {
@@ -272,10 +313,19 @@ serve(async (req) => {
           role: 'user',
           content: `Extract fighter jet information from these ${preFilteredResults.length} articles.
 
+CRITICAL INSTRUCTIONS:
+1. Return the EXACT URL provided for each article - DO NOT modify URLs in any way
+2. Even if a URL looks unusual or invalid, return it EXACTLY as provided
+3. NEVER replace the URL with the article title or any other text
+
 For each article, identify:
 1. Which fighters are mentioned (Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50)
 2. Sentiment: positive (0.7), neutral (0.0), or negative (-0.7)
 3. Source country: "${country}" for local domains ending in ${domainSuffix}, otherwise "INTERNATIONAL"
+
+Example of CORRECT URL preservation:
+Input: { "title": "F-35 News", "url": "https://example.com/article/123" }
+Output: { "title": "F-35 News", "url": "https://example.com/article/123", ... }
 
 Articles:
 ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, url: r.url })), null, 2)}`
@@ -334,13 +384,35 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
     const structuredArticles = extractedData.articles || [];
     
     console.log(`AI extracted ${structuredArticles.length} articles with fighter mentions`);
+    
+    // Log sample articles before validation to debug URL issues
+    if (structuredArticles.length > 0) {
+      console.log('Sample AI extracted articles:', structuredArticles.slice(0, 3).map((a: any) => ({
+        title: a.title?.substring(0, 50),
+        url: a.url?.substring(0, 100),
+        url_type: typeof a.url
+      })));
+    }
+
+    // Create a map of original URLs for fallback recovery
+    const originalUrlMap = new Map(preFilteredResults.map(r => [r.title.toLowerCase(), r.url]));
 
     // Validate articles and apply fallback fighter detection
     const validArticles = structuredArticles.filter((article: any) => {
+      // Try to recover URL if AI returned invalid one
       if (!article.url || !article.url.startsWith('http')) {
-        console.warn('Invalid URL, skipping:', article.title);
-        return false;
+        const recoveredUrl = originalUrlMap.get(article.title?.toLowerCase());
+        if (recoveredUrl) {
+          console.log(`Recovered URL for "${article.title}": ${recoveredUrl}`);
+          article.url = recoveredUrl;
+        } else {
+          console.warn('Invalid URL and cannot recover, skipping:', article.title, 'URL:', article.url);
+          return false;
+        }
       }
+      
+      // Normalize URL before further processing
+      article.url = normalizeUrl(article.url);
       
       // Ensure fighter_tags is array
       if (!article.fighter_tags || !Array.isArray(article.fighter_tags)) {
