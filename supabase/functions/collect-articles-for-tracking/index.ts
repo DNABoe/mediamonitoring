@@ -422,22 +422,29 @@ serve(async (req) => {
         model: 'google/gemini-2.5-flash',
         messages: [{
           role: 'user',
-          content: `Extract fighter jet information from these ${preFilteredResults.length} articles.
+          content: `You are analyzing news articles about military fighter jets. Extract fighter jet information from these ${preFilteredResults.length} articles.
 
-For each article, identify:
-1. Which fighters are mentioned (Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50)
-2. Sentiment: positive (0.7), neutral (0.0), or negative (-0.7)
-3. Source country: 
-   - "${country}" if the URL ends with ${domainSuffix} (e.g., .cz, .pt)
-   - "INTERNATIONAL" for all other domains (e.g., .com, .org, .co.uk, .eu, etc.)
+CRITICAL INSTRUCTIONS:
+1. For EVERY article provided, you MUST return an entry - do not skip any articles
+2. Look for these fighters: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50
+3. If an article mentions ANY fighter jet (even just once), include it in fighter_tags
+4. For sentiment: positive (0.7), neutral (0.0), or negative (-0.7)
+5. For source_country: 
+   - "${country}" if the URL ends with ${domainSuffix}
+   - "INTERNATIONAL" for all other domains
 
-IMPORTANT: 
-- Return ONLY the title for each article. Do NOT include URLs.
-- Most .com, .org, .net, .co.uk domains should be marked as INTERNATIONAL
-- Only mark as "${country}" if you see ${domainSuffix} in the source
+IMPORTANT RULES:
+- Include the article even if only ONE fighter is mentioned briefly
+- Multiple fighters can be in fighter_tags if mentioned
+- When in doubt, include the fighter rather than exclude it
+- Return ALL ${preFilteredResults.length} articles with their fighter_tags (empty array if truly no fighters found)
 
-Articles:
-${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, url_hint: r.url.includes(domainSuffix) ? 'local' : 'international' })), null, 2)}`
+Articles to analyze:
+${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ 
+  title: r.title, 
+  snippet: r.snippet?.substring(0, 200) || '',
+  url_hint: r.url.includes(domainSuffix) ? 'local' : 'international' 
+})), null, 2)}`
         }],
         tools: [{
           type: 'function',
@@ -550,22 +557,44 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
         article.fighter_tags = [];
       }
       
-      // Fallback fighter detection if AI missed them
+      // Fallback fighter detection if AI missed them - check title AND snippet
       if (article.fighter_tags.length === 0) {
-        const combined = `${article.title}`.toLowerCase();
+        const matchingResult = preFilteredResults.find(r => 
+          normalizeTitle(r.title) === normalizeTitle(article.title || '')
+        );
+        
+        const combined = `${article.title} ${matchingResult?.snippet || ''}`.toLowerCase();
         const detected = [];
-        if (combined.includes('gripen')) detected.push('Gripen');
-        if (combined.includes('f-35') || combined.includes('f35')) detected.push('F-35');
-        if (combined.includes('rafale')) detected.push('Rafale');
-        if (combined.includes('f-16') || combined.includes('f16')) detected.push('F-16V');
-        if (combined.includes('eurofighter') || combined.includes('typhoon')) detected.push('Eurofighter');
-        if (combined.includes('f/a-50') || combined.includes('fa-50')) detected.push('F/A-50');
+        
+        // More comprehensive fighter detection
+        if (combined.includes('gripen') || combined.includes('jas 39') || combined.includes('jas-39')) {
+          detected.push('Gripen');
+        }
+        if (combined.includes('f-35') || combined.includes('f35') || combined.includes('f 35') || 
+            combined.includes('lightning ii') || combined.includes('joint strike fighter') || combined.includes('jsf')) {
+          detected.push('F-35');
+        }
+        if (combined.includes('rafale')) {
+          detected.push('Rafale');
+        }
+        if (combined.includes('f-16') || combined.includes('f16') || combined.includes('f 16') || 
+            combined.includes('viper') || combined.includes('fighting falcon')) {
+          detected.push('F-16V');
+        }
+        if (combined.includes('eurofighter') || combined.includes('typhoon') || combined.includes('euro fighter')) {
+          detected.push('Eurofighter');
+        }
+        if (combined.includes('f/a-50') || combined.includes('fa-50') || combined.includes('fa 50') || 
+            combined.includes('golden eagle')) {
+          detected.push('F/A-50');
+        }
         
         if (detected.length > 0) {
-          console.log(`Fallback detection for "${article.title}": ${detected.join(', ')}`);
+          console.log(`✓ Fallback detection for "${article.title?.substring(0, 40)}": ${detected.join(', ')}`);
           article.fighter_tags = detected;
         } else {
-          console.warn('No fighters detected, skipping:', article.title?.substring(0, 50));
+          console.warn(`✗ No fighters detected (AI + fallback failed), skipping: "${article.title?.substring(0, 50)}"`);
+          console.warn(`  Snippet was: "${matchingResult?.snippet?.substring(0, 100)}"`);
           return null;
         }
       }
