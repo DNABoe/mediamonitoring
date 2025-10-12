@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Newspaper, Loader2, Sparkles, Plus, X, Pause, Play } from "lucide-react";
+import { Newspaper, Loader2, Sparkles, Plus, X, Pause, Play, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -303,25 +303,41 @@ export const MediaOutletsSettings = ({ onSettingsSaved }: MediaOutletsSettingsPr
             <Newspaper className="h-5 w-5 text-primary" />
             <h3 className="font-semibold">Prioritized Media Outlets</h3>
           </div>
-          <Button
-            onClick={generateMediaOutlets}
-            disabled={generatingOutlets || !activeCountry}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-          >
-            {generatingOutlets ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Generate List
-              </>
+          <div className="flex gap-2">
+            {prioritizedOutlets.length > 0 && (
+              <Button
+                onClick={() => {
+                  setPrioritizedOutlets([]);
+                  toast.success('All media outlets cleared');
+                }}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear List
+              </Button>
             )}
-          </Button>
+            <Button
+              onClick={generateMediaOutlets}
+              disabled={generatingOutlets || !activeCountry}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              {generatingOutlets ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Generate List
+                </>
+              )}
+            </Button>
+          </div>
         </div>
         
         <p className="text-sm text-muted-foreground">
