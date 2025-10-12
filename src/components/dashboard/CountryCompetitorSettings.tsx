@@ -105,9 +105,11 @@ interface PrioritizedOutlet {
 
 interface CountryCompetitorSettingsProps {
   onSettingsSaved?: () => void;
+  showMediaOutlets?: boolean;
+  showOnlyMediaOutlets?: boolean;
 }
 
-export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitorSettingsProps) => {
+export const CountryCompetitorSettings = ({ onSettingsSaved, showMediaOutlets = true, showOnlyMediaOutlets = false }: CountryCompetitorSettingsProps) => {
   const [activeCountry, setActiveCountry] = useState<string>('PT');
   const [activeCompetitors, setActiveCompetitors] = useState<string[]>(['F-35']);
   const [prioritizedOutlets, setPrioritizedOutlets] = useState<PrioritizedOutlet[]>([]);
@@ -325,7 +327,9 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
 
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
+      {!showOnlyMediaOutlets && (
+        <>
+          <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-primary" />
           <h3 className="font-semibold">Active Country</h3>
@@ -410,23 +414,27 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Newspaper className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Prioritized Media Outlets</h3>
           </div>
-          <Button
-            onClick={generateMediaOutlets}
-            disabled={generatingOutlets || !activeCountry}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-          >
-            {generatingOutlets ? (
-              <>
+        </>
+      )}
+
+      {(showMediaOutlets || showOnlyMediaOutlets) && (
+        <>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Newspaper className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">Prioritized Media Outlets</h3>
+            </div>
+            <Button
+              onClick={generateMediaOutlets}
+              disabled={generatingOutlets || !activeCountry}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              {generatingOutlets ? (
+                <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Generating...
               </>
@@ -494,23 +502,29 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
             ))}
           </div>
         )}
-      </div>
+        </div>
+        </>
+      )}
 
-      <Button onClick={saveSettings} disabled={saving || activeCompetitors.length === 0} className="w-full">
-        {saving ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Saving...
-          </>
-        ) : (
-          'Save Analysis Settings'
-        )}
-      </Button>
+      {!showOnlyMediaOutlets && (
+        <>
+          <Button onClick={saveSettings} disabled={saving || activeCompetitors.length === 0} className="w-full">
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Analysis Settings'
+            )}
+          </Button>
 
-      {activeCompetitors.length === 0 && (
-        <p className="text-sm text-destructive">
-          Please select at least one competitor
-        </p>
+          {activeCompetitors.length === 0 && (
+            <p className="text-sm text-destructive">
+              Please select at least one competitor
+            </p>
+          )}
+        </>
       )}
 
       <Dialog open={showGeneratedDialog} onOpenChange={setShowGeneratedDialog}>

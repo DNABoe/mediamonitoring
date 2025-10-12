@@ -181,8 +181,9 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
         </DialogHeader>
 
         <Tabs defaultValue="analysis" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="analysis">Analysis Settings</TabsTrigger>
+            <TabsTrigger value="media">Media Outlets</TabsTrigger>
             <TabsTrigger value="prompt">
               <FileEdit className="h-4 w-4 mr-2" />
               Research Prompt
@@ -194,7 +195,11 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
           </TabsList>
 
           <TabsContent value="analysis" className="space-y-4">
-            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} />
+            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} showMediaOutlets={false} />
+          </TabsContent>
+
+          <TabsContent value="media" className="space-y-4">
+            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} showOnlyMediaOutlets={true} />
           </TabsContent>
 
           <TabsContent value="prompt" className="space-y-4">
