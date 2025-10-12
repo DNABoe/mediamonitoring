@@ -239,18 +239,26 @@ serve(async (req) => {
     // Execute searches in batches
     const localSearches = await batchFetch(allSearchUrls, 8);
 
-    // International search (using English terms for broader coverage)
+    // International search (using PURE English terms for global coverage)
     const intlSearches = await Promise.all([
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${currentMonth} ${currentYear} news`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet ${allFighters} ${currentMonth} ${currentYear}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters} latest ${currentYear}`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter procurement ${allFighters} latest news`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} defense contract latest`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} air force defense contract`)}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+      ),
+      fetch(
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} military aircraft ${allFighters} purchase decision`)}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+      ),
+      fetch(
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet competition ${allFighters}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       )
     ]);
