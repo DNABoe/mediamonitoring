@@ -180,7 +180,7 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="prompt" className="w-full">
+        <Tabs defaultValue="analysis" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="analysis">Analysis Settings</TabsTrigger>
             <TabsTrigger value="prompt">
