@@ -150,7 +150,12 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                       {article.sourceCountry}
                     </Badge>
                     <span>•</span>
-                    <span>{format(new Date(article.publishedAt), 'MMM d, yyyy')}</span>
+                    <span>
+                      {(() => {
+                        const date = new Date(article.publishedAt);
+                        return isNaN(date.getTime()) ? 'Recent' : format(date, 'MMM d, yyyy');
+                      })()}
+                    </span>
                   </div>
                   
                   <div className="flex flex-wrap gap-1">
