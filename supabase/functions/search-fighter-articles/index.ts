@@ -23,12 +23,12 @@ serve(async (req) => {
     const fighters = ['Gripen', ...competitors];
     const allFighters = fighters.join(' OR ');
     
-    // Search for articles using DuckDuckGo
-    const searchQuery = `${country} fighter jet procurement ${allFighters} news`;
-    console.log('Search query:', searchQuery);
+    // First, search for LOCAL articles from the target country
+    const localSearchQuery = `${country} caças aviação defesa força aérea ${allFighters} site:.pt`;
+    console.log('Local search query:', localSearchQuery);
     
-    const searchResponse = await fetch(
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchQuery)}`,
+    const localSearchResponse = await fetch(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(localSearchQuery)}`,
       {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -36,45 +36,67 @@ serve(async (req) => {
       }
     );
 
-    if (!searchResponse.ok) {
-      throw new Error(`Search failed: ${searchResponse.status}`);
+    // Then search for international articles
+    const intlSearchQuery = `${country} fighter jet procurement ${allFighters} news defense`;
+    console.log('International search query:', intlSearchQuery);
+    
+    const intlSearchResponse = await fetch(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(intlSearchQuery)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
+
+    if (!localSearchResponse.ok && !intlSearchResponse.ok) {
+      throw new Error(`Search failed`);
     }
 
-    const htmlText = await searchResponse.text();
+    const localHtml = localSearchResponse.ok ? await localSearchResponse.text() : '';
+    const intlHtml = intlSearchResponse.ok ? await intlSearchResponse.text() : '';
     
     // Extract search results from HTML
-    const results = [];
-    const resultRegex = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
-    const snippetRegex = /<a[^>]+class="result__snippet"[^>]*>([^<]+)<\/a>/g;
-    
-    let match;
-    const urls = [];
-    const titles = [];
-    
-    while ((match = resultRegex.exec(htmlText)) !== null) {
-      urls.push(match[1]);
-      titles.push(match[2]);
-    }
-    
-    const snippets = [];
-    while ((match = snippetRegex.exec(htmlText)) !== null) {
-      snippets.push(match[1]);
-    }
-    
-    // Combine results (take up to 20 results)
-    for (let i = 0; i < Math.min(20, urls.length); i++) {
-      if (urls[i] && titles[i]) {
-        results.push({
-          url: urls[i],
-          title: titles[i],
-          snippet: snippets[i] || ''
-        });
+    const extractResults = (htmlText: string) => {
+      const results = [];
+      const resultRegex = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
+      const snippetRegex = /<a[^>]+class="result__snippet"[^>]*>([^<]+)<\/a>/g;
+      
+      let match;
+      const urls = [];
+      const titles = [];
+      
+      while ((match = resultRegex.exec(htmlText)) !== null) {
+        urls.push(match[1]);
+        titles.push(match[2]);
       }
-    }
+      
+      const snippets = [];
+      while ((match = snippetRegex.exec(htmlText)) !== null) {
+        snippets.push(match[1]);
+      }
+      
+      for (let i = 0; i < urls.length; i++) {
+        if (urls[i] && titles[i]) {
+          results.push({
+            url: urls[i],
+            title: titles[i],
+            snippet: snippets[i] || ''
+          });
+        }
+      }
+      return results;
+    };
+    
+    const localResults = extractResults(localHtml);
+    const intlResults = extractResults(intlHtml);
+    
+    // Combine with local results first (prioritized)
+    const allResults = [...localResults.slice(0, 15), ...intlResults.slice(0, 10)];
 
-    console.log(`Found ${results.length} raw search results`);
+    console.log(`Found ${localResults.length} local + ${intlResults.length} international = ${allResults.length} total results`);
 
-    if (results.length === 0) {
+    if (allResults.length === 0) {
       return new Response(
         JSON.stringify({ success: true, articles: [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -84,10 +106,18 @@ serve(async (req) => {
     // Use AI to analyze and structure the results
     const analysisPrompt = `Analyze these search results for fighter aircraft procurement news in ${country}. 
     
+CRITICAL: Prioritize LOCAL ${country} media sources. The first results in the list are local sources - these are MOST IMPORTANT.
+
 Fighter aircraft we're tracking: ${fighters.join(', ')}
 
-Search results:
-${results.map((r, i) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join('\n\n')}
+Search results (LOCAL SOURCES FIRST):
+${allResults.map((r, i) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join('\n\n')}
+
+REQUIREMENTS:
+- MUST include ALL relevant local ${country} articles (especially .pt domains for Portugal)
+- Identify source country accurately from domain (.pt = PT, .uk = GB, .com = US unless clearly from another country)
+- Include international coverage as secondary
+- Only articles about fighter procurement/defense
 
 For each relevant article about fighter procurement, return structured data with:
 1. title (original language, cleaned up)
