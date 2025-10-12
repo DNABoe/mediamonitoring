@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trash2, Loader2, FileEdit } from "lucide-react";
 import { toast } from "sonner";
 import { CountryCompetitorSettings } from "./CountryCompetitorSettings";
+import { MediaOutletsSettings } from "./MediaOutletsSettings";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -195,11 +196,11 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
           </TabsList>
 
           <TabsContent value="analysis" className="space-y-4">
-            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} showMediaOutlets={false} />
+            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} />
           </TabsContent>
 
           <TabsContent value="media" className="space-y-4">
-            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} showOnlyMediaOutlets={true} />
+            <MediaOutletsSettings onSettingsSaved={onSettingsSaved} />
           </TabsContent>
 
           <TabsContent value="prompt" className="space-y-4">

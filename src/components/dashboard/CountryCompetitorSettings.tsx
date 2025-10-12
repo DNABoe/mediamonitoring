@@ -105,22 +105,14 @@ interface PrioritizedOutlet {
 
 interface CountryCompetitorSettingsProps {
   onSettingsSaved?: () => void;
-  showMediaOutlets?: boolean;
-  showOnlyMediaOutlets?: boolean;
 }
 
-export const CountryCompetitorSettings = ({ onSettingsSaved, showMediaOutlets = true, showOnlyMediaOutlets = false }: CountryCompetitorSettingsProps) => {
+export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitorSettingsProps) => {
   const [activeCountry, setActiveCountry] = useState<string>('PT');
   const [activeCompetitors, setActiveCompetitors] = useState<string[]>(['F-35']);
-  const [prioritizedOutlets, setPrioritizedOutlets] = useState<PrioritizedOutlet[]>([]);
-  const [newOutlet, setNewOutlet] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
-  const [generatingOutlets, setGeneratingOutlets] = useState(false);
-  const [generatedOutlets, setGeneratedOutlets] = useState<string[]>([]);
-  const [showGeneratedDialog, setShowGeneratedDialog] = useState(false);
-  const [selectedGenerated, setSelectedGenerated] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadSettings();
@@ -133,7 +125,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, showMediaOutlets = 
 
       const { data, error } = await supabase
         .from('user_settings')
-        .select('active_country, active_competitors, prioritized_outlets')
+        .select('active_country, active_competitors')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -142,8 +134,6 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, showMediaOutlets = 
       if (data) {
         setActiveCountry(data.active_country);
         setActiveCompetitors(data.active_competitors || ['F-35']);
-        const outlets = data.prioritized_outlets as unknown;
-        setPrioritizedOutlets(Array.isArray(outlets) ? outlets as PrioritizedOutlet[] : []);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -169,7 +159,6 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, showMediaOutlets = 
           user_id: user.id,
           active_country: activeCountry,
           active_competitors: activeCompetitors,
-          prioritized_outlets: prioritizedOutlets as any,
         }, {
           onConflict: 'user_id'
         });
@@ -198,125 +187,6 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, showMediaOutlets = 
     );
   };
 
-  const addOutlet = () => {
-    const trimmedOutlet = newOutlet.trim();
-    if (!trimmedOutlet) {
-      toast.error('Please enter a media outlet name or URL');
-      return;
-    }
-    if (trimmedOutlet.length > 200) {
-      toast.error('Media outlet name/URL must be less than 200 characters');
-      return;
-    }
-    if (prioritizedOutlets.some(o => o.name === trimmedOutlet)) {
-      toast.error('This outlet is already in the list');
-      return;
-    }
-    setPrioritizedOutlets(prev => [...prev, { name: trimmedOutlet, active: true }]);
-    setNewOutlet('');
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pastedText = e.clipboardData.getData('text');
-    
-    // Split by newlines, commas, or semicolons
-    const outlets = pastedText
-      .split(/[\n,;]+/)
-      .map(outlet => outlet.trim())
-      .filter(outlet => outlet.length > 0 && outlet.length <= 200);
-    
-    if (outlets.length === 0) {
-      toast.error('No valid outlets found in pasted text');
-      return;
-    }
-    
-    // Filter out duplicates
-    const newOutlets = outlets.filter(
-      outlet => !prioritizedOutlets.some(o => o.name === outlet)
-    );
-    
-    if (newOutlets.length === 0) {
-      toast.error('All pasted outlets are already in the list');
-      return;
-    }
-    
-    const addedOutlets = newOutlets.map(name => ({ name, active: true }));
-    setPrioritizedOutlets(prev => [...prev, ...addedOutlets]);
-    setNewOutlet('');
-    
-    toast.success(`Added ${newOutlets.length} outlet${newOutlets.length > 1 ? 's' : ''}`);
-  };
-
-  const removeOutlet = (outletName: string) => {
-    setPrioritizedOutlets(prev => prev.filter(o => o.name !== outletName));
-  };
-
-  const toggleOutletActive = (outletName: string) => {
-    setPrioritizedOutlets(prev => 
-      prev.map(o => o.name === outletName ? { ...o, active: !o.active } : o)
-    );
-  };
-
-  const generateMediaOutlets = async () => {
-    setGeneratingOutlets(true);
-    try {
-      const selectedCountry = COUNTRIES.find(c => c.code === activeCountry);
-      if (!selectedCountry) {
-        toast.error('Please select a country first');
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('generate-media-outlets', {
-        body: { 
-          country: activeCountry,
-          countryName: selectedCountry.name
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.success && data.outlets) {
-        setGeneratedOutlets(data.outlets);
-        setSelectedGenerated(new Set(data.outlets));
-        setShowGeneratedDialog(true);
-        toast.success(`Generated ${data.outlets.length} media outlets`);
-      } else {
-        toast.error('Failed to generate media outlets');
-      }
-    } catch (error) {
-      console.error('Error generating outlets:', error);
-      toast.error('Failed to generate media outlets');
-    } finally {
-      setGeneratingOutlets(false);
-    }
-  };
-
-  const toggleGeneratedOutlet = (outlet: string) => {
-    setSelectedGenerated(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(outlet)) {
-        newSet.delete(outlet);
-      } else {
-        newSet.add(outlet);
-      }
-      return newSet;
-    });
-  };
-
-  const addSelectedOutlets = () => {
-    const newOutlets = Array.from(selectedGenerated)
-      .filter(outlet => !prioritizedOutlets.some(o => o.name === outlet))
-      .map(name => ({ name, active: true }));
-    
-    setPrioritizedOutlets(prev => [...prev, ...newOutlets]);
-    setShowGeneratedDialog(false);
-    setGeneratedOutlets([]);
-    setSelectedGenerated(new Set());
-    
-    toast.success(`Added ${newOutlets.length} outlet${newOutlets.length !== 1 ? 's' : ''}`);
-  };
-
   if (loading) {
     return <div className="flex items-center justify-center p-8">
       <Loader2 className="h-6 w-6 animate-spin" />
@@ -327,9 +197,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, showMediaOutlets = 
 
   return (
     <div className="space-y-6">
-      {!showOnlyMediaOutlets && (
-        <>
-          <div className="space-y-3">
+      <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-primary" />
           <h3 className="font-semibold">Active Country</h3>
@@ -414,169 +282,24 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, showMediaOutlets = 
             </div>
           ))}
         </div>
-          </div>
-        </>
-      )}
+      </div>
 
-      {(showMediaOutlets || showOnlyMediaOutlets) && (
-        <>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Newspaper className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold">Prioritized Media Outlets</h3>
-            </div>
-            <Button
-              onClick={generateMediaOutlets}
-              disabled={generatingOutlets || !activeCountry}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              {generatingOutlets ? (
-                <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Generate List
-              </>
-            )}
-          </Button>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Add specific media outlets that should be prioritized in the analysis. Enter the outlet name or domain, or paste a list of URLs (one per line, or separated by commas)
-        </p>
-        
-        <div className="flex gap-2">
-          <Input
-            value={newOutlet}
-            onChange={(e) => setNewOutlet(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addOutlet()}
-            onPaste={handlePaste}
-            placeholder="e.g., publico.pt or paste multiple URLs"
-            className="flex-1"
-            maxLength={200}
-          />
-          <Button onClick={addOutlet} variant="outline" size="icon">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {prioritizedOutlets.length > 0 && (
-          <div className="space-y-2 border rounded-lg p-3">
-            {prioritizedOutlets.map((outlet) => (
-              <div key={outlet.name} className="flex items-center justify-between gap-2 p-2 rounded bg-secondary/50">
-                <span className={cn(
-                  "text-sm flex-1",
-                  !outlet.active && "text-muted-foreground line-through"
-                )}>
-                  {outlet.name}
-                </span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    onClick={() => toggleOutletActive(outlet.name)}
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    title={outlet.active ? "Pause" : "Activate"}
-                  >
-                    {outlet.active ? (
-                      <Pause className="h-3 w-3" />
-                    ) : (
-                      <Play className="h-3 w-3" />
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => removeOutlet(outlet.name)}
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+      <Button onClick={saveSettings} disabled={saving || activeCompetitors.length === 0} className="w-full">
+        {saving ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Saving...
+          </>
+        ) : (
+          'Save Analysis Settings'
         )}
-        </div>
-        </>
+      </Button>
+
+      {activeCompetitors.length === 0 && (
+        <p className="text-sm text-destructive">
+          Please select at least one competitor
+        </p>
       )}
-
-      {!showOnlyMediaOutlets && (
-        <>
-          <Button onClick={saveSettings} disabled={saving || activeCompetitors.length === 0} className="w-full">
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Analysis Settings'
-            )}
-          </Button>
-
-          {activeCompetitors.length === 0 && (
-            <p className="text-sm text-destructive">
-              Please select at least one competitor
-            </p>
-          )}
-        </>
-      )}
-
-      <Dialog open={showGeneratedDialog} onOpenChange={setShowGeneratedDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Generated Media Outlets for {COUNTRIES.find(c => c.code === activeCountry)?.name}</DialogTitle>
-            <DialogDescription>
-              Select the outlets you want to add to your prioritized list
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ScrollArea className="h-[400px] pr-4">
-            <div className="space-y-2">
-              {generatedOutlets.map((outlet) => (
-                <div key={outlet} className="flex items-center space-x-2 p-2 rounded hover:bg-secondary/50">
-                  <Checkbox
-                    id={outlet}
-                    checked={selectedGenerated.has(outlet)}
-                    onCheckedChange={() => toggleGeneratedOutlet(outlet)}
-                  />
-                  <Label
-                    htmlFor={outlet}
-                    className="text-sm font-normal cursor-pointer flex-1"
-                  >
-                    {outlet}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-
-          <div className="flex justify-between items-center pt-4 border-t">
-            <p className="text-sm text-muted-foreground">
-              {selectedGenerated.size} of {generatedOutlets.length} selected
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowGeneratedDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={addSelectedOutlets}
-                disabled={selectedGenerated.size === 0}
-              >
-                Add Selected ({selectedGenerated.size})
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
