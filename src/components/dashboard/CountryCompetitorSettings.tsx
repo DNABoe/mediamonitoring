@@ -208,6 +208,38 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
     setNewOutlet('');
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    
+    // Split by newlines, commas, or semicolons
+    const outlets = pastedText
+      .split(/[\n,;]+/)
+      .map(outlet => outlet.trim())
+      .filter(outlet => outlet.length > 0 && outlet.length <= 200);
+    
+    if (outlets.length === 0) {
+      toast.error('No valid outlets found in pasted text');
+      return;
+    }
+    
+    // Filter out duplicates
+    const newOutlets = outlets.filter(
+      outlet => !prioritizedOutlets.some(o => o.name === outlet)
+    );
+    
+    if (newOutlets.length === 0) {
+      toast.error('All pasted outlets are already in the list');
+      return;
+    }
+    
+    const addedOutlets = newOutlets.map(name => ({ name, active: true }));
+    setPrioritizedOutlets(prev => [...prev, ...addedOutlets]);
+    setNewOutlet('');
+    
+    toast.success(`Added ${newOutlets.length} outlet${newOutlets.length > 1 ? 's' : ''}`);
+  };
+
   const removeOutlet = (outletName: string) => {
     setPrioritizedOutlets(prev => prev.filter(o => o.name !== outletName));
   };
@@ -321,7 +353,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
           <h3 className="font-semibold">Prioritized Media Outlets</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Add specific media outlets that should be prioritized in the analysis. Enter the outlet name or domain (e.g., "publico.pt" or "The Guardian")
+          Add specific media outlets that should be prioritized in the analysis. Enter the outlet name or domain, or paste a list of URLs (one per line, or separated by commas)
         </p>
         
         <div className="flex gap-2">
@@ -329,7 +361,8 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
             value={newOutlet}
             onChange={(e) => setNewOutlet(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && addOutlet()}
-            placeholder="e.g., publico.pt or The Guardian"
+            onPaste={handlePaste}
+            placeholder="e.g., publico.pt or paste multiple URLs"
             className="flex-1"
             maxLength={200}
           />
