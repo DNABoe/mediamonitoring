@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +14,14 @@ serve(async (req) => {
   try {
     const { country, competitors, prioritizedOutlets = [] } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     console.log('Searching for fighter articles:', { country, competitors });
 
@@ -486,17 +491,92 @@ Return ONLY a JSON array:
     // Parse the JSON array from the response
     let articles = [];
     try {
-      // Extract JSON from markdown code blocks if present
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || content.match(/\[[\s\S]*\]/);
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
       articles = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error('Error parsing AI response:', parseError);
-      // If parsing fails, return empty array
       articles = [];
     }
 
     console.log(`Structured ${articles.length} articles`);
+
+    // Store articles in database with sentiment analysis
+    if (articles.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Prepare articles for database insertion
+        const articlesToInsert = articles.map((article: any) => ({
+          url: article.url,
+          title_en: article.title,
+          published_at: article.publishedAt,
+          fighter_tags: article.fighters,
+          sentiment: 0, // Will be updated with AI sentiment analysis
+          source_country: article.sourceCountry,
+          fetched_at: new Date().toISOString()
+        }));
+
+        // Analyze sentiment for each article using AI
+        const sentimentPrompt = `Analyze the sentiment of these fighter aircraft news articles. For each article, provide a sentiment score from -1.0 (very negative) to 1.0 (very positive).
+
+Consider:
+- Positive mentions, endorsements, advantages highlighted
+- Negative mentions, criticism, problems highlighted
+- Neutral reporting vs. advocacy
+
+Articles:
+${articles.map((a: any, i: number) => `${i + 1}. "${a.title}" - Fighters: ${a.fighters.join(', ')}`).join('\n')}
+
+Return ONLY a JSON array of sentiment scores in the same order:
+[0.8, -0.3, 0.5, ...]`;
+
+        try {
+          const sentimentResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [{ role: "user", content: sentimentPrompt }],
+            }),
+          });
+
+          if (sentimentResponse.ok) {
+            const sentimentData = await sentimentResponse.json();
+            const sentimentContent = sentimentData.choices?.[0]?.message?.content;
+            const sentimentMatch = sentimentContent.match(/\[[\s\S]*?\]/) || sentimentContent.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+            const sentimentScores = sentimentMatch ? JSON.parse(sentimentMatch[1] || sentimentMatch[0]) : [];
+            
+            // Apply sentiment scores to articles
+            articlesToInsert.forEach((article: any, index: number) => {
+              if (sentimentScores[index] !== undefined) {
+                article.sentiment = sentimentScores[index];
+              }
+            });
+          }
+        } catch (sentimentError) {
+          console.error('Error analyzing sentiment:', sentimentError);
+        }
+
+        // Insert articles into database (upsert to avoid duplicates)
+        try {
+          const { error: insertError } = await supabase
+            .from('items')
+            .upsert(articlesToInsert, { onConflict: 'url', ignoreDuplicates: false });
+          
+          if (insertError) {
+            console.error('Error inserting articles:', insertError);
+          } else {
+            console.log(`Stored ${articlesToInsert.length} articles in database`);
+          }
+        } catch (dbError) {
+          console.error('Database error:', dbError);
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, articles }),

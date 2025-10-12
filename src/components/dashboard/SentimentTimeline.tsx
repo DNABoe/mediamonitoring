@@ -49,11 +49,11 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
     fetchMetrics();
 
     const channel = supabase
-      .channel('comparison-metrics')
+      .channel('items-sentiment')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'comparison_metrics'
+        table: 'items'
       }, () => {
         fetchMetrics();
       })
@@ -69,31 +69,27 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch baseline start date to determine tracking period
-      const { data: baselineData } = await supabase
-        .from('baselines')
-        .select('start_date')
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Fetch articles from last 60 days
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
-      const startDate = baselineData?.start_date || new Date().toISOString().split('T')[0];
-
-      const { data: metrics, error } = await supabase
-        .from('comparison_metrics')
+      const { data: articles, error } = await supabase
+        .from('items')
         .select('*')
-        .eq('user_id', user.id)
-        .gte('metric_date', startDate)
-        .order('metric_date', { ascending: true });
+        .gte('published_at', sixtyDaysAgo.toISOString())
+        .order('published_at', { ascending: true });
 
       if (error) throw error;
 
       // Show Gripen and all active competitors
       const fightersToShow = ['Gripen', ...activeCompetitors];
-      const filteredMetrics = metrics?.filter(m => fightersToShow.includes(m.fighter)) || [];
+      
+      // Filter articles that mention any of our fighters
+      const filteredArticles = articles?.filter(article => 
+        article.fighter_tags?.some((tag: string) => fightersToShow.includes(tag))
+      ) || [];
 
-      // Transform data for chart - group by month
+      // Transform data for chart - group by month and fighter
       const monthMap = new Map();
       const fighterFields: Record<string, any> = {};
       
@@ -108,8 +104,8 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
         };
       });
 
-      // Create all months from start date to today
-      const start = new Date(startDate);
+      // Create all months from 60 days ago to today
+      const start = new Date(sixtyDaysAgo);
       const today = new Date();
       const currentMonth = new Date(start.getFullYear(), start.getMonth(), 1);
       
@@ -125,21 +121,27 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
         currentMonth.setMonth(currentMonth.getMonth() + 1);
       }
 
-      // Fill in actual data
-      filteredMetrics.forEach((metric: MetricData) => {
-        const date = new Date(metric.metric_date);
+      // Fill in actual data from articles
+      filteredArticles.forEach((article: any) => {
+        const date = new Date(article.published_at);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
         
         if (monthMap.has(monthKey)) {
           const entry = monthMap.get(monthKey);
-          const fighterKey = metric.fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const fields = fighterFields[fighterKey];
           
-          if (fields) {
-            entry[fields.mentionsKey] += metric.mentions_count;
-            entry[fields.sumKey] += metric.sentiment_score;
-            entry[fields.countKey] += 1;
-          }
+          // Process each fighter tag in the article
+          article.fighter_tags?.forEach((fighter: string) => {
+            if (fightersToShow.includes(fighter)) {
+              const fighterKey = fighter.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const fields = fighterFields[fighterKey];
+              
+              if (fields) {
+                entry[fields.mentionsKey] += 1;
+                entry[fields.sumKey] += article.sentiment || 0;
+                entry[fields.countKey] += 1;
+              }
+            }
+          });
         }
       });
 
@@ -186,8 +188,8 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
 
   return (
     <Card className="p-6">
-      <h2 className="text-2xl font-bold mb-1">Media Sentiment Trends</h2>
-      <p className="text-sm text-muted-foreground mb-6">Tracking period sentiment analysis</p>
+      <h2 className="text-2xl font-bold mb-1">Media Sentiment Trends (Last 60 Days)</h2>
+      <p className="text-sm text-muted-foreground mb-6">Based on analyzed media articles from prioritized outlets</p>
       
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data.chartData}>
