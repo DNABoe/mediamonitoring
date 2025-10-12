@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { ExternalLink, Newspaper } from "lucide-react";
+import { Newspaper } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -86,5 +86,57 @@ export const SourceArticles = () => {
         <div className="text-sm text-muted-foreground">Loading articles...</div>
       </Card>;
   }
-  return;
+
+  if (articles.length === 0) {
+    return <Card className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Newspaper className="h-5 w-5 text-primary" />
+          <h3 className="text-xl font-bold">Source Articles</h3>
+        </div>
+        <div className="text-sm text-muted-foreground">No articles found in the last 60 days.</div>
+      </Card>;
+  }
+
+  return <Card className="p-6">
+    <div className="flex items-center gap-2 mb-4">
+      <Newspaper className="h-5 w-5 text-primary" />
+      <h3 className="text-xl font-bold">Source Articles</h3>
+      <Badge variant="secondary" className="ml-auto">{articles.length}</Badge>
+    </div>
+    
+    <div className="space-y-3 max-h-[600px] overflow-y-auto">
+      {articles.map((article) => (
+        <div key={article.id} className="border-b border-border pb-3 last:border-0">
+          <div className="font-medium text-sm mb-1">{article.title_en || 'Untitled'}</div>
+          
+          <div className="flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
+            {article.published_at && (
+              <span>{format(new Date(article.published_at), 'MMM d, yyyy')}</span>
+            )}
+            
+            {article.fighter_tags && article.fighter_tags.length > 0 && (
+              <div className="flex gap-1">
+                {article.fighter_tags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                ))}
+              </div>
+            )}
+            
+            {typeof article.sentiment === 'number' && (
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${getSentimentColor(article.sentiment)}`}
+              >
+                {getSentimentLabel(article.sentiment)}
+              </Badge>
+            )}
+            
+            {article.source_id && sources[article.source_id] && (
+              <span className="italic">{sources[article.source_id]}</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </Card>;
 };
