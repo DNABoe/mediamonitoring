@@ -1,25 +1,20 @@
 import { Card } from "@/components/ui/card";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 
 interface MediaArticle {
-  id: string;
-  title_en: string | null;
-  title_pt: string | null;
+  title: string;
   url: string;
-  published_at: string;
-  source: {
-    name: string;
-    type: string;
-    country: string;
-  };
-  fighter_tags: string[];
-  fulltext_en?: string | null;
-  fulltext_pt?: string | null;
+  source: string;
+  publishedAt: string;
+  fighters: string[];
+  sourceCountry: string;
 }
 
 interface MediaArticlesListProps {
@@ -30,97 +25,49 @@ interface MediaArticlesListProps {
 export const MediaArticlesList = ({ activeCountry, activeCompetitors }: MediaArticlesListProps) => {
   const [mediaArticles, setMediaArticles] = useState<MediaArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchMediaArticles();
-
-    const itemsChannel = supabase
-      .channel('items-articles-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'items'
-      }, () => {
-        fetchMediaArticles();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(itemsChannel);
-    };
-  }, []);
+  }, [activeCountry, activeCompetitors]);
 
   const fetchMediaArticles = async () => {
     try {
-      const sixtyDaysAgo = subDays(new Date(), 60);
+      setLoading(true);
+      console.log('Searching for fighter articles using AI...');
       
-      // Build search pattern for fighter mentions
-      // Search for Gripen and all active competitors
-      const fighters = ['Gripen', ...activeCompetitors];
-      
-      // Query items that mention any of the fighters in title or content
-      const { data: items, error } = await supabase
-        .from('items')
-        .select(`
-          id,
-          title_en,
-          title_pt,
-          fulltext_en,
-          fulltext_pt,
-          url,
-          published_at,
-          fighter_tags,
-          sources (
-            name,
-            type,
-            country
-          )
-        `)
-        .gte('published_at', sixtyDaysAgo.toISOString())
-        .order('published_at', { ascending: false })
-        .limit(200);
+      const { data, error } = await supabase.functions.invoke('search-fighter-articles', {
+        body: { 
+          country: activeCountry,
+          competitors: activeCompetitors 
+        }
+      });
 
       if (error) throw error;
 
-      // Filter articles that mention fighters in title or content
-      const articlesWithFighterMentions = items?.map(item => ({
-        id: item.id,
-        title_en: item.title_en,
-        title_pt: item.title_pt,
-        url: item.url,
-        published_at: item.published_at,
-        fighter_tags: item.fighter_tags || [],
-        source: Array.isArray(item.sources) ? item.sources[0] : item.sources,
-        fulltext_en: item.fulltext_en,
-        fulltext_pt: item.fulltext_pt
-      }))
-      .filter(article => {
-        if (!article.source || !(article.title_en || article.title_pt)) return false;
+      if (data?.success && data?.articles) {
+        console.log(`Found ${data.articles.length} articles`);
+        setMediaArticles(data.articles);
         
-        // Check if any fighter is mentioned in title or content
-        const textToSearch = [
-          article.title_en?.toLowerCase() || '',
-          article.title_pt?.toLowerCase() || '',
-          article.fulltext_en?.toLowerCase() || '',
-          article.fulltext_pt?.toLowerCase() || ''
-        ].join(' ');
-        
-        return fighters.some(fighter => 
-          textToSearch.includes(fighter.toLowerCase())
-        );
-      })
-      .sort((a, b) => {
-        // Prioritize active country sources first
-        if (a.source.country === activeCountry && b.source.country !== activeCountry) return -1;
-        if (a.source.country !== activeCountry && b.source.country === activeCountry) return 1;
-        // Then sort by date
-        return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
-      })
-      .slice(0, 100) || []; // Limit to 100 most relevant articles
-
-      setMediaArticles(articlesWithFighterMentions);
+        if (data.articles.length === 0) {
+          toast({
+            title: "No articles found",
+            description: "No recent articles found about fighter procurement. Try again later.",
+            duration: 3000,
+          });
+        }
+      } else {
+        throw new Error(data?.error || 'Failed to fetch articles');
+      }
     } catch (error) {
       console.error('Error fetching media articles:', error);
+      toast({
+        title: "Error",
+        description: "Failed to search for articles. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      setMediaArticles([]);
     } finally {
       setLoading(false);
     }
@@ -139,9 +86,20 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors }: MediaArt
   return (
     <Card className="p-6">
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <ExternalLink className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-bold">Key Media References (Last 60 Days)</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ExternalLink className="h-6 w-6 text-primary" />
+            <h2 className="text-2xl font-bold">Key Media References (Last 60 Days)</h2>
+          </div>
+          <Button 
+            onClick={fetchMediaArticles} 
+            variant="outline" 
+            size="sm"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
         
         <p className="text-sm text-muted-foreground">
@@ -155,9 +113,9 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors }: MediaArt
         ) : (
           <ScrollArea className="h-[600px] pr-4">
             <div className="space-y-2">
-              {mediaArticles.map((article) => (
+              {mediaArticles.map((article, index) => (
                 <div 
-                  key={article.id}
+                  key={`${article.url}-${index}`}
                   className="p-3 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
                 >
                   <a 
@@ -168,35 +126,32 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors }: MediaArt
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors flex-1 leading-snug">
-                        {article.title_en || article.title_pt}
+                        {article.title}
                       </h3>
                       <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-0.5" />
                     </div>
                   </a>
                   
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                    <span className="font-medium">{article.source.name}</span>
+                    <span className="font-medium">{article.source}</span>
                     <span>•</span>
                     <Badge variant="outline" className="text-xs py-0 h-5">
-                      {article.source.country}
+                      {article.sourceCountry}
                     </Badge>
                     <span>•</span>
-                    <span>{format(new Date(article.published_at), 'MMM d, yyyy')}</span>
+                    <span>{format(new Date(article.publishedAt), 'MMM d, yyyy')}</span>
                   </div>
                   
                   <div className="flex flex-wrap gap-1">
-                    {article.fighter_tags.map((tag) => (
+                    {article.fighters.map((fighter) => (
                       <Badge 
-                        key={tag} 
+                        key={fighter} 
                         variant="secondary" 
                         className="text-xs py-0 h-5"
                       >
-                        {tag}
+                        {fighter}
                       </Badge>
                     ))}
-                    <Badge variant="outline" className="text-xs py-0 h-5">
-                      {article.source.type}
-                    </Badge>
                   </div>
                 </div>
               ))}
