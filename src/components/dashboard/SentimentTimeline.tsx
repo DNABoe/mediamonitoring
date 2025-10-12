@@ -69,14 +69,28 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch articles from last 60 days
-      const sixtyDaysAgo = new Date();
-      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      // Fetch the baseline to get the tracking period
+      const { data: baseline } = await supabase
+        .from('baselines')
+        .select('start_date, end_date')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!baseline) {
+        setData({ chartData: [], fightersToShow: [], fighterFields: {} });
+        setLoading(false);
+        return;
+      }
+
+      const startDate = new Date(baseline.start_date);
+      const endDate = baseline.end_date ? new Date(baseline.end_date) : new Date();
 
       const { data: articles, error } = await supabase
         .from('items')
         .select('*')
-        .gte('published_at', sixtyDaysAgo.toISOString())
+        .gte('published_at', startDate.toISOString())
+        .lte('published_at', endDate.toISOString())
         .order('published_at', { ascending: true });
 
       if (error) throw error;
@@ -104,12 +118,10 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
         };
       });
 
-      // Create all months from 60 days ago to today
-      const start = new Date(sixtyDaysAgo);
-      const today = new Date();
-      const currentMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+      // Create all months from baseline start to end date
+      const currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
       
-      while (currentMonth <= today) {
+      while (currentMonth <= endDate) {
         const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-01`;
         const monthEntry: any = { date: monthKey };
         Object.values(fighterFields).forEach((fields: any) => {
@@ -188,8 +200,8 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
 
   return (
     <Card className="p-6">
-      <h2 className="text-2xl font-bold mb-1">Media Sentiment Trends (Last 60 Days)</h2>
-      <p className="text-sm text-muted-foreground mb-6">Based on analyzed media articles from prioritized outlets</p>
+      <h2 className="text-2xl font-bold mb-1">Media Sentiment Trends</h2>
+      <p className="text-sm text-muted-foreground mb-6">Tracking period based on baseline dates • Analyzed articles from prioritized outlets</p>
       
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data.chartData}>
