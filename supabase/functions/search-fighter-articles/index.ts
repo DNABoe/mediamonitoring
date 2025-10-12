@@ -44,18 +44,38 @@ serve(async (req) => {
     if (prioritizedOutlets.length > 0) {
       console.log(`Prioritizing ${prioritizedOutlets.length} media outlets`);
       
-      // Search each prioritized outlet specifically
+      // Search each prioritized outlet specifically with MULTIPLE strategies
       prioritizedOutlets.forEach((outlet: string) => {
+        // Search 1: Current year + fighters
         prioritizedSearches.push(
           fetch(
             `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentYear}`)}`,
             { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-          ),
+          )
+        );
+        // Search 2: Current month
+        prioritizedSearches.push(
           fetch(
             `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentMonth}`)}`,
             { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
           )
         );
+        // Search 3: Last month
+        prioritizedSearches.push(
+          fetch(
+            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${lastMonth}`)}`,
+            { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+          )
+        );
+        // Search 4: Each individual fighter on this outlet
+        fighters.forEach(fighter => {
+          prioritizedSearches.push(
+            fetch(
+              `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${fighter} ${currentYear}`)}`,
+              { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+            )
+          );
+        });
       });
     }
     
@@ -197,18 +217,26 @@ TODAY'S DATE: ${currentDate.toISOString().split('T')[0]}
 ONLY INCLUDE ARTICLES FROM THE LAST 60 DAYS (after ${sixtyDaysAgo.toISOString().split('T')[0]})
 
 ${prioritizedOutlets.length > 0 ? `
-PRIORITIZED MEDIA OUTLETS (give these sources HIGHEST PRIORITY):
+🔴 CRITICAL PRIORITY - PRIORITIZED MEDIA OUTLETS:
 ${prioritizedOutlets.map((outlet: string) => `- ${outlet}`).join('\n')}
 
-CRITICAL: Articles from these prioritized outlets should be featured prominently in your results. However, also include other relevant sources.
+**MANDATORY REQUIREMENTS FOR PRIORITIZED OUTLETS:**
+1. Articles from these outlets MUST appear FIRST in your results
+2. You MUST include AT LEAST 60-70% of articles from these prioritized outlets
+3. Articles from prioritized outlets take precedence over ALL other sources
+4. If an article is from a prioritized outlet, it should be included even if slightly less relevant
+5. MAXIMUM importance on ${currentMonth} ${currentYear} articles from these outlets
+6. The first 10-15 results MUST be from prioritized outlets if available
+
+Only after exhausting relevant articles from prioritized outlets, then include other sources.
 ` : ''}
 
 CRITICAL PRIORITY INSTRUCTIONS:
 1. **ABSOLUTE PRIORITY: NEWEST ARTICLES FIRST** - Heavily favor articles from ${currentMonth} ${currentYear}, then ${lastMonth} ${currentYear}
-2. Prioritize LOCAL ${country} media sources - these appear first in the list
-3. Include ALL relevant articles - do not limit the number
-4. If an article is from the current month, it MUST be included
-5. Recent articles (last 30 days) are more important than older ones (30-60 days ago)
+2. ${prioritizedOutlets.length > 0 ? 'Prioritized outlets DOMINATE the results (60-70% minimum)' : 'Prioritize LOCAL ' + country + ' media sources'}
+3. Include ALL relevant articles from prioritized outlets
+4. If an article is from the current month AND from a prioritized outlet, it is MANDATORY
+5. Recent articles (last 30 days) from prioritized outlets are MORE important than any other content
 
 Fighter aircraft we're tracking: ${fighters.join(', ')}
 
