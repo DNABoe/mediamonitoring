@@ -38,33 +38,78 @@ function normalizeUrl(url: string): string {
 }
 
 serve(async (req) => {
+  console.log('========== FUNCTION STARTED ==========');
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { country, competitors, startDate, endDate } = await req.json();
-    console.log('Collecting articles for tracking:', { country, competitors, trackingPeriod: `${startDate} to ${endDate}` });
+    console.log('Step 1: Parsing request body...');
+    let body;
+    try {
+      body = await req.json();
+      console.log('Step 1 SUCCESS: Request body parsed:', JSON.stringify(body));
+    } catch (parseError) {
+      console.error('Step 1 FAILED: Request parsing error:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request format - failed to parse JSON',
+        details: parseError instanceof Error ? parseError.message : 'Unknown parse error'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
+    const { country, competitors, startDate, endDate } = body;
+    console.log('Step 2: Parameters extracted:', { country, competitors, startDate, endDate });
+    
+    if (!country || !competitors || !startDate || !endDate) {
+      const missing = [];
+      if (!country) missing.push('country');
+      if (!competitors) missing.push('competitors');
+      if (!startDate) missing.push('startDate');
+      if (!endDate) missing.push('endDate');
+      console.error('Step 2 FAILED: Missing required parameters:', missing);
+      return new Response(JSON.stringify({ 
+        error: 'Missing required parameters',
+        missing,
+        received: { country, competitors, startDate, endDate }
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    console.log('Step 2 SUCCESS: All parameters validated');
+
+    console.log('Step 3: Creating Supabase client...');
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+    console.log('Step 3 SUCCESS: Supabase client created');
 
+    console.log('Step 4: Checking API key...');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
+      console.error('Step 4 FAILED: LOVABLE_API_KEY not configured');
       throw new Error('LOVABLE_API_KEY not configured');
     }
+    console.log('Step 4 SUCCESS: API key present');
 
-    // Fetch enabled media sources for this country
+    console.log('Step 5: Fetching enabled media sources...');
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('sources')
       .select('*')
       .eq('country', country)
       .eq('enabled', true);
 
-    if (sourcesError) throw sourcesError;
-    console.log(`Found ${sources?.length || 0} enabled sources for ${country}`);
+    if (sourcesError) {
+      console.error('Step 5 FAILED: Error fetching sources:', sourcesError);
+      throw sourcesError;
+    }
+    console.log(`Step 5 SUCCESS: Found ${sources?.length || 0} enabled sources for ${country}`);
     
     // If no country-specific sources, use general domain search
     const hasCountrySources = sources && sources.length > 0;
@@ -378,25 +423,49 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title }))
     const extractedData = JSON.parse(toolCall.function.arguments);
     const structuredArticles = extractedData.articles || [];
     
-    console.log(`AI extracted ${structuredArticles.length} articles with fighter mentions`);
+    console.log(`Step 9: AI extracted ${structuredArticles.length} articles with fighter mentions`);
     
-    // Log sample articles before URL recovery
-    if (structuredArticles.length > 0) {
-      console.log('Sample AI extracted articles (before URL recovery):', structuredArticles.slice(0, 3).map((a: any) => ({
-        title: a.title?.substring(0, 50),
-        has_url: !!a.url
-      })));
-    }
+    // Log FULL AI response for debugging
+    console.log('========== AI RETURNED TITLES ==========');
+    structuredArticles.forEach((a: any, idx: number) => {
+      console.log(`Article ${idx + 1}:`, {
+        title: a.title,
+        fighters: a.fighter_tags,
+        sentiment: a.sentiment,
+        country: a.source_country
+      });
+    });
+    console.log('========================================');
 
-    // Recover URLs by matching titles to original search results
+    // Recover URLs by matching titles to original search results (with fuzzy matching)
+    console.log('Step 10: Recovering URLs from title matching...');
     const validArticles = structuredArticles.map((article: any) => {
-      // Match title to get the original URL
-      const matchingResult = preFilteredResults.find(r => 
-        r.title.toLowerCase().trim() === article.title?.toLowerCase().trim()
+      // Normalize titles for better matching
+      const normalizeTitle = (title: string) => {
+        return title.toLowerCase()
+          .trim()
+          .replace(/\s+/g, ' ')  // normalize whitespace
+          .replace(/[^\w\s-]/g, '');  // remove special chars except dash
+      };
+      
+      const aiTitle = normalizeTitle(article.title || '');
+      
+      // Try exact match first
+      let matchingResult = preFilteredResults.find(r => 
+        normalizeTitle(r.title) === aiTitle
       );
+      
+      // If no exact match, try fuzzy match (contains)
+      if (!matchingResult) {
+        matchingResult = preFilteredResults.find(r => {
+          const resultTitle = normalizeTitle(r.title);
+          return resultTitle.includes(aiTitle) || aiTitle.includes(resultTitle);
+        });
+      }
       
       if (!matchingResult) {
         console.warn('Could not match article to original results:', article.title?.substring(0, 50));
+        console.warn('Available titles sample:', preFilteredResults.slice(0, 3).map(r => r.title.substring(0, 50)));
         return null;
       }
       
