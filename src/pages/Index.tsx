@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { WinnerMetar } from "@/components/dashboard/WinnerMetar";
 import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
+import { ArticleCollectionTrigger } from "@/components/dashboard/ArticleCollectionTrigger";
 import { SourceArticles } from "@/components/dashboard/SourceArticles";
 import { ResearchExecutiveSummary } from "@/components/dashboard/ResearchExecutiveSummary";
 import { ResearchDimensions } from "@/components/dashboard/ResearchDimensions";
@@ -98,7 +99,12 @@ const Index = () => {
                 <h1 className="text-xl font-bold text-foreground text-left">
                   Fighter Program Media Analysis - {userSettings.countryName}
                 </h1>
-                {isAdmin && <BaselineGenerator currentDate={baselineDate} />}
+                {isAdmin && (
+                  <div className="flex items-center gap-2">
+                    <BaselineGenerator currentDate={baselineDate} />
+                    <ArticleCollectionTrigger />
+                  </div>
+                )}
               </div>
                 <div className="flex items-center gap-2 flex-wrap text-left">
                 <p className="text-xs text-muted-foreground flex items-center gap-1">

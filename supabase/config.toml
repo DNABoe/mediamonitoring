@@ -3,6 +3,9 @@ project_id = "bmlxazcllmoupkjzrrnl"
 [functions.generate-baseline]
 verify_jwt = true
 
+[functions.collect-articles-for-tracking]
+verify_jwt = false
+
 [functions.research-fighter-comparison]
 verify_jwt = false
 
