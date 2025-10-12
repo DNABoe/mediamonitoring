@@ -10,16 +10,24 @@ const corsHeaders = {
 // Decode DuckDuckGo redirect URLs to get real article URLs
 function decodeDuckDuckGoUrl(url: string): string {
   try {
+    // Fix protocol-relative URLs
+    if (url.startsWith('//')) {
+      url = 'https:' + url;
+    }
+    
     // Check if it's a DuckDuckGo redirect URL
     if (url.includes('duckduckgo.com/l/?') || url.includes('uddg=')) {
       const urlObj = new URL(url);
       const uddg = urlObj.searchParams.get('uddg');
       if (uddg) {
-        return decodeURIComponent(uddg);
+        const decoded = decodeURIComponent(uddg);
+        console.log('Decoded DDG URL:', url.substring(0, 80), '->', decoded.substring(0, 80));
+        return decoded;
       }
     }
     return url;
-  } catch {
+  } catch (e) {
+    console.error('Error decoding URL:', url, e);
     return url;
   }
 }
