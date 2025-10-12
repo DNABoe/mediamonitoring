@@ -301,6 +301,9 @@ serve(async (req) => {
     // Use AI with tool calling for structured output
     console.log('Sending to AI for structured analysis...');
     
+    // Create title-to-url mapping BEFORE sending to AI
+    const titleUrlMap = new Map(preFilteredResults.map(r => [r.title.toLowerCase().trim(), r.url]));
+    
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -313,22 +316,15 @@ serve(async (req) => {
           role: 'user',
           content: `Extract fighter jet information from these ${preFilteredResults.length} articles.
 
-CRITICAL INSTRUCTIONS:
-1. Return the EXACT URL provided for each article - DO NOT modify URLs in any way
-2. Even if a URL looks unusual or invalid, return it EXACTLY as provided
-3. NEVER replace the URL with the article title or any other text
-
 For each article, identify:
 1. Which fighters are mentioned (Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50)
 2. Sentiment: positive (0.7), neutral (0.0), or negative (-0.7)
 3. Source country: "${country}" for local domains ending in ${domainSuffix}, otherwise "INTERNATIONAL"
 
-Example of CORRECT URL preservation:
-Input: { "title": "F-35 News", "url": "https://example.com/article/123" }
-Output: { "title": "F-35 News", "url": "https://example.com/article/123", ... }
+IMPORTANT: Return ONLY the title for each article. Do NOT include URLs.
 
 Articles:
-${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, url: r.url })), null, 2)}`
+${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title })), null, 2)}`
         }],
         tools: [{
           type: 'function',
@@ -344,7 +340,6 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
                     type: 'object',
                     properties: {
                       title: { type: 'string' },
-                      url: { type: 'string' },
                       fighter_tags: { 
                         type: 'array',
                         items: { type: 'string' },
@@ -353,7 +348,7 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
                       sentiment: { type: 'number', description: 'Between -1 and 1' },
                       source_country: { type: 'string' }
                     },
-                    required: ['title', 'url', 'fighter_tags', 'sentiment', 'source_country']
+                    required: ['title', 'fighter_tags', 'sentiment', 'source_country']
                   }
                 }
               },
@@ -385,34 +380,30 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
     
     console.log(`AI extracted ${structuredArticles.length} articles with fighter mentions`);
     
-    // Log sample articles before validation to debug URL issues
+    // Log sample articles before URL recovery
     if (structuredArticles.length > 0) {
-      console.log('Sample AI extracted articles:', structuredArticles.slice(0, 3).map((a: any) => ({
+      console.log('Sample AI extracted articles (before URL recovery):', structuredArticles.slice(0, 3).map((a: any) => ({
         title: a.title?.substring(0, 50),
-        url: a.url?.substring(0, 100),
-        url_type: typeof a.url
+        has_url: !!a.url
       })));
     }
 
-    // Create a map of original URLs for fallback recovery
-    const originalUrlMap = new Map(preFilteredResults.map(r => [r.title.toLowerCase(), r.url]));
-
-    // Validate articles and apply fallback fighter detection
-    const validArticles = structuredArticles.filter((article: any) => {
-      // Try to recover URL if AI returned invalid one
-      if (!article.url || !article.url.startsWith('http')) {
-        const recoveredUrl = originalUrlMap.get(article.title?.toLowerCase());
-        if (recoveredUrl) {
-          console.log(`Recovered URL for "${article.title}": ${recoveredUrl}`);
-          article.url = recoveredUrl;
-        } else {
-          console.warn('Invalid URL and cannot recover, skipping:', article.title, 'URL:', article.url);
-          return false;
-        }
+    // Recover URLs by matching titles to original search results
+    const validArticles = structuredArticles.map((article: any) => {
+      // Match title to get the original URL
+      const matchingResult = preFilteredResults.find(r => 
+        r.title.toLowerCase().trim() === article.title?.toLowerCase().trim()
+      );
+      
+      if (!matchingResult) {
+        console.warn('Could not match article to original results:', article.title?.substring(0, 50));
+        return null;
       }
       
-      // Normalize URL before further processing
-      article.url = normalizeUrl(article.url);
+      // Use the URL from the original search result
+      article.url = normalizeUrl(matchingResult.url);
+      console.log(`Matched "${article.title?.substring(0, 50)}" to URL: ${article.url.substring(0, 80)}`);
+      
       
       // Ensure fighter_tags is array
       if (!article.fighter_tags || !Array.isArray(article.fighter_tags)) {
@@ -434,15 +425,15 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
           console.log(`Fallback detection for "${article.title}": ${detected.join(', ')}`);
           article.fighter_tags = detected;
         } else {
-          console.warn('No fighters detected, skipping:', article.title);
-          return false;
+          console.warn('No fighters detected, skipping:', article.title?.substring(0, 50));
+          return null;
         }
       }
       
-      return true;
-    });
+      return article;
+    }).filter((article: any) => article !== null);
 
-    console.log(`${validArticles.length} valid articles after validation and fallback`);
+    console.log(`${validArticles.length} valid articles after URL recovery and validation`);
 
     // Store articles in database with robust error handling
     let storedCount = 0;
