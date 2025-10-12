@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Globe, Loader2, ChevronsUpDown, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Globe, Loader2, ChevronsUpDown, Check, Plus, X, Newspaper } from "lucide-react";
 import { toast } from "sonner";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const COUNTRIES = [
   { code: 'AF', name: 'Afghanistan', flag: '🇦🇫' },
@@ -101,6 +103,8 @@ interface CountryCompetitorSettingsProps {
 export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitorSettingsProps) => {
   const [activeCountry, setActiveCountry] = useState<string>('PT');
   const [activeCompetitors, setActiveCompetitors] = useState<string[]>(['F-35']);
+  const [prioritizedOutlets, setPrioritizedOutlets] = useState<string[]>([]);
+  const [newOutlet, setNewOutlet] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
@@ -116,7 +120,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
 
       const { data, error } = await supabase
         .from('user_settings')
-        .select('active_country, active_competitors')
+        .select('active_country, active_competitors, prioritized_outlets')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -125,6 +129,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
       if (data) {
         setActiveCountry(data.active_country);
         setActiveCompetitors(data.active_competitors || ['F-35']);
+        setPrioritizedOutlets(data.prioritized_outlets || []);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -150,6 +155,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
           user_id: user.id,
           active_country: activeCountry,
           active_competitors: activeCompetitors,
+          prioritized_outlets: prioritizedOutlets,
         }, {
           onConflict: 'user_id'
         });
@@ -176,6 +182,28 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
         ? prev.filter(c => c !== competitor)
         : [...prev, competitor]
     );
+  };
+
+  const addOutlet = () => {
+    const trimmedOutlet = newOutlet.trim();
+    if (!trimmedOutlet) {
+      toast.error('Please enter a media outlet name or URL');
+      return;
+    }
+    if (trimmedOutlet.length > 200) {
+      toast.error('Media outlet name/URL must be less than 200 characters');
+      return;
+    }
+    if (prioritizedOutlets.includes(trimmedOutlet)) {
+      toast.error('This outlet is already in the list');
+      return;
+    }
+    setPrioritizedOutlets(prev => [...prev, trimmedOutlet]);
+    setNewOutlet('');
+  };
+
+  const removeOutlet = (outlet: string) => {
+    setPrioritizedOutlets(prev => prev.filter(o => o !== outlet));
   };
 
   if (loading) {
@@ -273,6 +301,46 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Newspaper className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold">Prioritized Media Outlets</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Add specific media outlets that should be prioritized in the analysis. Enter the outlet name or domain (e.g., "publico.pt" or "The Guardian")
+        </p>
+        
+        <div className="flex gap-2">
+          <Input
+            value={newOutlet}
+            onChange={(e) => setNewOutlet(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && addOutlet()}
+            placeholder="e.g., publico.pt or The Guardian"
+            className="flex-1"
+            maxLength={200}
+          />
+          <Button onClick={addOutlet} variant="outline" size="icon">
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {prioritizedOutlets.length > 0 && (
+          <div className="flex flex-wrap gap-2 border rounded-lg p-3">
+            {prioritizedOutlets.map((outlet) => (
+              <Badge key={outlet} variant="secondary" className="gap-1">
+                {outlet}
+                <button
+                  onClick={() => removeOutlet(outlet)}
+                  className="ml-1 hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       <Button onClick={saveSettings} disabled={saving || activeCompetitors.length === 0} className="w-full">
