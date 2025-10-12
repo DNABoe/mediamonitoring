@@ -26,7 +26,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Fetch enabled media sources
+    // Fetch enabled media sources for this country
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('sources')
       .select('*')
@@ -35,6 +35,12 @@ serve(async (req) => {
 
     if (sourcesError) throw sourcesError;
     console.log(`Found ${sources?.length || 0} enabled sources for ${country}`);
+    
+    // If no country-specific sources, use general domain search
+    const hasCountrySources = sources && sources.length > 0;
+    if (!hasCountrySources) {
+      console.log(`No sources configured for ${country}, will use general domain search`);
+    }
 
     // Universal search terms - fighter names are international
     const universalSearchTerms = [
@@ -83,39 +89,51 @@ serve(async (req) => {
     // Generate comprehensive search URLs for ENTIRE tracking period
     const allSearchUrls: string[] = [];
     
-    // Search each media outlet for the tracking period
-    for (const source of sources || []) {
-      const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
-      
-      // Search by universal terms
-      for (const term of universalSearchTerms) {
-        const encodedTerm = encodeURIComponent(term);
+    // If we have configured sources, search them specifically
+    if (hasCountrySources) {
+      for (const source of sources || []) {
+        const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
+        
+        // Search by universal terms
+        for (const term of universalSearchTerms) {
+          const encodedTerm = encodeURIComponent(term);
+          const dateFilter = `after:${startDate} before:${endDate}`;
+          allSearchUrls.push(
+            `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedTerm}+${dateFilter}`
+          );
+        }
+        
+        // Add competitor-specific searches
+        for (const competitor of competitors) {
+          const encodedCompetitor = encodeURIComponent(competitor);
+          const dateFilter = `after:${startDate} before:${endDate}`;
+          allSearchUrls.push(
+            `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedCompetitor}+${dateFilter}`
+          );
+        }
+        
+        // Always search for Gripen
         const dateFilter = `after:${startDate} before:${endDate}`;
         allSearchUrls.push(
-          `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedTerm}+${dateFilter}`
+          `https://html.duckduckgo.com/html/?q=site:${domain}+Gripen+${dateFilter}`
         );
       }
-      
-      // Add competitor-specific searches (fighter names are international)
-      for (const competitor of competitors) {
-        const encodedCompetitor = encodeURIComponent(competitor);
-        const dateFilter = `after:${startDate} before:${endDate}`;
-        allSearchUrls.push(
-          `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedCompetitor}+${dateFilter}`
-        );
-      }
-      
-      // Always search for Gripen on each source
-      const dateFilter = `after:${startDate} before:${endDate}`;
-      allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=site:${domain}+Gripen+${dateFilter}`
-      );
     }
 
-    // Add general searches for the country domain
-    for (const term of universalSearchTerms) {
+    // Always add general searches for the country domain (works even without configured sources)
+    const dateFilter = `after:${startDate} before:${endDate}`;
+    
+    // Search for each fighter name + country domain
+    for (const competitor of [...competitors, 'Gripen']) {
+      const encodedCompetitor = encodeURIComponent(competitor);
+      allSearchUrls.push(
+        `https://html.duckduckgo.com/html/?q=${encodedCompetitor}+site:${domainSuffix}+${dateFilter}`
+      );
+    }
+    
+    // Search for general terms + country domain
+    for (const term of universalSearchTerms.slice(0, 3)) { // Limit to avoid too many searches
       const encodedTerm = encodeURIComponent(term);
-      const dateFilter = `after:${startDate} before:${endDate}`;
       allSearchUrls.push(
         `https://html.duckduckgo.com/html/?q=${encodedTerm}+site:${domainSuffix}+${dateFilter}`
       );
