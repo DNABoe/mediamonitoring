@@ -178,6 +178,7 @@ Return structured data using the analysis_report tool.`;
       .replace(/\{\{country\}\}/g, countryName)
       .replace(/\{\{competitors\}\}/g, competitorList);
 
+
     // Build tool schema dynamically based on competitors
     const competitorFields: any = {};
     const monthlyProperties: any = {};
@@ -206,6 +207,82 @@ Return structured data using the analysis_report tool.`;
       );
     });
 
+    // Fetch ALL articles from database since baseline for comprehensive analysis
+    const { data: realArticles } = await supabase
+      .from('items')
+      .select('id, title_en, url, published_at, fighter_tags, summary, sentiment_score')
+      .not('fighter_tags', 'is', null)
+      .gte('published_at', trackingStartDate)
+      .order('published_at', { ascending: false });
+
+    console.log(`Fetched ${realArticles?.length || 0} real articles from database for analysis`);
+
+    let collectedSources: string[] = [];
+    let articleContext = '';
+    
+    if (realArticles && realArticles.length > 0) {
+      collectedSources = realArticles.map(article => article.url).filter(Boolean);
+      
+      // Build comprehensive article context for AI analysis
+      const articlesByMonth: Record<string, any[]> = {};
+      realArticles.forEach(article => {
+        const monthKey = article.published_at.substring(0, 7); // YYYY-MM
+        if (!articlesByMonth[monthKey]) articlesByMonth[monthKey] = [];
+        articlesByMonth[monthKey].push(article);
+      });
+      
+      // Calculate actual mentions and sentiment per fighter per month
+      const realMonthlyData: Record<string, any> = {};
+      Object.entries(articlesByMonth).forEach(([month, articles]) => {
+        realMonthlyData[month] = {
+          gripen: { mentions: 0, sentimentSum: 0, articles: [] },
+        };
+        
+        competitors.forEach((comp: string) => {
+          const safeName = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          realMonthlyData[month][safeName] = { mentions: 0, sentimentSum: 0, articles: [] };
+        });
+        
+        articles.forEach(article => {
+          const tags = article.fighter_tags || [];
+          tags.forEach((tag: string) => {
+            const fighterName = tag.trim();
+            if (fighterName === 'Gripen') {
+              realMonthlyData[month].gripen.mentions++;
+              realMonthlyData[month].gripen.sentimentSum += (article.sentiment_score || 0);
+              realMonthlyData[month].gripen.articles.push(article.title_en);
+            } else if (competitors.includes(fighterName)) {
+              const safeName = fighterName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+              if (realMonthlyData[month][safeName]) {
+                realMonthlyData[month][safeName].mentions++;
+                realMonthlyData[month][safeName].sentimentSum += (article.sentiment_score || 0);
+                realMonthlyData[month][safeName].articles.push(article.title_en);
+              }
+            }
+          });
+        });
+      });
+      
+      // Build context summary for AI
+      articleContext = '\n\nREAL ARTICLE DATA FROM DATABASE:\n';
+      articleContext += `Total articles analyzed: ${realArticles.length}\n\n`;
+      articleContext += 'MONTHLY BREAKDOWN (REAL DATA):\n';
+      Object.entries(realMonthlyData).sort().forEach(([month, data]: [string, any]) => {
+        articleContext += `\n${month}:\n`;
+        articleContext += `  Gripen: ${data.gripen.mentions} mentions, avg sentiment: ${data.gripen.mentions > 0 ? (data.gripen.sentimentSum / data.gripen.mentions).toFixed(2) : 'N/A'}\n`;
+        competitors.forEach((comp: string) => {
+          const safeName = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const compData = data[safeName];
+          articleContext += `  ${comp}: ${compData.mentions} mentions, avg sentiment: ${compData.mentions > 0 ? (compData.sentimentSum / compData.mentions).toFixed(2) : 'N/A'}\n`;
+        });
+      });
+      
+      articleContext += '\n\nYOU MUST USE THIS REAL DATA as the foundation for your monthly_breakdown. Do not fabricate data - use these actual mention counts and sentiment scores.';
+    } else {
+      collectedSources = ['https://www.example.com/defense-news'];
+      articleContext = '\n\nNO ARTICLES FOUND IN DATABASE. Generate estimates based on general knowledge.';
+    }
+
     console.log('Calling Lovable AI for research...');
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -223,7 +300,7 @@ Return structured data using the analysis_report tool.`;
           },
           {
             role: 'user',
-            content: researchPrompt + '\n\nIMPORTANT: You must respond by calling the analysis_report function. Do not write text directly.'
+            content: researchPrompt + articleContext + '\n\nIMPORTANT: You must respond by calling the analysis_report function. Do not write text directly. Base your monthly_breakdown on the REAL ARTICLE DATA provided above.'
           }
         ],
         tools: [{
@@ -371,26 +448,6 @@ Return structured data using the analysis_report tool.`;
     });
 
     const monthlyData = analysis.monthly_breakdown || [];
-
-    // Fetch real articles from database
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-    
-    const { data: realArticles } = await supabase
-      .from('items')
-      .select('id, title_en, url, published_at, fighter_tags')
-      .not('fighter_tags', 'is', null)
-      .gte('published_at', sixtyDaysAgo.toISOString())
-      .order('published_at', { ascending: false })
-      .limit(20);
-
-    let collectedSources: string[] = [];
-    
-    if (realArticles && realArticles.length > 0) {
-      collectedSources = realArticles.map(article => article.url).filter(Boolean);
-    } else {
-      collectedSources = ['https://www.example.com/defense-news'];
-    }
 
     // Store the research report
     const { data: report, error: reportError } = await supabase
