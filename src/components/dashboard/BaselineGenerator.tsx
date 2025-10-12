@@ -97,10 +97,15 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
       console.log('Calling collect-articles-for-tracking with:', collectionParams);
 
       try {
+        console.log('About to invoke supabase.functions.invoke...');
+        const invokeStart = Date.now();
+        
         const { data: collectionData, error: collectionError } = await supabase.functions.invoke('collect-articles-for-tracking', {
           body: collectionParams
         });
-
+        
+        const invokeTime = Date.now() - invokeStart;
+        console.log(`Function invocation took ${invokeTime}ms`);
         console.log('Collection response:', { collectionData, collectionError });
 
         if (collectionError) {
