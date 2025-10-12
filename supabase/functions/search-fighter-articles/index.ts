@@ -20,41 +20,98 @@ serve(async (req) => {
 
     console.log('Searching for fighter articles:', { country, competitors });
 
-    const fighters = ['Gripen', ...competitors].join(', ');
+    const fighters = ['Gripen', ...competitors];
+    const allFighters = fighters.join(' OR ');
     
-    const searchPrompt = `Search the web for recent news articles (from the last 60 days) about fighter aircraft procurement in ${country}. 
+    // Search for articles using DuckDuckGo
+    const searchQuery = `${country} fighter jet procurement ${allFighters} news`;
+    console.log('Search query:', searchQuery);
     
-Focus on articles that discuss any of these fighter aircraft: ${fighters}.
+    const searchResponse = await fetch(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchQuery)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
 
-For each article you find, provide:
-1. The article title (in original language, don't translate)
-2. The full URL to the article
-3. The publication/source name
-4. Publication date (format: YYYY-MM-DD)
-5. Which fighters are mentioned (from this list: ${fighters})
-6. Source country code (e.g., PT for Portugal, US for United States, etc.)
+    if (!searchResponse.ok) {
+      throw new Error(`Search failed: ${searchResponse.status}`);
+    }
 
-Prioritize:
-- Local ${country} media sources first
-- Recent articles (last 60 days)
-- Articles specifically about fighter procurement decisions
-- Defense industry publications
+    const htmlText = await searchResponse.text();
+    
+    // Extract search results from HTML
+    const results = [];
+    const resultRegex = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
+    const snippetRegex = /<a[^>]+class="result__snippet"[^>]*>([^<]+)<\/a>/g;
+    
+    let match;
+    const urls = [];
+    const titles = [];
+    
+    while ((match = resultRegex.exec(htmlText)) !== null) {
+      urls.push(match[1]);
+      titles.push(match[2]);
+    }
+    
+    const snippets = [];
+    while ((match = snippetRegex.exec(htmlText)) !== null) {
+      snippets.push(match[1]);
+    }
+    
+    // Combine results (take up to 20 results)
+    for (let i = 0; i < Math.min(20, urls.length); i++) {
+      if (urls[i] && titles[i]) {
+        results.push({
+          url: urls[i],
+          title: titles[i],
+          snippet: snippets[i] || ''
+        });
+      }
+    }
 
-Return ONLY a JSON array with this exact structure:
+    console.log(`Found ${results.length} raw search results`);
+
+    if (results.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, articles: [] }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Use AI to analyze and structure the results
+    const analysisPrompt = `Analyze these search results for fighter aircraft procurement news in ${country}. 
+    
+Fighter aircraft we're tracking: ${fighters.join(', ')}
+
+Search results:
+${results.map((r, i) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join('\n\n')}
+
+For each relevant article about fighter procurement, return structured data with:
+1. title (original language, cleaned up)
+2. url (the actual article URL)
+3. source (publication name extracted from URL/title)
+4. publishedAt (estimate as "2025-10-12" if not available, or recent date)
+5. fighters (array of which fighters from our list are mentioned)
+6. sourceCountry (country code like PT, US, etc.)
+
+Only include articles that are actually about fighter aircraft procurement. Skip generic news or unrelated content.
+
+Return ONLY a JSON array, no other text:
 [
   {
-    "title": "Article title in original language",
-    "url": "https://full-article-url.com",
-    "source": "Publication Name",
+    "title": "...",
+    "url": "...",
+    "source": "...",
     "publishedAt": "2025-10-12",
-    "fighters": ["Gripen", "F-35"],
+    "fighters": ["Gripen"],
     "sourceCountry": "PT"
   }
-]
+]`;
 
-Find at least 20-30 relevant articles. Do not include articles older than 60 days.`;
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -65,35 +122,35 @@ Find at least 20-30 relevant articles. Do not include articles older than 60 day
         messages: [
           {
             role: "user",
-            content: searchPrompt
+            content: analysisPrompt
           }
         ],
         temperature: 0.3,
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error("AI gateway error:", aiResponse.status, errorText);
       
-      if (response.status === 429) {
+      if (aiResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`AI gateway error: ${aiResponse.status}`);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const aiData = await aiResponse.json();
+    const content = aiData.choices?.[0]?.message?.content;
     
     if (!content) {
       throw new Error("No content in AI response");
     }
 
-    console.log('AI response:', content);
+    console.log('AI analysis response:', content);
 
     // Parse the JSON array from the response
     let articles = [];
@@ -108,7 +165,7 @@ Find at least 20-30 relevant articles. Do not include articles older than 60 day
       articles = [];
     }
 
-    console.log(`Found ${articles.length} articles`);
+    console.log(`Structured ${articles.length} articles`);
 
     return new Response(
       JSON.stringify({ success: true, articles }),
