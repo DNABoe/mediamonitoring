@@ -174,24 +174,26 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
         </div>
 
         {report.media_presence && (
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary">
-                {report.media_presence.total_gripen_mentions || 0}
-              </div>
-              <div className="text-sm text-muted-foreground">Gripen Mentions</div>
-            </div>
-            {activeCompetitors.map((competitor) => {
-              const mentionKey = `total_${competitor.toLowerCase().replace(/[^a-z0-9]/g, '_')}_mentions`;
-              return (
-                <div key={competitor} className="text-center">
-                  <div className="text-3xl font-bold text-primary">
-                    {report.media_presence[mentionKey] || 0}
-                  </div>
-                  <div className="text-sm text-muted-foreground">{competitor} Mentions</div>
+          <div className="pt-4 border-t">
+            <div className="flex justify-around items-center gap-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary">
+                  {report.media_presence.total_gripen_mentions || 0}
                 </div>
-              );
-            })}
+                <div className="text-sm text-muted-foreground">Gripen Mentions</div>
+              </div>
+              {activeCompetitors.map((competitor) => {
+                const mentionKey = `total_${competitor.toLowerCase().replace(/[^a-z0-9]/g, '_')}_mentions`;
+                return (
+                  <div key={competitor} className="text-center">
+                    <div className="text-3xl font-bold text-primary">
+                      {report.media_presence[mentionKey] || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">{competitor} Mentions</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
