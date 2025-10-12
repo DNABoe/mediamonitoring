@@ -348,8 +348,6 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
                     This will permanently delete the selected data:
                     <ul className="list-disc list-inside mt-2 space-y-1">
                       {resetOptions.researchReports && <li>Research reports and comparison metrics</li>}
-                      {resetOptions.blackHatAnalysis && <li>Black hat analysis</li>}
-                      {resetOptions.strategicMessaging && <li>Strategic messaging suggestions</li>}
                       {resetOptions.mediaList && <li>Key media references</li>}
                       {resetOptions.baselines && <li>Baseline configurations</li>}
                     </ul>
