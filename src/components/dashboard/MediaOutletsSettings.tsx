@@ -72,6 +72,7 @@ const COUNTRIES = [
   { code: 'NO', name: 'Norway', flag: '🇳🇴' },
   { code: 'OM', name: 'Oman', flag: '🇴🇲' },
   { code: 'PK', name: 'Pakistan', flag: '🇵🇰' },
+  { code: 'PE', name: 'Peru', flag: '🇵🇪' },
   { code: 'PH', name: 'Philippines', flag: '🇵🇭' },
   { code: 'PL', name: 'Poland', flag: '🇵🇱' },
   { code: 'PT', name: 'Portugal', flag: '🇵🇹' },
