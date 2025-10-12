@@ -15,7 +15,6 @@ import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { BlackHatAnalysis } from "@/components/dashboard/BlackHatAnalysis";
 import { MediaArticlesList } from "@/components/dashboard/MediaArticlesList";
-import { DataCleanup } from "@/components/dashboard/DataCleanup";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportPDF } from "@/components/dashboard/ExportPDF";
@@ -125,7 +124,6 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2">
             <ExportPDF />
-            {isAdmin && <DataCleanup />}
             {isAdmin && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
                 <Settings className="h-4 w-4" />
               </Button>}
