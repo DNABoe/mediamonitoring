@@ -36,28 +36,19 @@ serve(async (req) => {
     if (sourcesError) throw sourcesError;
     console.log(`Found ${sources?.length || 0} enabled sources for ${country}`);
 
-    // Multi-language search terms
-    const searchTermsByCountry: Record<string, { native: string[], english: string[] }> = {
-      PT: { 
-        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição', 'compra', 'substituição'],
-        english: ['fighter', 'jet', 'aircraft', 'procurement']
-      },
-      CZ: {
-        native: ['stíhačka', 'stíhací letoun', 'bojový letoun', 'nákup', 'pořízení', 'modernizace'],
-        english: ['fighter', 'jet', 'aircraft', 'procurement', 'acquisition']
-      },
-      DEFAULT: { 
-        native: [],
-        english: ['fighter', 'jet', 'aircraft', 'procurement', 'acquisition']
-      }
-    };
+    // Universal search terms - fighter names are international
+    const universalSearchTerms = [
+      'fighter jet',
+      'fighter aircraft', 
+      'military aircraft',
+      'defense procurement',
+      'air force modernization'
+    ];
 
-    const searchTerms = searchTermsByCountry[country] || searchTermsByCountry.DEFAULT;
-    const hasNativeTerms = searchTerms.native.length > 0;
-    console.log('Using search terms:', { native: searchTerms.native, english: searchTerms.english });
+    console.log('Using universal search terms:', universalSearchTerms);
 
-    // Country-specific domain suffix
-    const domainSuffix = country === 'PT' ? '.pt' : (country === 'CZ' ? '.cz' : '');
+    // Determine domain suffix from country code
+    const domainSuffix = `.${country.toLowerCase()}`;
 
     // Helper: batch fetch with rate limiting
     async function batchFetch(urls: string[], batchSize = 10, delayMs = 500) {
@@ -96,7 +87,8 @@ serve(async (req) => {
     for (const source of sources || []) {
       const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
       
-      for (const term of [...searchTerms.native, ...searchTerms.english]) {
+      // Search by universal terms
+      for (const term of universalSearchTerms) {
         const encodedTerm = encodeURIComponent(term);
         const dateFilter = `after:${startDate} before:${endDate}`;
         allSearchUrls.push(
@@ -104,7 +96,7 @@ serve(async (req) => {
         );
       }
       
-      // Add competitor-specific searches
+      // Add competitor-specific searches (fighter names are international)
       for (const competitor of competitors) {
         const encodedCompetitor = encodeURIComponent(competitor);
         const dateFilter = `after:${startDate} before:${endDate}`;
@@ -112,14 +104,20 @@ serve(async (req) => {
           `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedCompetitor}+${dateFilter}`
         );
       }
+      
+      // Always search for Gripen on each source
+      const dateFilter = `after:${startDate} before:${endDate}`;
+      allSearchUrls.push(
+        `https://html.duckduckgo.com/html/?q=site:${domain}+Gripen+${dateFilter}`
+      );
     }
 
-    // Add general searches covering the tracking period
-    for (const term of searchTerms.native) {
+    // Add general searches for the country domain
+    for (const term of universalSearchTerms) {
       const encodedTerm = encodeURIComponent(term);
       const dateFilter = `after:${startDate} before:${endDate}`;
       allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=${encodedTerm}+${domainSuffix}+${dateFilter}`
+        `https://html.duckduckgo.com/html/?q=${encodedTerm}+site:${domainSuffix}+${dateFilter}`
       );
     }
 
