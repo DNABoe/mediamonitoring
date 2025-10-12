@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Globe, Loader2, ChevronsUpDown, Check, Plus, X, Newspaper } from "lucide-react";
+import { Globe, Loader2, ChevronsUpDown, Check, Plus, X, Newspaper, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -96,6 +96,11 @@ const COUNTRIES = [
 
 const COMPETITORS = ['F-35', 'Rafale', 'F-16V', 'Eurofighter', 'F/A-50'];
 
+interface PrioritizedOutlet {
+  name: string;
+  active: boolean;
+}
+
 interface CountryCompetitorSettingsProps {
   onSettingsSaved?: () => void;
 }
@@ -103,7 +108,7 @@ interface CountryCompetitorSettingsProps {
 export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitorSettingsProps) => {
   const [activeCountry, setActiveCountry] = useState<string>('PT');
   const [activeCompetitors, setActiveCompetitors] = useState<string[]>(['F-35']);
-  const [prioritizedOutlets, setPrioritizedOutlets] = useState<string[]>([]);
+  const [prioritizedOutlets, setPrioritizedOutlets] = useState<PrioritizedOutlet[]>([]);
   const [newOutlet, setNewOutlet] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -129,7 +134,8 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
       if (data) {
         setActiveCountry(data.active_country);
         setActiveCompetitors(data.active_competitors || ['F-35']);
-        setPrioritizedOutlets(data.prioritized_outlets || []);
+        const outlets = data.prioritized_outlets as unknown;
+        setPrioritizedOutlets(Array.isArray(outlets) ? outlets as PrioritizedOutlet[] : []);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -155,7 +161,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
           user_id: user.id,
           active_country: activeCountry,
           active_competitors: activeCompetitors,
-          prioritized_outlets: prioritizedOutlets,
+          prioritized_outlets: prioritizedOutlets as any,
         }, {
           onConflict: 'user_id'
         });
@@ -194,16 +200,22 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
       toast.error('Media outlet name/URL must be less than 200 characters');
       return;
     }
-    if (prioritizedOutlets.includes(trimmedOutlet)) {
+    if (prioritizedOutlets.some(o => o.name === trimmedOutlet)) {
       toast.error('This outlet is already in the list');
       return;
     }
-    setPrioritizedOutlets(prev => [...prev, trimmedOutlet]);
+    setPrioritizedOutlets(prev => [...prev, { name: trimmedOutlet, active: true }]);
     setNewOutlet('');
   };
 
-  const removeOutlet = (outlet: string) => {
-    setPrioritizedOutlets(prev => prev.filter(o => o !== outlet));
+  const removeOutlet = (outletName: string) => {
+    setPrioritizedOutlets(prev => prev.filter(o => o.name !== outletName));
+  };
+
+  const toggleOutletActive = (outletName: string) => {
+    setPrioritizedOutlets(prev => 
+      prev.map(o => o.name === outletName ? { ...o, active: !o.active } : o)
+    );
   };
 
   if (loading) {
@@ -327,17 +339,39 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
         </div>
 
         {prioritizedOutlets.length > 0 && (
-          <div className="flex flex-wrap gap-2 border rounded-lg p-3">
+          <div className="space-y-2 border rounded-lg p-3">
             {prioritizedOutlets.map((outlet) => (
-              <Badge key={outlet} variant="secondary" className="gap-1">
-                {outlet}
-                <button
-                  onClick={() => removeOutlet(outlet)}
-                  className="ml-1 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
+              <div key={outlet.name} className="flex items-center justify-between gap-2 p-2 rounded bg-secondary/50">
+                <span className={cn(
+                  "text-sm flex-1",
+                  !outlet.active && "text-muted-foreground line-through"
+                )}>
+                  {outlet.name}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    onClick={() => toggleOutletActive(outlet.name)}
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title={outlet.active ? "Pause" : "Activate"}
+                  >
+                    {outlet.active ? (
+                      <Pause className="h-3 w-3" />
+                    ) : (
+                      <Play className="h-3 w-3" />
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => removeOutlet(outlet.name)}
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         )}

@@ -459,7 +459,7 @@ export type Database = {
           active_country: string
           created_at: string | null
           id: string
-          prioritized_outlets: string[] | null
+          prioritized_outlets: Json | null
           updated_at: string | null
           user_id: string
         }
@@ -468,7 +468,7 @@ export type Database = {
           active_country?: string
           created_at?: string | null
           id?: string
-          prioritized_outlets?: string[] | null
+          prioritized_outlets?: Json | null
           updated_at?: string | null
           user_id: string
         }
@@ -477,7 +477,7 @@ export type Database = {
           active_country?: string
           created_at?: string | null
           id?: string
-          prioritized_outlets?: string[] | null
+          prioritized_outlets?: Json | null
           updated_at?: string | null
           user_id?: string
         }
