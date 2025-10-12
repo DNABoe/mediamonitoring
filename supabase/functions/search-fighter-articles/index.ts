@@ -23,7 +23,13 @@ serve(async (req) => {
     const fighters = ['Gripen', ...competitors];
     const allFighters = fighters.join(' OR ');
     
-    // Get country-specific domain and search terms
+    // Get current date for dynamic searches
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.toLocaleString('en-US', { month: 'long' });
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-US', { month: 'long' });
+    
+    // Get country-specific domain
     const countryDomains: Record<string, string> = {
       'PT': '.pt', 'US': '.us', 'GB': '.uk', 'FR': '.fr', 'DE': '.de', 
       'ES': '.es', 'IT': '.it', 'SE': '.se', 'NO': '.no', 'DK': '.dk',
@@ -31,68 +37,48 @@ serve(async (req) => {
       'AU': '.au', 'NZ': '.nz', 'JP': '.jp', 'KR': '.kr', 'CN': '.cn'
     };
     
-    // Country-specific defense/military terms
-    const countryTerms: Record<string, string[]> = {
-      'PT': ['caças', 'aviação militar', 'defesa', 'força aérea'],
-      'ES': ['cazas', 'aviación militar', 'defensa', 'fuerza aérea'],
-      'FR': ['chasseurs', 'aviation militaire', 'défense', 'armée de l\'air'],
-      'DE': ['Kampfflugzeuge', 'Luftwaffe', 'Verteidigung'],
-      'SE': ['stridsflygplan', 'flygvapnet', 'försvar'],
-    };
-    
     const countryDomain = countryDomains[country] || '';
-    const localTerms = countryTerms[country] || ['fighter jets', 'air force', 'defense', 'military aviation'];
     
     // Multiple LOCAL searches with different approaches - FOCUS ON LATEST
     const localSearches = await Promise.all([
-      // Priority searches for LATEST articles
+      // Priority searches for LATEST articles with current dates
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} última hora notícias${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${currentMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} outubro 2025${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${lastMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} setembro 2025${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} news ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet October 2025${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet latest ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
-      // Search 1: Local domain with English terms
+      // Search: fighter jet procurement
       fetch(
         `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
-      // Search 2: Local domain with local language terms
+      // Search: defense aviation
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${localTerms[0]} ${localTerms[1]} ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} defense aviation ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
-      // Search 3: Recent news specific
-      fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} 2025 news${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-      ),
-      // Search 4: Latest updates
-      fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} latest ${allFighters} update${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-      ),
-      // Search 5-N: Each fighter individually in local domain with "latest"
+      // Search: Each fighter individually with latest
       ...fighters.map(fighter =>
         fetch(
-          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${fighter} ${country} latest news${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${fighter} ${country} latest${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
           { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
         )
       ),
-      // Additional: Recent negotiations/deals for each fighter
+      // Search: Each fighter with current year
       ...fighters.map(fighter =>
         fetch(
-          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${fighter} negociação contrato 2025${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${fighter} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
           { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
         )
       )
@@ -101,11 +87,11 @@ serve(async (req) => {
     // International search (more comprehensive, focus on latest)
     const intlSearches = await Promise.all([
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} October 2025 news`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${currentMonth} ${currentYear} news`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
       fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters} latest 2025`)}`,
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters} latest ${currentYear}`)}`,
         { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
       ),
       fetch(
@@ -186,14 +172,14 @@ serve(async (req) => {
     
     const analysisPrompt = `Analyze these search results for fighter aircraft procurement news in ${country}. 
     
-TODAY'S DATE: ${currentDate.toISOString().split('T')[0]} (October 12, 2025)
+TODAY'S DATE: ${currentDate.toISOString().split('T')[0]}
 ONLY INCLUDE ARTICLES FROM THE LAST 60 DAYS (after ${sixtyDaysAgo.toISOString().split('T')[0]})
 
 CRITICAL PRIORITY INSTRUCTIONS:
-1. **ABSOLUTE PRIORITY: NEWEST ARTICLES FIRST** - Heavily favor October 2025, then September 2025, then August 2025
+1. **ABSOLUTE PRIORITY: NEWEST ARTICLES FIRST** - Heavily favor articles from ${currentMonth} ${currentYear}, then ${lastMonth} ${currentYear}
 2. Prioritize LOCAL ${country} media sources - these appear first in the list
 3. Include ALL relevant articles - do not limit the number
-4. If an article is from October 2025, it MUST be included
+4. If an article is from the current month, it MUST be included
 5. Recent articles (last 30 days) are more important than older ones (30-60 days ago)
 
 Fighter aircraft we're tracking: ${fighters.join(', ')}
