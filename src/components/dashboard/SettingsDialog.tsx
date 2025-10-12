@@ -23,6 +23,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trash2, Loader2, FileEdit } from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { CountryCompetitorSettings } from "./CountryCompetitorSettings";
 import { MediaOutletsSettings } from "./MediaOutletsSettings";
 
@@ -36,6 +38,13 @@ export const SettingsDialog = ({ open, onOpenChange, onSettingsSaved }: Settings
   const [isResetting, setIsResetting] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isSavingPrompt, setIsSavingPrompt] = useState(false);
+  const [resetOptions, setResetOptions] = useState({
+    researchReports: true,
+    blackHatAnalysis: true,
+    strategicMessaging: true,
+    mediaList: true,
+    baselines: true
+  });
 
   const defaultPrompt = `You are a defense intelligence analyst researching the comparison between Gripen and {{competitors}} fighter jets in the context of {{country}} fighter program selection.
 
@@ -122,7 +131,9 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
   const handleReset = async () => {
     setIsResetting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('reset-research-data');
+      const { data, error } = await supabase.functions.invoke('reset-research-data', {
+        body: resetOptions
+      });
 
       if (error) {
         console.error('Reset error:', error);
@@ -130,7 +141,7 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
         return;
       }
 
-      toast.success("All research data has been reset successfully");
+      toast.success("Selected data has been reset successfully");
       
       // Close dialog and refresh after a short delay
       setTimeout(() => {
@@ -243,19 +254,80 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
 
           <TabsContent value="data" className="space-y-4">
           <div className="rounded-lg border border-destructive/50 p-4">
-            <div className="flex items-start gap-3 mb-3">
+            <div className="flex items-start gap-3 mb-4">
               <Trash2 className="h-5 w-5 text-destructive mt-0.5" />
               <div>
-                <h3 className="font-semibold text-destructive">Reset All Research Data</h3>
+                <h3 className="font-semibold text-destructive">Reset Research Data</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  This will permanently delete all research reports, comparison metrics, and baseline data. This action cannot be undone.
+                  Select which data types to permanently delete. This action cannot be undone.
                 </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="researchReports" 
+                  checked={resetOptions.researchReports}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, researchReports: checked as boolean }))}
+                />
+                <Label htmlFor="researchReports" className="text-sm font-normal cursor-pointer">
+                  Research reports and comparison metrics
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="blackHatAnalysis" 
+                  checked={resetOptions.blackHatAnalysis}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, blackHatAnalysis: checked as boolean }))}
+                />
+                <Label htmlFor="blackHatAnalysis" className="text-sm font-normal cursor-pointer">
+                  Black hat analysis
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="strategicMessaging" 
+                  checked={resetOptions.strategicMessaging}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, strategicMessaging: checked as boolean }))}
+                />
+                <Label htmlFor="strategicMessaging" className="text-sm font-normal cursor-pointer">
+                  Strategic messaging suggestions
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="mediaList" 
+                  checked={resetOptions.mediaList}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, mediaList: checked as boolean }))}
+                />
+                <Label htmlFor="mediaList" className="text-sm font-normal cursor-pointer">
+                  Key media references list
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="baselines" 
+                  checked={resetOptions.baselines}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, baselines: checked as boolean }))}
+                />
+                <Label htmlFor="baselines" className="text-sm font-normal cursor-pointer">
+                  Baseline configurations
+                </Label>
               </div>
             </div>
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={isResetting} className="w-full">
+                <Button 
+                  variant="destructive" 
+                  disabled={isResetting || !Object.values(resetOptions).some(v => v)} 
+                  className="w-full"
+                >
                   {isResetting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -264,7 +336,7 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
                   ) : (
                     <>
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Reset All Data
+                      Reset Selected Data
                     </>
                   )}
                 </Button>
@@ -273,11 +345,13 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete:
+                    This will permanently delete the selected data:
                     <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>All research reports</li>
-                      <li>All comparison metrics and historical data</li>
-                      <li>All baseline configurations</li>
+                      {resetOptions.researchReports && <li>Research reports and comparison metrics</li>}
+                      {resetOptions.blackHatAnalysis && <li>Black hat analysis</li>}
+                      {resetOptions.strategicMessaging && <li>Strategic messaging suggestions</li>}
+                      {resetOptions.mediaList && <li>Key media references</li>}
+                      {resetOptions.baselines && <li>Baseline configurations</li>}
                     </ul>
                     <p className="mt-3 font-semibold">This action cannot be undone.</p>
                   </AlertDialogDescription>
@@ -288,7 +362,7 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
                     onClick={handleReset}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Yes, reset everything
+                    Yes, reset selected data
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

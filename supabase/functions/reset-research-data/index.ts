@@ -42,56 +42,126 @@ Deno.serve(async (req) => {
       throw new Error('Only admins can reset research data')
     }
     
+    // Parse request body for selective deletion options
+    const body = await req.json()
+    const {
+      researchReports = true,
+      blackHatAnalysis = true,
+      strategicMessaging = true,
+      mediaList = true,
+      baselines = true
+    } = body || {}
+
     // Log admin action
     await supabase
       .from('admin_audit_log')
       .insert({
         admin_user_id: user.id,
         action_type: 'reset_research_data',
-        details: {}
+        details: { researchReports, blackHatAnalysis, strategicMessaging, mediaList, baselines }
       })
 
-    console.log('Starting data reset...')
+    console.log('Starting selective data reset...', { researchReports, blackHatAnalysis, strategicMessaging, mediaList, baselines })
 
-    // Delete all research reports
-    const { error: reportsError } = await supabase
-      .from('research_reports')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all
+    const deletedItems = []
 
-    if (reportsError) {
-      console.error('Error deleting research reports:', reportsError)
-      throw reportsError
+    // Delete research reports if selected
+    if (researchReports) {
+      const { error: reportsError } = await supabase
+        .from('research_reports')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000')
+
+      if (reportsError) {
+        console.error('Error deleting research reports:', reportsError)
+        throw reportsError
+      }
+
+      const { error: metricsError } = await supabase
+        .from('comparison_metrics')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000')
+
+      if (metricsError) {
+        console.error('Error deleting comparison metrics:', metricsError)
+        throw metricsError
+      }
+      
+      deletedItems.push('research reports', 'comparison metrics')
+      console.log('✓ Research reports and metrics deleted')
     }
 
-    // Delete all comparison metrics
-    const { error: metricsError } = await supabase
-      .from('comparison_metrics')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all
+    // Delete black hat analysis if selected
+    if (blackHatAnalysis) {
+      const { error } = await supabase
+        .from('research_reports')
+        .update({ black_hat_analysis: null })
+        .not('black_hat_analysis', 'is', null)
 
-    if (metricsError) {
-      console.error('Error deleting comparison metrics:', metricsError)
-      throw metricsError
+      if (error) {
+        console.error('Error clearing black hat analysis:', error)
+        throw error
+      }
+      
+      deletedItems.push('black hat analysis')
+      console.log('✓ Black hat analysis cleared')
     }
 
-    // Delete all baselines
-    const { error: baselinesError } = await supabase
-      .from('baselines')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all
+    // Delete strategic messaging if selected
+    if (strategicMessaging) {
+      const { error } = await supabase
+        .from('research_reports')
+        .update({ strategic_suggestions: null })
+        .not('strategic_suggestions', 'is', null)
 
-    if (baselinesError) {
-      console.error('Error deleting baselines:', baselinesError)
-      throw baselinesError
+      if (error) {
+        console.error('Error clearing strategic messaging:', error)
+        throw error
+      }
+      
+      deletedItems.push('strategic messaging')
+      console.log('✓ Strategic messaging cleared')
     }
 
-    console.log('✓ All research data deleted successfully')
+    // Delete media list (items) if selected
+    if (mediaList) {
+      const { error } = await supabase
+        .from('items')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000')
+
+      if (error) {
+        console.error('Error deleting media items:', error)
+        throw error
+      }
+      
+      deletedItems.push('media references')
+      console.log('✓ Media references deleted')
+    }
+
+    // Delete baselines if selected
+    if (baselines) {
+      const { error } = await supabase
+        .from('baselines')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000')
+
+      if (error) {
+        console.error('Error deleting baselines:', error)
+        throw error
+      }
+      
+      deletedItems.push('baselines')
+      console.log('✓ Baselines deleted')
+    }
+
+    console.log(`✓ Successfully deleted: ${deletedItems.join(', ')}`)
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'All research data has been reset'
+        message: `Successfully reset: ${deletedItems.join(', ')}`,
+        deletedItems
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
