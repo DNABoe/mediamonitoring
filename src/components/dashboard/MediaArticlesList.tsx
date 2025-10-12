@@ -12,9 +12,9 @@ interface MediaArticle {
   title: string;
   url: string;
   source: string;
-  publishedAt: string;
-  fighters: string[];
-  sourceCountry: string;
+  published_at: string;
+  fighter_tags: string[];
+  source_country: string;
 }
 
 interface MediaArticlesListProps {
@@ -28,96 +28,80 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Only fetch on initial mount, not on every prop change
   useEffect(() => {
-    if (mediaArticles.length === 0) {
-      fetchMediaArticles();
-    }
-  }, []);
+    fetchMediaArticles();
+  }, [activeCountry, activeCompetitors]);
 
   const fetchMediaArticles = async () => {
     try {
       setLoading(true);
-      console.log('Searching for fighter articles using AI...');
-      
-      // Get baseline tracking period
-      const { data: baseline } = await supabase
-        .from('baselines')
-        .select('start_date, end_date')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      console.log('Fetching recent media articles from database...');
 
-      if (!baseline) {
-        throw new Error('No baseline found. Please set a tracking start date first.');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to view articles",
+          variant: "destructive",
+        });
+        return;
       }
 
-      const startDate = baseline.start_date;
-      const endDate = baseline.end_date || new Date().toISOString().split('T')[0];
-      
-      const { data, error } = await supabase.functions.invoke('search-fighter-articles', {
-        body: { 
-          country: activeCountry,
-          competitors: activeCompetitors,
-          startDate,
-          endDate
-        }
-      });
+      // Calculate date 60 days ago
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const startDate = sixtyDaysAgo.toISOString();
+
+      // Fetch articles from database (last 60 days)
+      const { data: items, error } = await supabase
+        .from('items')
+        .select(`
+          *,
+          sources (
+            name,
+            country,
+            type
+          )
+        `)
+        .gte('published_at', startDate)
+        .order('published_at', { ascending: false });
 
       if (error) throw error;
 
-      if (data?.success && data?.articles) {
-        console.log(`Found ${data.articles.length} new articles`);
-        
-        // Calculate 60 days ago
-        const sixtyDaysAgo = new Date();
-        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-        
-        // Merge new articles with existing ones
-        const mergedArticles = [...mediaArticles, ...data.articles];
-        
-        // Remove duplicates based on URL
-        const uniqueArticles = Array.from(
-          new Map(mergedArticles.map(article => [article.url, article])).values()
+      // Transform database items to MediaArticle format
+      const fetchedArticles: MediaArticle[] = (items || []).map(item => ({
+        title: item.title_en || item.title_pt || 'Untitled',
+        url: item.url,
+        source: item.sources?.name || 'Unknown Source',
+        published_at: item.published_at,
+        fighter_tags: item.fighter_tags || [],
+        source_country: item.source_country || item.sources?.country || 'INTERNATIONAL'
+      }));
+
+      // Filter by active competitors
+      const filteredArticles = fetchedArticles.filter(article => {
+        return article.fighter_tags.some(tag => 
+          activeCompetitors.some(comp => 
+            tag.toLowerCase().includes(comp.toLowerCase())
+          )
         );
-        
-        // Filter out articles older than 60 days
-        const recentArticles = uniqueArticles.filter(article => {
-          const articleDate = new Date(article.publishedAt);
-          return articleDate >= sixtyDaysAgo;
-        });
-        
-        // Sort by date, newest first
-        const sortedArticles = recentArticles.sort((a: MediaArticle, b: MediaArticle) => {
-          return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
-        });
-        
-        setMediaArticles(sortedArticles);
-        
-        const newArticlesCount = data.articles.length;
-        const removedCount = uniqueArticles.length - recentArticles.length;
-        
+      });
+
+      setMediaArticles(filteredArticles);
+      console.log(`Loaded ${filteredArticles.length} recent articles from database`);
+      
+      if (filteredArticles.length === 0) {
         toast({
-          title: "Articles updated",
-          description: `Added ${newArticlesCount} new articles${removedCount > 0 ? `, removed ${removedCount} old articles` : ''}. Total: ${sortedArticles.length}`,
+          title: "No articles found",
+          description: "No recent articles found. Try setting a tracking period or refreshing.",
           duration: 3000,
         });
-        
-        if (sortedArticles.length === 0) {
-          toast({
-            title: "No articles found",
-            description: "No recent articles found about fighter procurement. Try again later.",
-            duration: 3000,
-          });
-        }
-      } else {
-        throw new Error(data?.error || 'Failed to fetch articles');
       }
     } catch (error) {
       console.error('Error fetching media articles:', error);
       toast({
         title: "Error",
-        description: "Failed to search for articles. Please try again.",
+        description: "Failed to load articles. Please try again.",
         variant: "destructive",
         duration: 3000,
       });
@@ -137,8 +121,8 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   }
 
   // Separate articles by local vs international
-  const localArticles = mediaArticles.filter(article => article.sourceCountry === activeCountry);
-  const internationalArticles = mediaArticles.filter(article => article.sourceCountry !== activeCountry);
+  const localArticles = mediaArticles.filter(article => article.source_country === activeCountry);
+  const internationalArticles = mediaArticles.filter(article => article.source_country !== activeCountry);
 
   const ArticleCard = ({ article, index }: { article: MediaArticle; index: number }) => (
     <div 
@@ -163,19 +147,19 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         <span className="font-medium">{article.source}</span>
         <span>•</span>
         <Badge variant="outline" className="text-xs py-0 h-5">
-          {article.sourceCountry}
+          {article.source_country}
         </Badge>
         <span>•</span>
         <span>
           {(() => {
-            const date = new Date(article.publishedAt);
+            const date = new Date(article.published_at);
             return isNaN(date.getTime()) ? 'Recent' : format(date, 'MMM d, yyyy');
           })()}
         </span>
       </div>
       
       <div className="flex flex-wrap gap-1">
-        {article.fighters.map((fighter) => (
+        {article.fighter_tags.map((fighter) => (
           <Badge 
             key={fighter} 
             variant="secondary" 

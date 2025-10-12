@@ -168,6 +168,7 @@ export type Database = {
           politics_tags: string[] | null
           published_at: string | null
           sentiment: number | null
+          source_country: string | null
           source_id: string | null
           stance: Json | null
           summary_en: string | null
@@ -187,6 +188,7 @@ export type Database = {
           politics_tags?: string[] | null
           published_at?: string | null
           sentiment?: number | null
+          source_country?: string | null
           source_id?: string | null
           stance?: Json | null
           summary_en?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           politics_tags?: string[] | null
           published_at?: string | null
           sentiment?: number | null
+          source_country?: string | null
           source_id?: string | null
           stance?: Json | null
           summary_en?: string | null

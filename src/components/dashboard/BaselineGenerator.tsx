@@ -26,9 +26,9 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
     setIsGenerating(true);
     
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
       
-      if (!session) {
+      if (!user) {
         toast.error("You must be logged in");
         return;
       }
@@ -50,13 +50,47 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
       console.log('Baseline generated:', data);
       
       toast.success(
-        `Tracking date set to ${format(date, 'PPP')}! ${data.summary.items_count} items collected.`
+        `Tracking date set to ${format(date, 'PPP')}!`
       );
+      
+      // Trigger article collection in background
+      toast.info("Collecting articles for tracking period...");
+      
+      const { data: baseline } = await supabase
+        .from('baselines')
+        .select('start_date, end_date')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (baseline) {
+        const { data: userSettings } = await supabase
+          .from('user_settings')
+          .select('active_country, active_competitors')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const country = userSettings?.active_country || 'PT';
+        const competitors = userSettings?.active_competitors || ['F-35'];
+
+        // Trigger background collection (don't await)
+        supabase.functions.invoke('collect-articles-for-tracking', {
+          body: {
+            country,
+            competitors,
+            startDate: baseline.start_date,
+            endDate: baseline.end_date
+          }
+        }).then(() => {
+          toast.success("Article collection complete");
+        }).catch((err) => {
+          console.error('Collection error:', err);
+          toast.error("Article collection failed");
+        });
+      }
       
       setOpen(false);
       setStartDate(undefined);
-      
-      // No need to reload - real-time subscription will update the baseline date
     } catch (error) {
       console.error('Error:', error);
       toast.error("An unexpected error occurred");
