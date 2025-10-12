@@ -194,24 +194,17 @@ serve(async (req) => {
         }
         
         domains.forEach(domain => {
-          // Search 1: Native language + current year + all fighters
+          // Search 1: Recent articles with date constraint
           prioritizedSearchUrls.push(
             `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-              `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} ${currentYear}`
+              `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} after:${lastMonth}`
             )}`
           );
           
-          // Search 2: Native language + current month
+          // Search 2: Current month focus
           prioritizedSearchUrls.push(
             `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-              `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} ${currentMonth}`
-            )}`
-          );
-          
-          // Search 3: Procurement terms + fighters (catches different article types)
-          prioritizedSearchUrls.push(
-            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-              `site:${domain} (${searchTerms.combined.procurement}) ${allFighters}`
+              `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} ${currentMonth} ${currentYear}`
             )}`
           );
         });
@@ -220,31 +213,21 @@ serve(async (req) => {
       console.log(`Generated ${prioritizedSearchUrls.length} prioritized searches (including subdomain variations)`);
     }
     
-    // Build general search URLs with native language support
+    // Build general search URLs with native language support and date filtering
     const generalSearchUrls: string[] = [
-      // Native language + country domain + current month
+      // Recent articles with date constraint
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+        `(${searchTerms.combined.fighter}) ${allFighters} after:${lastMonth}${countryDomain ? ` site:${countryDomain}` : ''}`
+      )}`,
+      
+      // Current month focus
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
         `(${searchTerms.combined.fighter}) ${allFighters} ${currentMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
       )}`,
       
-      // Native procurement terms + country
+      // Procurement terms
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
         `${country} (${searchTerms.combined.procurement}) ${allFighters} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
-      )}`,
-      
-      // Air force name + fighters
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-        `(${searchTerms.combined.airForce}) ${allFighters} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
-      )}`,
-      
-      // Native aircraft terms + country domain
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-        `(${searchTerms.combined.aircraft}) ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`
-      )}`,
-      
-      // Last month coverage for local sources
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-        `(${searchTerms.combined.fighter}) ${allFighters} ${lastMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
       )}`,
     ];
     
@@ -402,24 +385,21 @@ REQUIREMENTS:
 - Only articles about fighter procurement/defense (including articles using native language terms)
 
 
-**CRITICAL DATE REQUIREMENTS:**
-- You MUST extract the ACTUAL date from the article URL, title, or snippet
-- Look for date patterns in URLs: "/2025/03/14/", "/20240517/", "2025-03-13"
-- Look for dates in titles/snippets: "Oct 2025", "October 2025", "March 2025", "13 Mar", specific dates
-- **MANDATORY**: ONLY include articles where you can find a date within the last 60 days
-- If the URL shows "/2025/03/" or "March 2025", calculate the exact date - if it's older than 60 days, EXCLUDE IT
-- If the URL shows "/2024/" or any 2024 date, EXCLUDE IT (too old)
-- **DO NOT** default to current date for articles without visible dates
-- **BETTER TO EXCLUDE** an article than guess its date incorrectly
-- If you see "2 days ago" or "last week" in snippet, calculate from TODAY: ${currentDate.toISOString().split('T')[0]}
-- Articles from before ${sixtyDaysAgo.toISOString().split('T')[0]} MUST BE EXCLUDED
 
-EXAMPLES:
-- URL: "...20240517..." → MAY 2024 → TOO OLD → EXCLUDE
-- URL: ".../2025/03/14/..." → MARCH 14, 2025 → CHECK if within 60 days, if not EXCLUDE
-- URL: ".../2025/10/..." → OCTOBER 2025 → LIKELY VALID
-- Title: "Portugal backs off buying..." (no date) → EXCLUDE (cannot verify date)
-- Snippet: "2 days ago" → CALCULATE from ${currentDate.toISOString().split('T')[0]} → INCLUDE with calculated date
+**DATE EXTRACTION REQUIREMENTS:**
+- Extract dates from URLs: Look for "/2025/09/25/", "/20250925/", etc.
+- Extract dates from titles/snippets: "Sep 2025", "September 2025", "25 Sep", etc.
+- If you find a date in URL or content, use it
+- **If no clear date is found**: Make a best effort to include the article if it seems relevant and recent
+- Prefer articles where you can extract dates, but don't exclude all articles without dates
+- **CRITICAL**: If the URL or snippet shows a date from 2024 or before August 2025, EXCLUDE it
+- Calculate relative dates ("2 days ago") from TODAY: ${currentDate.toISOString().split('T')[0]}
+
+**BALANCED APPROACH:**
+- Prioritize articles with clear dates within last 60 days
+- Include potentially relevant recent articles even if exact date is unclear (use current month as estimate)
+- EXCLUDE articles with clear old dates (2024, early 2025)
+- Better to include some recent articles with estimated dates than return nothing
 
 CRITICAL FIGHTER TAG DETECTION:
 Read the ENTIRE title AND snippet carefully. For the "fighters" field:
