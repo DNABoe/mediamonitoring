@@ -345,7 +345,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
                       <div key={`${key}-scores`} className="text-xs space-y-1">
                         <div className="flex justify-between">
                           <span style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen:</span>
-                          <span className="font-semibold">{dimensionScores.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
+                          <span className="font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>{dimensionScores.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
                         </div>
                         {allCompetitors.map(comp => {
                           const compKey = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -353,7 +353,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
                           return (
                             <div key={comp} className="flex justify-between">
                               <span style={{ color }}>{comp}:</span>
-                              <span className="font-semibold">{dimensionScores[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
+                              <span className="font-semibold" style={{ color }}>{dimensionScores[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
                             </div>
                           );
                         })}
