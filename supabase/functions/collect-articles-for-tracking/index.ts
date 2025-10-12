@@ -662,7 +662,7 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
       try {
         // Match to source and determine country
         let sourceId = null;
-        let sourceCountry = article.source_country || 'INTERNATIONAL';
+        let sourceCountry = 'INTERNATIONAL'; // Default
         
         console.log(`Processing article: "${article.title?.substring(0, 60)}"`);
         console.log(`  URL: ${article.url.substring(0, 100)}`);
@@ -682,20 +682,20 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
           }
         }
 
-        // If no source match, detect from URL domain
+        // If no source match, detect from URL domain (THIS IS AUTHORITATIVE)
         if (!sourceId) {
           try {
             const urlObj = new URL(article.url);
             const hostname = urlObj.hostname;
             
-            // Check if it's a local country domain
+            // Check if it's a local country domain - CRITICAL LOGIC
             if (hostname.endsWith(domainSuffix)) {
               sourceCountry = country;
-              console.log(`  ✓ Detected LOCAL domain: ${hostname} -> ${sourceCountry}`);
+              console.log(`  ✓ Detected LOCAL domain: ${hostname} ends with ${domainSuffix} -> ${sourceCountry}`);
             } else {
               // International domain (.com, .org, .net, .co.uk, etc.)
               sourceCountry = 'INTERNATIONAL';
-              console.log(`  ✓ Detected INTERNATIONAL domain: ${hostname} -> ${sourceCountry}`);
+              console.log(`  ✓ Detected INTERNATIONAL domain: ${hostname} does not end with ${domainSuffix} -> INTERNATIONAL`);
             }
           } catch (urlError) {
             console.error('  ✗ Error parsing URL for country detection:', article.url, urlError);
