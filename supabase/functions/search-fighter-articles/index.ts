@@ -58,6 +58,23 @@ serve(async (req) => {
       }
     );
 
+    // Additional targeted searches for each fighter
+    const fighterSearches = await Promise.all(
+      fighters.map(async (fighter) => {
+        const fighterQuery = `${country} "${fighter}" fighter procurement news`;
+        const response = await fetch(
+          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(fighterQuery)}`,
+          {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          }
+        );
+        return response.ok ? await response.text() : '';
+      })
+    );
+    
+
     if (!localSearchResponse.ok && !intlSearchResponse.ok) {
       throw new Error(`Search failed`);
     }
@@ -99,11 +116,18 @@ serve(async (req) => {
     
     const localResults = extractResults(localHtml);
     const intlResults = extractResults(intlHtml);
+    const fighterSpecificResults = fighterSearches.flatMap(html => extractResults(html));
     
-    // Combine with local results first (prioritized)
-    const allResults = [...localResults.slice(0, 15), ...intlResults.slice(0, 10)];
+    // Combine all results, prioritizing local, then remove duplicates by URL
+    const allResultsWithDupes = [...localResults.slice(0, 15), ...intlResults.slice(0, 10), ...fighterSpecificResults.slice(0, 10)];
+    const seenUrls = new Set<string>();
+    const allResults = allResultsWithDupes.filter(result => {
+      if (seenUrls.has(result.url)) return false;
+      seenUrls.add(result.url);
+      return true;
+    });
 
-    console.log(`Found ${localResults.length} local + ${intlResults.length} international = ${allResults.length} total results`);
+    console.log(`Found ${localResults.length} local + ${intlResults.length} international + ${fighterSpecificResults.length} fighter-specific = ${allResults.length} unique results`);
 
     if (allResults.length === 0) {
       return new Response(
@@ -113,8 +137,14 @@ serve(async (req) => {
     }
 
     // Use AI to analyze and structure the results
+    const currentDate = new Date();
+    const sixtyDaysAgo = new Date(currentDate.getTime() - (60 * 24 * 60 * 60 * 1000));
+    
     const analysisPrompt = `Analyze these search results for fighter aircraft procurement news in ${country}. 
     
+TODAY'S DATE: ${currentDate.toISOString().split('T')[0]}
+ONLY INCLUDE ARTICLES FROM THE LAST 60 DAYS (after ${sixtyDaysAgo.toISOString().split('T')[0]})
+
 CRITICAL: Prioritize LOCAL ${country} media sources. The first results in the list are local sources - these are MOST IMPORTANT.
 
 Fighter aircraft we're tracking: ${fighters.join(', ')}
@@ -124,17 +154,30 @@ ${allResults.map((r, i) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Sn
 
 REQUIREMENTS:
 - MUST include ALL relevant local ${country} articles (especially ${countryDomain} domains)
+- ONLY articles from the last 60 days
 - Identify source country accurately from domain (${countryDomain} = ${country}, .uk = GB, .com = US unless clearly from another country)
 - Include international coverage as secondary
 - Only articles about fighter procurement/defense
-- CRITICAL: For "fighters" field, carefully check the title AND snippet for mentions of ANY of these fighters: ${fighters.join(', ')}. Include ALL fighters that are mentioned, not just one. For example, if both "Gripen" and "F-35" are mentioned, include both in the array.
+
+CRITICAL FIGHTER TAG DETECTION:
+Read the ENTIRE title AND snippet carefully. For the "fighters" field:
+- Look for mentions of: ${fighters.join(', ')}
+- Include EVERY fighter that is mentioned or discussed
+- If "Gripen" appears ANYWHERE in the title or snippet, include "Gripen" in the array
+- If "F-35" appears ANYWHERE, include "F-35" in the array  
+- If "Rafale" appears ANYWHERE, include "Rafale" in the array
+- If "Eurofighter" appears ANYWHERE, include "Eurofighter" in the array
+- An article can mention MULTIPLE fighters - include ALL of them
+- DO NOT default to just ["F-35"] - read carefully!
+
+Example: If title says "Portugal considers Gripen and F-35" then fighters should be ["Gripen", "F-35"]
 
 For each relevant article, provide:
 1. title (original language, cleaned)
 2. url (actual article URL)
 3. source (publication name)
-4. publishedAt (YYYY-MM-DD format - use 2025-10-12 as default if unknown, or estimate recent date)
-5. fighters (array of ALL fighters mentioned - check carefully for Gripen, F-35, Rafale, Eurofighter, etc.)
+4. publishedAt (YYYY-MM-DD format - MUST be within last 60 days, use article date if available)
+5. fighters (array of ALL fighters mentioned - read carefully!)
 6. sourceCountry (country code)
 
 Return ONLY a JSON array:
