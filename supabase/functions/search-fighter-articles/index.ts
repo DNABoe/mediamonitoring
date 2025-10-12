@@ -23,8 +23,17 @@ serve(async (req) => {
     const fighters = ['Gripen', ...competitors];
     const allFighters = fighters.join(' OR ');
     
+    // Get country-specific domain for local search
+    const countryDomains: Record<string, string> = {
+      'PT': '.pt', 'US': '.us', 'GB': '.uk', 'FR': '.fr', 'DE': '.de', 
+      'ES': '.es', 'IT': '.it', 'SE': '.se', 'NO': '.no', 'DK': '.dk',
+      'FI': '.fi', 'PL': '.pl', 'IN': '.in', 'BR': '.br', 'CA': '.ca',
+      'AU': '.au', 'NZ': '.nz', 'JP': '.jp', 'KR': '.kr', 'CN': '.cn'
+    };
+    const countryDomain = countryDomains[country] || '';
+    
     // First, search for LOCAL articles from the target country
-    const localSearchQuery = `${country} caças aviação defesa força aérea ${allFighters} site:.pt`;
+    const localSearchQuery = `${country} fighter jet procurement defense ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`;
     console.log('Local search query:', localSearchQuery);
     
     const localSearchResponse = await fetch(
