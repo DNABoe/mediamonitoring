@@ -53,8 +53,8 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
         `Tracking date set to ${format(date, 'PPP')}!`
       );
       
-      // Trigger article collection in background
-      toast.info("Collecting articles for tracking period...");
+      // Trigger article collection
+      toast.info("Starting article collection...");
       
       const { data: baseline } = await supabase
         .from('baselines')
@@ -73,22 +73,34 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
         const country = userSettings?.active_country || 'PT';
         const competitors = userSettings?.active_competitors || ['F-35'];
 
-        // Trigger background collection (don't await)
-        supabase.functions.invoke('collect-articles-for-tracking', {
+        console.log('Starting article collection with:', {
+          country,
+          competitors,
+          startDate: baseline.start_date,
+          endDate: baseline.end_date
+        });
+
+        // Await the collection to show results
+        const { data: collectionData, error: collectionError } = await supabase.functions.invoke('collect-articles-for-tracking', {
           body: {
             country,
             competitors,
             startDate: baseline.start_date,
             endDate: baseline.end_date
           }
-        }).then(() => {
-          toast.success("Article collection complete");
-        }).catch((err) => {
-          console.error('Collection error:', err);
-          toast.error("Article collection failed");
         });
+
+        if (collectionError) {
+          console.error('Collection error:', collectionError);
+          toast.error(`Article collection failed: ${collectionError.message}`);
+        } else {
+          console.log('Collection result:', collectionData);
+          const articlesFound = collectionData?.articlesFound || 0;
+          const articlesStored = collectionData?.articlesStored || 0;
+          toast.success(`Found ${articlesFound} articles, stored ${articlesStored}`);
+        }
       }
-      
+
       setOpen(false);
       setStartDate(undefined);
     } catch (error) {
