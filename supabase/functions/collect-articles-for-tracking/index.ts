@@ -579,11 +579,18 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
     let storedCount = 0;
     const errors = [];
     
+    console.log(`========== STORING ${validArticles.length} ARTICLES ==========`);
+    
     for (const article of validArticles) {
       try {
         // Match to source and determine country
         let sourceId = null;
         let sourceCountry = article.source_country || 'INTERNATIONAL';
+        
+        console.log(`Processing article: "${article.title?.substring(0, 60)}"`);
+        console.log(`  URL: ${article.url.substring(0, 100)}`);
+        console.log(`  AI-detected country: ${article.source_country}`);
+        console.log(`  Fighter tags: ${article.fighter_tags?.join(', ')}`);
         
         // First try to match against configured sources
         if (sources) {
@@ -592,6 +599,7 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
             if (article.url.includes(sourceDomain)) {
               sourceId = source.id;
               sourceCountry = source.country;
+              console.log(`  ✓ Matched to configured source: ${source.name} (${source.country})`);
               break;
             }
           }
@@ -606,25 +614,24 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
             // Check if it's a local country domain
             if (hostname.endsWith(domainSuffix)) {
               sourceCountry = country;
+              console.log(`  ✓ Detected LOCAL domain: ${hostname} -> ${sourceCountry}`);
             } else {
               // International domain (.com, .org, .net, .co.uk, etc.)
               sourceCountry = 'INTERNATIONAL';
+              console.log(`  ✓ Detected INTERNATIONAL domain: ${hostname} -> ${sourceCountry}`);
             }
-            
-            console.log(`Detected country from URL: ${hostname} -> ${sourceCountry}`);
           } catch (urlError) {
-            console.error('Error parsing URL for country detection:', article.url, urlError);
+            console.error('  ✗ Error parsing URL for country detection:', article.url, urlError);
+            sourceCountry = 'INTERNATIONAL'; // Fallback to international
           }
         }
 
         // Try to extract or estimate publication date
         let publishedAt = new Date().toISOString();
         
-        // If we can't get the real date, distribute articles over the baseline period
-        // to avoid them all having the same timestamp
+        // Distribute articles over the baseline period
         const baselineStart = new Date(startDate);
         const baselineEnd = new Date(endDate);
-        const timeRange = baselineEnd.getTime() - baselineStart.getTime();
         
         // Randomly distribute within the last 60 days of the baseline period
         const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
@@ -632,34 +639,52 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ title: r.title, ur
         const distributionRange = baselineEnd.getTime() - distributionStart;
         const randomOffset = Math.random() * distributionRange;
         publishedAt = new Date(distributionStart + randomOffset).toISOString();
+        
+        console.log(`  Published at: ${publishedAt.substring(0, 10)}`);
+
+        // Validate fighter_tags before insert
+        if (!article.fighter_tags || !Array.isArray(article.fighter_tags) || article.fighter_tags.length === 0) {
+          console.error(`  ✗ SKIPPING: No valid fighter_tags for article`);
+          errors.push({ url: article.url, error: 'No fighter tags' });
+          continue;
+        }
+
+        // Prepare insert data
+        const insertData = {
+          url: article.url,
+          title_en: article.title || 'Untitled',
+          source_id: sourceId,
+          source_country: sourceCountry,
+          published_at: publishedAt,
+          fighter_tags: article.fighter_tags,
+          sentiment: typeof article.sentiment === 'number' ? article.sentiment : 0,
+          fetched_at: new Date().toISOString()
+        };
+        
+        console.log(`  Inserting with data:`, JSON.stringify(insertData, null, 2));
 
         // Store with all available data, using defaults for missing fields
-        const { error: insertError } = await supabaseClient
+        const { data: insertData2, error: insertError } = await supabaseClient
           .from('items')
-          .upsert({
-            url: article.url,
-            title_en: article.title || 'Untitled',
-            source_id: sourceId,
-            source_country: sourceCountry,
-            published_at: publishedAt,
-            fighter_tags: article.fighter_tags,
-            sentiment: typeof article.sentiment === 'number' ? article.sentiment : 0,
-            fetched_at: new Date().toISOString()
-          }, {
+          .upsert(insertData, {
             onConflict: 'url'
-          });
+          })
+          .select();
 
         if (insertError) {
-          errors.push({ url: article.url, error: insertError.message });
-          console.error('Insert error for', article.url, ':', insertError.message);
+          errors.push({ url: article.url, error: insertError.message, details: insertError });
+          console.error(`  ✗ INSERT ERROR:`, insertError);
         } else {
           storedCount++;
+          console.log(`  ✓ STORED SUCCESSFULLY (ID: ${insertData2?.[0]?.id || 'unknown'})`);
         }
       } catch (e) {
         errors.push({ url: article.url, error: e instanceof Error ? e.message : 'Unknown' });
-        console.error('Exception storing article:', article.url, e);
+        console.error('  ✗ EXCEPTION storing article:', e);
       }
     }
+    
+    console.log(`========== STORAGE COMPLETE ==========`);
 
     console.log(`Successfully stored ${storedCount}/${validArticles.length} articles`);
     if (errors.length > 0) {
