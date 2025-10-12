@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { country, competitors } = await req.json();
+    const { country, competitors, prioritizedOutlets = [] } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -39,8 +39,29 @@ serve(async (req) => {
     
     const countryDomain = countryDomains[country] || '';
     
+    // Build prioritized outlet searches if provided
+    const prioritizedSearches: Promise<Response>[] = [];
+    if (prioritizedOutlets.length > 0) {
+      console.log(`Prioritizing ${prioritizedOutlets.length} media outlets`);
+      
+      // Search each prioritized outlet specifically
+      prioritizedOutlets.forEach((outlet: string) => {
+        prioritizedSearches.push(
+          fetch(
+            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentYear}`)}`,
+            { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+          ),
+          fetch(
+            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentMonth}`)}`,
+            { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+          )
+        );
+      });
+    }
+    
     // Multiple LOCAL searches with different approaches - FOCUS ON LATEST
     const localSearches = await Promise.all([
+      ...prioritizedSearches,
       // Priority searches for LATEST articles with current dates
       fetch(
         `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${currentMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
@@ -174,6 +195,13 @@ serve(async (req) => {
     
 TODAY'S DATE: ${currentDate.toISOString().split('T')[0]}
 ONLY INCLUDE ARTICLES FROM THE LAST 60 DAYS (after ${sixtyDaysAgo.toISOString().split('T')[0]})
+
+${prioritizedOutlets.length > 0 ? `
+PRIORITIZED MEDIA OUTLETS (give these sources HIGHEST PRIORITY):
+${prioritizedOutlets.map((outlet: string) => `- ${outlet}`).join('\n')}
+
+CRITICAL: Articles from these prioritized outlets should be featured prominently in your results. However, also include other relevant sources.
+` : ''}
 
 CRITICAL PRIORITY INSTRUCTIONS:
 1. **ABSOLUTE PRIORITY: NEWEST ARTICLES FIRST** - Heavily favor articles from ${currentMonth} ${currentYear}, then ${lastMonth} ${currentYear}

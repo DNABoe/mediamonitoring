@@ -20,26 +20,33 @@ interface MediaArticle {
 interface MediaArticlesListProps {
   activeCountry: string;
   activeCompetitors: string[];
+  prioritizedOutlets?: Array<{ name: string; active: boolean }>;
 }
 
-export const MediaArticlesList = ({ activeCountry, activeCompetitors }: MediaArticlesListProps) => {
+export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritizedOutlets = [] }: MediaArticlesListProps) => {
   const [mediaArticles, setMediaArticles] = useState<MediaArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchMediaArticles();
-  }, [activeCountry, activeCompetitors]);
+  }, [activeCountry, activeCompetitors, prioritizedOutlets]);
 
   const fetchMediaArticles = async () => {
     try {
       setLoading(true);
       console.log('Searching for fighter articles using AI...');
       
+      // Filter only active outlets
+      const activeOutlets = prioritizedOutlets
+        .filter(outlet => outlet.active)
+        .map(outlet => outlet.name);
+      
       const { data, error } = await supabase.functions.invoke('search-fighter-articles', {
         body: { 
           country: activeCountry,
-          competitors: activeCompetitors 
+          competitors: activeCompetitors,
+          prioritizedOutlets: activeOutlets
         }
       });
 

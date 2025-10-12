@@ -6,6 +6,7 @@ export interface UserSettings {
   activeCompetitors: string[];
   countryFlag: string;
   countryName: string;
+  prioritizedOutlets: Array<{ name: string; active: boolean }>;
 }
 
 const COUNTRIES = [
@@ -25,6 +26,7 @@ export const useUserSettings = () => {
     activeCompetitors: ['F-35'],
     countryFlag: '🇵🇹',
     countryName: 'Portugal',
+    prioritizedOutlets: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +57,7 @@ export const useUserSettings = () => {
 
       const { data, error } = await supabase
         .from('user_settings')
-        .select('active_country, active_competitors')
+        .select('active_country, active_competitors, prioritized_outlets')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -65,11 +67,15 @@ export const useUserSettings = () => {
 
       const country = COUNTRIES.find(c => c.code === (data?.active_country || 'PT'));
       
+      const outlets = data?.prioritized_outlets as unknown;
+      const prioritizedOutlets = Array.isArray(outlets) ? outlets as Array<{ name: string; active: boolean }> : [];
+      
       setSettings({
         activeCountry: data?.active_country || 'PT',
         activeCompetitors: data?.active_competitors || ['F-35'],
         countryFlag: country?.flag || '🇵🇹',
         countryName: country?.name || 'Portugal',
+        prioritizedOutlets,
       });
     } catch (error) {
       console.error('Error loading settings:', error);

@@ -191,6 +191,7 @@ const Index = () => {
           <MediaArticlesList 
             activeCountry={userSettings.activeCountry}
             activeCompetitors={userSettings.activeCompetitors}
+            prioritizedOutlets={userSettings.prioritizedOutlets}
           />
         </div>
       </div>
