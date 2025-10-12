@@ -42,16 +42,27 @@ serve(async (req) => {
       console.log(`No sources configured for ${country}, will use general domain search`);
     }
 
-    // Universal search terms - fighter names are international
-    const universalSearchTerms = [
-      'fighter jet',
-      'fighter aircraft', 
-      'military aircraft',
-      'defense procurement',
-      'air force modernization'
-    ];
+    // Multi-language search terms based on country
+    const searchTermsByCountry: Record<string, { native: string[], countryName: string }> = {
+      PT: { 
+        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição militar', 'Força Aérea'],
+        countryName: 'Portugal'
+      },
+      CZ: {
+        native: ['stíhačka', 'stíhací letoun', 'bojový letoun', 'vojenské letadlo', 'armáda', 'letectvo'],
+        countryName: 'Czech Republic'
+      },
+      DEFAULT: { 
+        native: ['fighter jet', 'military aircraft', 'air force', 'defense procurement'],
+        countryName: 'Unknown'
+      }
+    };
 
-    console.log('Using universal search terms:', universalSearchTerms);
+    const searchConfig = searchTermsByCountry[country] || searchTermsByCountry.DEFAULT;
+    const localSearchTerms = searchConfig.native;
+    const countryName = searchConfig.countryName;
+    
+    console.log('Search config:', { country, localSearchTerms, countryName });
 
     // Determine domain suffix from country code
     const domainSuffix = `.${country.toLowerCase()}`;
@@ -86,56 +97,86 @@ serve(async (req) => {
       return results;
     }
 
-    // Generate comprehensive search URLs for ENTIRE tracking period
+    // Generate comprehensive search URLs
     const allSearchUrls: string[] = [];
+    const dateFilter = `after:${startDate} before:${endDate}`;
     
-    // If we have configured sources, search them specifically
+    // 1. Search LOCAL country sources (if configured) with local language terms
     if (hasCountrySources) {
+      console.log(`Searching ${sources.length} local sources with native terms`);
       for (const source of sources || []) {
         const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
         
-        // Search by universal terms
-        for (const term of universalSearchTerms) {
+        // Local language searches on local sources
+        for (const term of localSearchTerms) {
           const encodedTerm = encodeURIComponent(term);
-          const dateFilter = `after:${startDate} before:${endDate}`;
           allSearchUrls.push(
             `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedTerm}+${dateFilter}`
           );
         }
         
-        // Add competitor-specific searches
-        for (const competitor of competitors) {
-          const encodedCompetitor = encodeURIComponent(competitor);
-          const dateFilter = `after:${startDate} before:${endDate}`;
+        // Fighter-specific searches on local sources
+        for (const fighter of [...competitors, 'Gripen']) {
+          const encodedFighter = encodeURIComponent(fighter);
           allSearchUrls.push(
-            `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedCompetitor}+${dateFilter}`
+            `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedFighter}+${dateFilter}`
           );
         }
-        
-        // Always search for Gripen
-        const dateFilter = `after:${startDate} before:${endDate}`;
-        allSearchUrls.push(
-          `https://html.duckduckgo.com/html/?q=site:${domain}+Gripen+${dateFilter}`
-        );
       }
     }
 
-    // Always add general searches for the country domain (works even without configured sources)
-    const dateFilter = `after:${startDate} before:${endDate}`;
-    
-    // Search for each fighter name + country domain
-    for (const competitor of [...competitors, 'Gripen']) {
-      const encodedCompetitor = encodeURIComponent(competitor);
-      allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=${encodedCompetitor}+site:${domainSuffix}+${dateFilter}`
-      );
-    }
-    
-    // Search for general terms + country domain
-    for (const term of universalSearchTerms.slice(0, 3)) { // Limit to avoid too many searches
+    // 2. Search general country domain with local terms (works without configured sources)
+    console.log(`Searching general ${domainSuffix} domain with native terms`);
+    for (const term of localSearchTerms) {
       const encodedTerm = encodeURIComponent(term);
       allSearchUrls.push(
         `https://html.duckduckgo.com/html/?q=${encodedTerm}+site:${domainSuffix}+${dateFilter}`
+      );
+    }
+    
+    for (const fighter of [...competitors, 'Gripen']) {
+      const encodedFighter = encodeURIComponent(fighter);
+      allSearchUrls.push(
+        `https://html.duckduckgo.com/html/?q=${encodedFighter}+site:${domainSuffix}+${dateFilter}`
+      );
+    }
+
+    // 3. Search INTERNATIONAL media for articles mentioning fighters + country name
+    console.log(`Searching international media for articles about fighters in ${countryName}`);
+    
+    // Fetch international sources
+    const { data: intlSources } = await supabaseClient
+      .from('sources')
+      .select('*')
+      .in('country', ['INT', 'EU', 'US', 'UK'])
+      .eq('enabled', true);
+    
+    if (intlSources && intlSources.length > 0) {
+      console.log(`Found ${intlSources.length} international sources`);
+      for (const source of intlSources) {
+        const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
+        
+        // Search for "fighter name + country name" on international outlets
+        for (const fighter of [...competitors, 'Gripen']) {
+          const searchQuery = encodeURIComponent(`${fighter} ${countryName}`);
+          allSearchUrls.push(
+            `https://html.duckduckgo.com/html/?q=site:${domain}+${searchQuery}+${dateFilter}`
+          );
+        }
+        
+        // General defense procurement searches mentioning the country
+        const defenseQuery = encodeURIComponent(`fighter aircraft ${countryName}`);
+        allSearchUrls.push(
+          `https://html.duckduckgo.com/html/?q=site:${domain}+${defenseQuery}+${dateFilter}`
+        );
+      }
+    }
+    
+    // 4. General web search for fighters + country (fallback)
+    for (const fighter of [...competitors, 'Gripen']) {
+      const searchQuery = encodeURIComponent(`${fighter} ${countryName} -site:${domainSuffix}`);
+      allSearchUrls.push(
+        `https://html.duckduckgo.com/html/?q=${searchQuery}+${dateFilter}`
       );
     }
 
