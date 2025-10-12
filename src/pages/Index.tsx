@@ -92,7 +92,7 @@ const Index = () => {
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-start gap-4">
-            <span className="text-5xl leading-none">{userSettings.countryFlag}</span>
+            <span className="text-6xl leading-none">{userSettings.countryFlag}</span>
             <div className="flex flex-col items-start">
               <h1 className="text-xl font-bold text-foreground text-left">
                 Fighter Program Media Analysis - {userSettings.countryName}

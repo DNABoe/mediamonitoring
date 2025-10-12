@@ -76,7 +76,7 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="px-2 py-0.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors cursor-pointer">
+        <button className="px-2 py-0.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors cursor-pointer text-xs">
           Tracking from: {currentDate ? new Date(currentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not set'}
         </button>
       </PopoverTrigger>
