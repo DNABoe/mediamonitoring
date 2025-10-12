@@ -47,7 +47,11 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors }: MediaArt
 
       if (data?.success && data?.articles) {
         console.log(`Found ${data.articles.length} articles`);
-        setMediaArticles(data.articles);
+        // Sort by date, newest first
+        const sortedArticles = data.articles.sort((a: MediaArticle, b: MediaArticle) => {
+          return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+        });
+        setMediaArticles(sortedArticles);
         
         if (data.articles.length === 0) {
           toast({

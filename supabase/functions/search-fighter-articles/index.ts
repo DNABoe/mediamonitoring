@@ -123,29 +123,28 @@ Search results (LOCAL SOURCES FIRST):
 ${allResults.map((r, i) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join('\n\n')}
 
 REQUIREMENTS:
-- MUST include ALL relevant local ${country} articles (especially .pt domains for Portugal)
-- Identify source country accurately from domain (.pt = PT, .uk = GB, .com = US unless clearly from another country)
+- MUST include ALL relevant local ${country} articles (especially ${countryDomain} domains)
+- Identify source country accurately from domain (${countryDomain} = ${country}, .uk = GB, .com = US unless clearly from another country)
 - Include international coverage as secondary
 - Only articles about fighter procurement/defense
+- CRITICAL: For "fighters" field, carefully check the title AND snippet for mentions of ANY of these fighters: ${fighters.join(', ')}. Include ALL fighters that are mentioned, not just one. For example, if both "Gripen" and "F-35" are mentioned, include both in the array.
 
-For each relevant article about fighter procurement, return structured data with:
-1. title (original language, cleaned up)
-2. url (the actual article URL)
-3. source (publication name extracted from URL/title)
-4. publishedAt (estimate as "2025-10-12" if not available, or recent date)
-5. fighters (array of which fighters from our list are mentioned)
-6. sourceCountry (country code like PT, US, etc.)
+For each relevant article, provide:
+1. title (original language, cleaned)
+2. url (actual article URL)
+3. source (publication name)
+4. publishedAt (YYYY-MM-DD format - use 2025-10-12 as default if unknown, or estimate recent date)
+5. fighters (array of ALL fighters mentioned - check carefully for Gripen, F-35, Rafale, Eurofighter, etc.)
+6. sourceCountry (country code)
 
-Only include articles that are actually about fighter aircraft procurement. Skip generic news or unrelated content.
-
-Return ONLY a JSON array, no other text:
+Return ONLY a JSON array:
 [
   {
     "title": "...",
     "url": "...",
     "source": "...",
     "publishedAt": "2025-10-12",
-    "fighters": ["Gripen"],
+    "fighters": ["Gripen", "F-35"],
     "sourceCountry": "PT"
   }
 ]`;
