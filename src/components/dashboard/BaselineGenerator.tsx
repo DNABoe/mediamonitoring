@@ -54,51 +54,67 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
       );
       
       // Trigger article collection
+      console.log('=== STARTING ARTICLE COLLECTION ===');
       toast.info("Starting article collection...");
       
-      const { data: baseline } = await supabase
+      const { data: baseline, error: baselineError } = await supabase
         .from('baselines')
         .select('start_date, end_date')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (baseline) {
-        const { data: userSettings } = await supabase
-          .from('user_settings')
-          .select('active_country, active_competitors')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      console.log('Baseline query result:', { baseline, baselineError });
 
-        const country = userSettings?.active_country || 'PT';
-        const competitors = userSettings?.active_competitors || ['F-35'];
+      if (baselineError) {
+        console.error('Baseline fetch error:', baselineError);
+        toast.error(`Failed to fetch baseline: ${baselineError.message}`);
+        return;
+      }
 
-        console.log('Starting article collection with:', {
-          country,
-          competitors,
-          startDate: baseline.start_date,
-          endDate: baseline.end_date
-        });
+      if (!baseline) {
+        console.error('No baseline found!');
+        toast.error('No baseline found to collect articles for');
+        return;
+      }
 
-        // Await the collection to show results
+      const { data: userSettings } = await supabase
+        .from('user_settings')
+        .select('active_country, active_competitors')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const country = userSettings?.active_country || 'PT';
+      const competitors = userSettings?.active_competitors || ['F-35'];
+
+      const collectionParams = {
+        country,
+        competitors,
+        startDate: baseline.start_date,
+        endDate: baseline.end_date
+      };
+
+      console.log('Calling collect-articles-for-tracking with:', collectionParams);
+
+      try {
         const { data: collectionData, error: collectionError } = await supabase.functions.invoke('collect-articles-for-tracking', {
-          body: {
-            country,
-            competitors,
-            startDate: baseline.start_date,
-            endDate: baseline.end_date
-          }
+          body: collectionParams
         });
+
+        console.log('Collection response:', { collectionData, collectionError });
 
         if (collectionError) {
           console.error('Collection error:', collectionError);
           toast.error(`Article collection failed: ${collectionError.message}`);
         } else {
-          console.log('Collection result:', collectionData);
+          console.log('Collection successful:', collectionData);
           const articlesFound = collectionData?.articlesFound || 0;
           const articlesStored = collectionData?.articlesStored || 0;
-          toast.success(`Found ${articlesFound} articles, stored ${articlesStored}`);
+          toast.success(`Collection complete! Found ${articlesFound} articles, stored ${articlesStored}`);
         }
+      } catch (error) {
+        console.error('Exception during collection:', error);
+        toast.error(`Collection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
       setOpen(false);
