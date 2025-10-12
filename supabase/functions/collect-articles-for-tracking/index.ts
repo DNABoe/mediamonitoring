@@ -204,6 +204,19 @@ serve(async (req) => {
           allSearchUrls.push(
             `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedFighter}+${dateFilter}`
           );
+          
+          // Add variations for common misspellings/formats
+          if (fighter === 'F-35') {
+            allSearchUrls.push(
+              `https://html.duckduckgo.com/html/?q=site:${domain}+F35+${dateFilter}`,
+              `https://html.duckduckgo.com/html/?q=site:${domain}+"F-35"+${dateFilter}`
+            );
+          }
+          if (fighter === 'F-16V') {
+            allSearchUrls.push(
+              `https://html.duckduckgo.com/html/?q=site:${domain}+F16+${dateFilter}`
+            );
+          }
         }
       }
     }
@@ -222,37 +235,79 @@ serve(async (req) => {
       allSearchUrls.push(
         `https://html.duckduckgo.com/html/?q=${encodedFighter}+site:${domainSuffix}+${dateFilter}`
       );
+      
+      // Add broader searches without site restriction for country-specific content
+      allSearchUrls.push(
+        `https://html.duckduckgo.com/html/?q=${encodedFighter}+${encodeURIComponent(countryName)}+${dateFilter}`
+      );
     }
 
     // 3. Search INTERNATIONAL media for articles mentioning fighters + country name
     console.log(`Searching international media for articles about fighters in ${countryName}`);
     
-    // Fetch international sources
+    // Major international defense/aviation outlets
+    const internationalOutlets = [
+      'defenseone.com',
+      'defensenews.com', 
+      'janes.com',
+      'flightglobal.com',
+      'airforcemag.com',
+      'aviationweek.com',
+      'breakingdefense.com',
+      'thedrive.com/the-war-zone',
+      'forbes.com',
+      'reuters.com',
+      'apnews.com',
+      'bloomberg.com',
+      'theguardian.com',
+      'bbc.com',
+      'cnn.com'
+    ];
+    
+    // Fetch configured international sources
     const { data: intlSources } = await supabaseClient
       .from('sources')
       .select('*')
       .in('country', ['INT', 'EU', 'US', 'UK'])
       .eq('enabled', true);
     
-    if (intlSources && intlSources.length > 0) {
-      console.log(`Found ${intlSources.length} international sources`);
-      for (const source of intlSources) {
-        const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
+    // Combine configured sources with default outlets
+    const allInternationalSources = [
+      ...(intlSources || []).map(s => s.url.replace(/^https?:\/\//i, '').split('/')[0]),
+      ...internationalOutlets
+    ];
+    
+    // Remove duplicates
+    const uniqueIntlSources = [...new Set(allInternationalSources)];
+    
+    console.log(`Searching ${uniqueIntlSources.length} international sources`);
+    for (const domain of uniqueIntlSources) {
+      // Search for "fighter name + country name" on international outlets
+      for (const fighter of [...competitors, 'Gripen']) {
+        const searchQuery = encodeURIComponent(`${fighter} ${countryName}`);
+        allSearchUrls.push(
+          `https://html.duckduckgo.com/html/?q=site:${domain}+${searchQuery}+${dateFilter}`
+        );
         
-        // Search for "fighter name + country name" on international outlets
-        for (const fighter of [...competitors, 'Gripen']) {
-          const searchQuery = encodeURIComponent(`${fighter} ${countryName}`);
+        // Add variant searches
+        if (fighter === 'F-35') {
           allSearchUrls.push(
-            `https://html.duckduckgo.com/html/?q=site:${domain}+${searchQuery}+${dateFilter}`
+            `https://html.duckduckgo.com/html/?q=site:${domain}+F35+${encodeURIComponent(countryName)}+${dateFilter}`
           );
         }
-        
-        // General defense procurement searches mentioning the country
-        const defenseQuery = encodeURIComponent(`fighter aircraft ${countryName}`);
-        allSearchUrls.push(
-          `https://html.duckduckgo.com/html/?q=site:${domain}+${defenseQuery}+${dateFilter}`
-        );
       }
+      
+      // General defense procurement searches mentioning the country
+      const defenseQuery = encodeURIComponent(`fighter aircraft ${countryName}`);
+      allSearchUrls.push(
+        `https://html.duckduckgo.com/html/?q=site:${domain}+${defenseQuery}+${dateFilter}`
+      );
+      
+      // Military procurement general
+      const militaryQuery = encodeURIComponent(`military procurement ${countryName}`);
+      allSearchUrls.push(
+        `https://html.duckduckgo.com/html/?q=site:${domain}+${militaryQuery}+${dateFilter}`
+      );
     }
     
     // 4. General web search for fighters + country (fallback)
