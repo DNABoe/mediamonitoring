@@ -29,15 +29,126 @@ serve(async (req) => {
     const currentMonth = now.toLocaleString('en-US', { month: 'long' });
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-US', { month: 'long' });
     
+    // Multi-language search terms by country
+    const searchTermsByCountry: Record<string, {
+      fighter: string[];
+      aircraft: string[];
+      procurement: string[];
+      airForce: string[];
+    }> = {
+      'PT': {
+        fighter: ['caça', 'caças'],
+        aircraft: ['avião de combate', 'aviões de combate'],
+        procurement: ['aquisição', 'compra', 'substituição'],
+        airForce: ['FAP', 'Força Aérea']
+      },
+      'ES': {
+        fighter: ['caza', 'cazas'],
+        aircraft: ['avión de combate', 'aviones de combate'],
+        procurement: ['adquisición', 'compra', 'sustitución'],
+        airForce: ['Ejército del Aire']
+      },
+      'FR': {
+        fighter: ['chasseur', 'chasseurs'],
+        aircraft: ['avion de chasse', 'avions de chasse'],
+        procurement: ['acquisition', 'achat'],
+        airForce: ['Armée de l\'Air']
+      },
+      'DE': {
+        fighter: ['Kampfflugzeug', 'Kampfflugzeuge', 'Kampfjet'],
+        aircraft: ['Kampfjet', 'Kampfjets'],
+        procurement: ['Beschaffung', 'Kauf'],
+        airForce: ['Luftwaffe']
+      },
+      'SE': {
+        fighter: ['jaktplan', 'jaktflygplan'],
+        aircraft: ['stridsflygplan'],
+        procurement: ['upphandling', 'inköp'],
+        airForce: ['Flygvapnet']
+      },
+      'IT': {
+        fighter: ['caccia', 'cacciabombardiere'],
+        aircraft: ['aereo da combattimento'],
+        procurement: ['acquisizione', 'acquisto'],
+        airForce: ['Aeronautica Militare']
+      },
+      'NO': {
+        fighter: ['jagerfly', 'kampfly'],
+        aircraft: ['stridsfly'],
+        procurement: ['anskaffelse', 'innkjøp'],
+        airForce: ['Luftforsvaret']
+      },
+      'PL': {
+        fighter: ['myśliwiec', 'myśliwce'],
+        aircraft: ['samolot bojowy'],
+        procurement: ['zakup', 'pozyskanie'],
+        airForce: ['Siły Powietrzne']
+      },
+      'FI': {
+        fighter: ['hävittäjä', 'hävittäjät'],
+        aircraft: ['taistelukone'],
+        procurement: ['hankinta'],
+        airForce: ['Ilmavoimat']
+      },
+      'CZ': {
+        fighter: ['stíhačka', 'stíhací letoun'],
+        aircraft: ['bojový letoun'],
+        procurement: ['nákup', 'pořízení', 'akvizice'],
+        airForce: ['Vzdušné síly']
+      },
+      'BG': {
+        fighter: ['изтребител', 'изтребители'],
+        aircraft: ['боен самолет', 'бойни самолети'],
+        procurement: ['закупуване', 'придобиване'],
+        airForce: ['Военновъздушни сили']
+      },
+      'SA': {
+        fighter: ['مقاتلة', 'مقاتلات', 'طائرة مقاتلة'],
+        aircraft: ['طائرة حربية', 'طائرات حربية'],
+        procurement: ['شراء', 'اقتناء', 'صفقة'],
+        airForce: ['القوات الجوية', 'سلاح الجو']
+      },
+      'DEFAULT': {
+        fighter: ['fighter', 'fighters'],
+        aircraft: ['fighter jet', 'fighter aircraft'],
+        procurement: ['procurement', 'acquisition', 'purchase'],
+        airForce: ['air force']
+      }
+    };
+
+    // Helper to get combined native + English search terms
+    const getSearchTerms = (country: string) => {
+      const nativeTerms = searchTermsByCountry[country] || searchTermsByCountry['DEFAULT'];
+      const englishTerms = searchTermsByCountry['DEFAULT'];
+      
+      return {
+        native: nativeTerms,
+        english: englishTerms,
+        combined: {
+          fighter: [...nativeTerms.fighter, ...englishTerms.fighter].join(' OR '),
+          aircraft: [...nativeTerms.aircraft, ...englishTerms.aircraft].join(' OR '),
+          procurement: [...nativeTerms.procurement, ...englishTerms.procurement].join(' OR '),
+          airForce: [...nativeTerms.airForce, ...englishTerms.airForce].join(' OR ')
+        }
+      };
+    };
+    
     // Get country-specific domain
     const countryDomains: Record<string, string> = {
       'PT': '.pt', 'US': '.us', 'GB': '.uk', 'FR': '.fr', 'DE': '.de', 
       'ES': '.es', 'IT': '.it', 'SE': '.se', 'NO': '.no', 'DK': '.dk',
       'FI': '.fi', 'PL': '.pl', 'IN': '.in', 'BR': '.br', 'CA': '.ca',
-      'AU': '.au', 'NZ': '.nz', 'JP': '.jp', 'KR': '.kr', 'CN': '.cn'
+      'AU': '.au', 'NZ': '.nz', 'JP': '.jp', 'KR': '.kr', 'CN': '.cn',
+      'CZ': '.cz', 'BG': '.bg', 'SA': '.sa', 'AE': '.ae', 'EG': '.eg'
     };
     
     const countryDomain = countryDomains[country] || '';
+    const searchTerms = getSearchTerms(country);
+
+    console.log(`Using search terms for ${country}:`, {
+      native: searchTerms.native.fighter,
+      hasNativeTerms: searchTerms.native !== searchTermsByCountry['DEFAULT']
+    });
     
     // Helper function to batch fetch requests to avoid overwhelming the runtime
     const batchFetch = async (urls: string[], batchSize = 10): Promise<Response[]> => {
@@ -61,33 +172,63 @@ serve(async (req) => {
       return results;
     };
     
-    // Build prioritized outlet searches - REDUCED to avoid timeout
+    // Build prioritized outlet searches with native language support
     const prioritizedSearchUrls: string[] = [];
     if (prioritizedOutlets.length > 0) {
-      console.log(`Prioritizing ${prioritizedOutlets.length} media outlets`);
+      console.log(`Prioritizing ${prioritizedOutlets.length} media outlets with native language search`);
       
       // Limit to top 10 outlets to avoid timeout
       const topOutlets = prioritizedOutlets.slice(0, 10);
       
-      // Search each prioritized outlet with FOCUSED strategies (reduced from 6 to 2 per outlet)
+      // Search each prioritized outlet with native + English terms
       topOutlets.forEach((outlet: string) => {
-        // Search 1: Current year + all fighters
-        prioritizedSearchUrls.push(
-          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentYear}`)}`
-        );
-        // Search 2: Current month
-        prioritizedSearchUrls.push(
-          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentMonth}`)}`
-        );
+        // Handle both exact domain and parent domain (for subdomains like eco.sapo.pt)
+        const domains = [outlet];
+        const domainParts = outlet.split('.');
+        if (domainParts.length > 2) {
+          // Add parent domain (e.g., sapo.pt from eco.sapo.pt)
+          const parentDomain = domainParts.slice(-2).join('.');
+          if (parentDomain !== outlet) {
+            domains.push(parentDomain);
+          }
+        }
+        
+        domains.forEach(domain => {
+          // Search 1: Native language + current year + all fighters
+          prioritizedSearchUrls.push(
+            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+              `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} ${currentYear}`
+            )}`
+          );
+          
+          // Search 2: Native language + current month
+          prioritizedSearchUrls.push(
+            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+              `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} ${currentMonth}`
+            )}`
+          );
+        });
       });
+      
+      console.log(`Generated ${prioritizedSearchUrls.length} prioritized searches (including subdomain variations)`);
     }
     
-    // Build general search URLs
+    // Build general search URLs with native language support
     const generalSearchUrls: string[] = [
-      // Priority searches for LATEST articles
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${currentMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} news ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+      // Native language + country domain + current month
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+        `(${searchTerms.combined.fighter}) ${allFighters} ${currentMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
+      )}`,
+      
+      // Native procurement terms + country
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+        `${country} (${searchTerms.combined.procurement}) ${allFighters} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
+      )}`,
+      
+      // Air force name + fighters
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
+        `(${searchTerms.combined.airForce}) ${allFighters} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
+      )}`,
     ];
     
     // Combine all search URLs
@@ -98,7 +239,7 @@ serve(async (req) => {
     // Execute searches in batches
     const localSearches = await batchFetch(allSearchUrls, 8);
 
-    // International search (more comprehensive, focus on latest)
+    // International search (using English terms for broader coverage)
     const intlSearches = await Promise.all([
       fetch(
         `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${currentMonth} ${currentYear} news`)}`,
@@ -184,8 +325,17 @@ serve(async (req) => {
     const currentDate = new Date();
     const sixtyDaysAgo = new Date(currentDate.getTime() - (60 * 24 * 60 * 60 * 1000));
     
-    const analysisPrompt = `Analyze these search results for fighter aircraft procurement news in ${country}. 
-    
+    const analysisPrompt = `Analyze these search results for fighter aircraft procurement news in ${country}.
+
+LANGUAGE CONTEXT FOR ${country}:
+Native language terms used in local media:
+- Fighter: ${searchTerms.native.fighter.join(', ')}
+- Aircraft: ${searchTerms.native.aircraft.join(', ')}
+- Procurement: ${searchTerms.native.procurement.join(', ')}
+- Air Force: ${searchTerms.native.airForce.join(', ')}
+
+**CRITICAL**: Articles using these native terms ARE VALID fighter jet articles. Also recognize English terms: fighter, jet, aircraft, procurement.
+
 TODAY'S DATE: ${currentDate.toISOString().split('T')[0]}
 ONLY INCLUDE ARTICLES FROM THE LAST 60 DAYS (after ${sixtyDaysAgo.toISOString().split('T')[0]})
 
@@ -201,6 +351,7 @@ ${prioritizedOutlets.map((outlet: string) => `- ${outlet}`).join('\n')}
 5. If an article is from a prioritized outlet, it should be included even if slightly less relevant
 6. MAXIMUM importance on ${currentMonth} ${currentYear} articles from these outlets
 7. The first 10-15 results MUST be from prioritized outlets if available
+8. **RECOGNIZE NATIVE LANGUAGE**: Articles from these outlets using "${searchTerms.native.fighter.join('", "')}" are VALID
 
 Only after exhausting relevant articles from prioritized outlets, then include other sources.
 ` : ''}
@@ -209,8 +360,9 @@ CRITICAL PRIORITY INSTRUCTIONS:
 1. **ABSOLUTE PRIORITY: NEWEST ARTICLES FIRST** - Heavily favor articles from ${currentMonth} ${currentYear}, then ${lastMonth} ${currentYear}
 2. ${prioritizedOutlets.length > 0 ? 'Prioritized outlets DOMINATE the results (60-70% minimum)' : 'Prioritize LOCAL ' + country + ' media sources'}
 3. Include ALL relevant articles from prioritized outlets
-4. If an article is from the current month AND from a prioritized outlet, it is MANDATORY
-5. Recent articles (last 30 days) from prioritized outlets are MORE important than any other content
+4. **NATIVE LANGUAGE RECOGNITION**: Articles mentioning "${searchTerms.native.fighter.join('", "')}" or "${searchTerms.native.aircraft.join('", "')}" are fighter jet articles
+5. If an article is from the current month AND from a prioritized outlet, it is MANDATORY
+6. Recent articles (last 30 days) from prioritized outlets are MORE important than any other content
 
 Fighter aircraft we're tracking: ${fighters.join(', ')}
 
@@ -221,14 +373,16 @@ REQUIREMENTS:
 - MUST include ALL relevant local ${country} articles (especially ${countryDomain} domains)
 - **CRITICAL**: Articles from prioritized outlets MUST have sourceCountry: "${country}"
 - ONLY articles from the last 60 days
+- **NATIVE LANGUAGE**: Recognize articles using these terms: ${searchTerms.native.fighter.join(', ')}, ${searchTerms.native.procurement.join(', ')}
 - Identify source country accurately:
   * Prioritized outlets listed above = "${country}" (MANDATORY)
   * ${countryDomain} domains = "${country}"
+  * Subdomains of prioritized outlets = "${country}" (e.g., if publico.pt is prioritized, then eco.publico.pt is also "${country}")
   * .uk domains = "GB"
   * .com domains = "US" unless clearly from another country
   * Use domain TLD to determine country when not a prioritized outlet
 - Include international coverage as secondary
-- Only articles about fighter procurement/defense
+- Only articles about fighter procurement/defense (including articles using native language terms)
 
 **CRITICAL DATE REQUIREMENTS:**
 - You MUST ONLY include articles if you can find a REAL date in the title or snippet
