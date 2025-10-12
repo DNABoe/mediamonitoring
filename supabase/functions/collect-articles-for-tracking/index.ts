@@ -131,12 +131,60 @@ serve(async (req) => {
         native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição militar', 'Força Aérea'],
         countryName: 'Portugal'
       },
+      ES: {
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea'],
+        countryName: 'Spain'
+      },
+      CO: {
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Colombiana', 'FAC'],
+        countryName: 'Colombia'
+      },
+      MX: {
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Mexicana'],
+        countryName: 'Mexico'
+      },
+      AR: {
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Argentina'],
+        countryName: 'Argentina'
+      },
+      CL: {
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea de Chile'],
+        countryName: 'Chile'
+      },
+      BR: {
+        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição militar', 'Força Aérea Brasileira'],
+        countryName: 'Brazil'
+      },
       CZ: {
         native: ['stíhačka', 'stíhací letoun', 'bojový letoun', 'vojenské letadlo', 'armáda', 'letectvo'],
         countryName: 'Czech Republic'
       },
+      PL: {
+        native: ['myśliwiec', 'samolot bojowy', 'zakup wojskowy', 'Siły Powietrzne'],
+        countryName: 'Poland'
+      },
+      RO: {
+        native: ['avion de vânătoare', 'avion de luptă', 'achiziție militară', 'Forțele Aeriene'],
+        countryName: 'Romania'
+      },
+      GR: {
+        native: ['μαχητικό αεροσκάφος', 'πολεμική αεροπορία', 'στρατιωτική προμήθεια'],
+        countryName: 'Greece'
+      },
+      FR: {
+        native: ['avion de chasse', 'chasseur', 'acquisition militaire', 'Armée de l\'Air'],
+        countryName: 'France'
+      },
+      DE: {
+        native: ['Kampfflugzeug', 'Jagdflugzeug', 'militärische Beschaffung', 'Luftwaffe'],
+        countryName: 'Germany'
+      },
+      IT: {
+        native: ['caccia', 'aereo da combattimento', 'acquisizione militare', 'Aeronautica Militare'],
+        countryName: 'Italy'
+      },
       DEFAULT: { 
-        native: ['fighter jet', 'military aircraft', 'air force', 'defense procurement'],
+        native: ['fighter jet', 'military aircraft', 'air force', 'defense procurement', 'combat aircraft'],
         countryName: 'Unknown'
       }
     };
