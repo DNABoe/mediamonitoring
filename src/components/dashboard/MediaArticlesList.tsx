@@ -20,7 +20,11 @@ interface MediaArticle {
   fighter_tags: string[];
 }
 
-export const MediaArticlesList = () => {
+interface MediaArticlesListProps {
+  activeCountry: string;
+}
+
+export const MediaArticlesList = ({ activeCountry }: MediaArticlesListProps) => {
   const [mediaArticles, setMediaArticles] = useState<MediaArticle[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -86,9 +90,9 @@ export const MediaArticlesList = () => {
         article.fighter_tags.length > 0
       )
       .sort((a, b) => {
-        // Prioritize PT sources first
-        if (a.source.country === 'PT' && b.source.country !== 'PT') return -1;
-        if (a.source.country !== 'PT' && b.source.country === 'PT') return 1;
+        // Prioritize active country sources first
+        if (a.source.country === activeCountry && b.source.country !== activeCountry) return -1;
+        if (a.source.country !== activeCountry && b.source.country === activeCountry) return 1;
         // Then sort by date
         return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
       }) || [];
@@ -120,7 +124,7 @@ export const MediaArticlesList = () => {
         </div>
         
         <p className="text-sm text-muted-foreground">
-          Articles discussing fighter procurement programs and selected platforms
+          Articles discussing fighter procurement programs and selected platforms from {activeCountry} and international sources
         </p>
 
         {mediaArticles.length === 0 ? (

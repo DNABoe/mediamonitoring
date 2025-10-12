@@ -191,7 +191,7 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <MediaArticlesList />
+          <MediaArticlesList activeCountry={userSettings.activeCountry} />
         </div>
       </div>
 
