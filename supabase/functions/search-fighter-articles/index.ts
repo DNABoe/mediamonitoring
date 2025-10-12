@@ -39,91 +39,64 @@ serve(async (req) => {
     
     const countryDomain = countryDomains[country] || '';
     
-    // Build prioritized outlet searches if provided
-    const prioritizedSearches: Promise<Response>[] = [];
+    // Helper function to batch fetch requests to avoid overwhelming the runtime
+    const batchFetch = async (urls: string[], batchSize = 10): Promise<Response[]> => {
+      const results: Response[] = [];
+      for (let i = 0; i < urls.length; i += batchSize) {
+        const batch = urls.slice(i, i + batchSize);
+        const batchResults = await Promise.allSettled(
+          batch.map(url => 
+            fetch(url, { 
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+              signal: AbortSignal.timeout(10000) // 10 second timeout per request
+            })
+          )
+        );
+        results.push(...batchResults.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<Response>).value));
+        // Small delay between batches to avoid rate limiting
+        if (i + batchSize < urls.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      return results;
+    };
+    
+    // Build prioritized outlet searches - REDUCED to avoid timeout
+    const prioritizedSearchUrls: string[] = [];
     if (prioritizedOutlets.length > 0) {
       console.log(`Prioritizing ${prioritizedOutlets.length} media outlets`);
       
-      // Search each prioritized outlet specifically with MULTIPLE strategies
-      prioritizedOutlets.forEach((outlet: string) => {
-        // Search 1: Current year + fighters
-        prioritizedSearches.push(
-          fetch(
-            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentYear}`)}`,
-            { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-          )
+      // Limit to top 10 outlets to avoid timeout
+      const topOutlets = prioritizedOutlets.slice(0, 10);
+      
+      // Search each prioritized outlet with FOCUSED strategies (reduced from 6 to 2 per outlet)
+      topOutlets.forEach((outlet: string) => {
+        // Search 1: Current year + all fighters
+        prioritizedSearchUrls.push(
+          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentYear}`)}`
         );
         // Search 2: Current month
-        prioritizedSearches.push(
-          fetch(
-            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentMonth}`)}`,
-            { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-          )
+        prioritizedSearchUrls.push(
+          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${currentMonth}`)}`
         );
-        // Search 3: Last month
-        prioritizedSearches.push(
-          fetch(
-            `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${allFighters} ${lastMonth}`)}`,
-            { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-          )
-        );
-        // Search 4: Each individual fighter on this outlet
-        fighters.forEach(fighter => {
-          prioritizedSearches.push(
-            fetch(
-              `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${outlet} ${fighter} ${currentYear}`)}`,
-              { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-            )
-          );
-        });
       });
     }
     
-    // Multiple LOCAL searches with different approaches - FOCUS ON LATEST
-    const localSearches = await Promise.all([
-      ...prioritizedSearches,
-      // Priority searches for LATEST articles with current dates
-      fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${currentMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-      ),
-      fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${lastMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-      ),
-      fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} news ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-      ),
-      fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet latest ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-      ),
-      // Search: fighter jet procurement
-      fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-      ),
-      // Search: defense aviation
-      fetch(
-        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} defense aviation ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-      ),
-      // Search: Each fighter individually with latest
-      ...fighters.map(fighter =>
-        fetch(
-          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${fighter} ${country} latest${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-          { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-        )
-      ),
-      // Search: Each fighter with current year
-      ...fighters.map(fighter =>
-        fetch(
-          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${fighter} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
-          { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
-        )
-      )
-    ]);
+    // Build general search URLs
+    const generalSearchUrls: string[] = [
+      // Priority searches for LATEST articles
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} ${currentMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} ${allFighters} news ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+    ];
+    
+    // Combine all search URLs
+    const allSearchUrls = [...prioritizedSearchUrls, ...generalSearchUrls];
+    
+    console.log(`Executing ${allSearchUrls.length} searches in batches...`);
+    
+    // Execute searches in batches
+    const localSearches = await batchFetch(allSearchUrls, 8);
 
     // International search (more comprehensive, focus on latest)
     const intlSearches = await Promise.all([
