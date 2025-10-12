@@ -40,16 +40,27 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       setLoading(true);
       console.log('Searching for fighter articles using AI...');
       
-      // Filter only active outlets
-      const activeOutlets = prioritizedOutlets
-        .filter(outlet => outlet.active)
-        .map(outlet => outlet.name);
+      // Get baseline tracking period
+      const { data: baseline } = await supabase
+        .from('baselines')
+        .select('start_date, end_date')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!baseline) {
+        throw new Error('No baseline found. Please set a tracking start date first.');
+      }
+
+      const startDate = baseline.start_date;
+      const endDate = baseline.end_date || new Date().toISOString().split('T')[0];
       
       const { data, error } = await supabase.functions.invoke('search-fighter-articles', {
         body: { 
           country: activeCountry,
           competitors: activeCompetitors,
-          prioritizedOutlets: activeOutlets
+          startDate,
+          endDate
         }
       });
 

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { country, competitors, prioritizedOutlets = [] } = await req.json();
+    const { country, competitors, startDate, endDate } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -23,16 +23,33 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    console.log('Searching for fighter articles:', { country, competitors });
+    // Get all media sources for the active country
+    const { data: sources, error: sourcesError } = await supabase
+      .from('sources')
+      .select('url, name')
+      .eq('country', country)
+      .eq('enabled', true);
+    
+    if (sourcesError) {
+      console.error('Error fetching sources:', sourcesError);
+    }
+
+    const allOutlets = sources?.map(s => s.url) || [];
+    console.log(`Found ${allOutlets.length} media outlets for ${country}`);
+
+    console.log('Searching for fighter articles:', { country, competitors, trackingPeriod: `${startDate} to ${endDate}` });
 
     const fighters = ['Gripen', ...competitors];
     const allFighters = fighters.join(' OR ');
     
-    // Get current date for dynamic searches
+    // Parse tracking period dates
+    const trackingStart = new Date(startDate);
+    const trackingEnd = new Date(endDate);
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.toLocaleString('en-US', { month: 'long' });
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-US', { month: 'long' });
+    const trackingStartMonth = trackingStart.toLocaleString('en-US', { month: 'long' });
+    const trackingStartYear = trackingStart.getFullYear();
     
     // Multi-language search terms by country
     const searchTermsByCountry: Record<string, {
@@ -177,21 +194,16 @@ serve(async (req) => {
       return results;
     };
     
-    // Build prioritized outlet searches with native language support
-    const prioritizedSearchUrls: string[] = [];
-    if (prioritizedOutlets.length > 0) {
-      console.log(`Prioritizing ${prioritizedOutlets.length} media outlets with native language search`);
+    // Build searches for ALL media outlets (not just prioritized)
+    const outletSearchUrls: string[] = [];
+    if (allOutlets.length > 0) {
+      console.log(`Searching across ALL ${allOutlets.length} media outlets for ${country}`);
       
-      // Increase to top 15 outlets for more coverage (batch processing handles this safely)
-      const topOutlets = prioritizedOutlets.slice(0, 15);
-      
-      // Search each prioritized outlet with native + English terms
-      topOutlets.forEach((outlet: string) => {
-        // Handle both exact domain and parent domain (for subdomains like eco.sapo.pt)
+      allOutlets.forEach((outlet: string) => {
+        // Handle both exact domain and parent domain
         const domains = [outlet];
         const domainParts = outlet.split('.');
         if (domainParts.length > 2) {
-          // Add parent domain (e.g., sapo.pt from eco.sapo.pt)
           const parentDomain = domainParts.slice(-2).join('.');
           if (parentDomain !== outlet) {
             domains.push(parentDomain);
@@ -199,15 +211,15 @@ serve(async (req) => {
         }
         
         domains.forEach(domain => {
-          // Search 1: Recent articles with date constraint
-          prioritizedSearchUrls.push(
+          // Search 1: Tracking period articles
+          outletSearchUrls.push(
             `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-              `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} after:${lastMonth}`
+              `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} after:${trackingStartMonth} ${trackingStartYear}`
             )}`
           );
           
           // Search 2: Current month focus
-          prioritizedSearchUrls.push(
+          outletSearchUrls.push(
             `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
               `site:${domain} (${searchTerms.combined.fighter}) ${allFighters} ${currentMonth} ${currentYear}`
             )}`
@@ -215,14 +227,14 @@ serve(async (req) => {
         });
       });
       
-      console.log(`Generated ${prioritizedSearchUrls.length} prioritized searches (including subdomain variations)`);
+      console.log(`Generated ${outletSearchUrls.length} outlet-specific searches`);
     }
     
-    // Build general search URLs with native language support and date filtering
+    // Build general search URLs for the tracking period
     const generalSearchUrls: string[] = [
-      // Recent articles with date constraint
+      // Tracking period articles
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-        `(${searchTerms.combined.fighter}) ${allFighters} after:${lastMonth}${countryDomain ? ` site:${countryDomain}` : ''}`
+        `(${searchTerms.combined.fighter}) ${allFighters} after:${trackingStartMonth} ${trackingStartYear}${countryDomain ? ` site:${countryDomain}` : ''}`
       )}`,
       
       // Current month focus
@@ -230,14 +242,14 @@ serve(async (req) => {
         `(${searchTerms.combined.fighter}) ${allFighters} ${currentMonth} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
       )}`,
       
-      // Procurement terms
+      // Procurement terms across tracking period
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-        `${country} (${searchTerms.combined.procurement}) ${allFighters} ${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
+        `${country} (${searchTerms.combined.procurement}) ${allFighters} ${trackingStartYear}..${currentYear}${countryDomain ? ` site:${countryDomain}` : ''}`
       )}`,
     ];
     
     // Combine all search URLs
-    const allSearchUrls = [...prioritizedSearchUrls, ...generalSearchUrls];
+    const allSearchUrls = [...outletSearchUrls, ...generalSearchUrls];
     
     console.log(`Executing ${allSearchUrls.length} searches in batches...`);
     
@@ -335,8 +347,8 @@ serve(async (req) => {
     }
 
     // Use AI to analyze and structure the results
-    const currentDate = new Date();
-    const sixtyDaysAgo = new Date(currentDate.getTime() - (60 * 24 * 60 * 60 * 1000));
+    const trackingStartDate = new Date(startDate);
+    const trackingEndDate = new Date(endDate);
     
     const analysisPrompt = `Analyze these search results for fighter aircraft procurement news in ${country}.
 
@@ -349,33 +361,28 @@ Native language terms used in local media:
 
 **CRITICAL**: Articles using these native terms ARE VALID fighter jet articles. Also recognize English terms: fighter, jet, aircraft, procurement.
 
-TODAY'S DATE: ${currentDate.toISOString().split('T')[0]}
-ONLY INCLUDE ARTICLES FROM THE LAST 60 DAYS (after ${sixtyDaysAgo.toISOString().split('T')[0]})
+TODAY'S DATE: ${trackingEndDate.toISOString().split('T')[0]}
+TRACKING PERIOD: ${trackingStartDate.toISOString().split('T')[0]} to ${trackingEndDate.toISOString().split('T')[0]}
+ONLY INCLUDE ARTICLES FROM THIS TRACKING PERIOD
 
-${prioritizedOutlets.length > 0 ? `
-🔴 CRITICAL PRIORITY - PRIORITIZED MEDIA OUTLETS (ALL FROM ${country}):
-${prioritizedOutlets.map((outlet: string) => `- ${outlet}`).join('\n')}
+ALL MEDIA OUTLETS FOR ${country}:
+${allOutlets.map((outlet: string) => `- ${outlet}`).join('\n')}
 
-**MANDATORY REQUIREMENTS FOR PRIORITIZED OUTLETS:**
-1. Articles from these outlets MUST have sourceCountry: "${country}" (NON-NEGOTIABLE)
-2. Articles from these outlets MUST appear FIRST in your results
-3. You MUST include AT LEAST 60-70% of articles from these prioritized outlets
-4. Articles from prioritized outlets take precedence over ALL other sources
-5. If an article is from a prioritized outlet, it should be included even if slightly less relevant
-6. MAXIMUM importance on ${currentMonth} ${currentYear} articles from these outlets
-7. The first 10-15 results MUST be from prioritized outlets if available
-8. **RECOGNIZE NATIVE LANGUAGE**: Articles from these outlets using "${searchTerms.native.fighter.join('", "')}" are VALID
+**REQUIREMENTS FOR ALL OUTLETS:**
+1. Articles from these outlets MUST have sourceCountry: "${country}"
+2. Include articles from ALL these outlets across the tracking period
+3. Recognize BOTH native language (${searchTerms.native.fighter.join(', ')}) AND English terms
+4. Prioritize recent articles but include ALL relevant articles from tracking period
+5. Articles from ${country} outlets are PRIMARY sources
 
-Only after exhausting relevant articles from prioritized outlets, then include other sources.
-` : ''}
 
-CRITICAL PRIORITY INSTRUCTIONS:
-1. **ABSOLUTE PRIORITY: NEWEST ARTICLES FIRST** - Heavily favor articles from ${currentMonth} ${currentYear}, then ${lastMonth} ${currentYear}
-2. ${prioritizedOutlets.length > 0 ? 'Prioritized outlets DOMINATE the results (60-70% minimum)' : 'Prioritize LOCAL ' + country + ' media sources'}
-3. Include ALL relevant articles from prioritized outlets
-4. **NATIVE LANGUAGE RECOGNITION**: Articles mentioning "${searchTerms.native.fighter.join('", "')}" or "${searchTerms.native.aircraft.join('", "')}" are fighter jet articles
-5. If an article is from the current month AND from a prioritized outlet, it is MANDATORY
-6. Recent articles (last 30 days) from prioritized outlets are MORE important than any other content
+PRIORITY INSTRUCTIONS:
+1. **TRACKING PERIOD**: Only include articles from ${trackingStartDate.toISOString().split('T')[0]} to ${trackingEndDate.toISOString().split('T')[0]}
+2. Include ALL ${country} media outlets listed above
+3. **NATIVE + ENGLISH**: Recognize articles in BOTH local language and English
+4. Include ALL relevant articles from all ${country} outlets
+5. ${country} media sources are PRIMARY, international coverage is SECONDARY
+6. **LANGUAGE RECOGNITION**: Articles mentioning "${searchTerms.native.fighter.join('", "')}" or "${searchTerms.native.aircraft.join('", "')}" are fighter jet articles
 
 Fighter aircraft we're tracking: ${fighters.join(', ')}
 
@@ -383,19 +390,19 @@ Search results (LOCAL SOURCES FIRST):
 ${allResults.map((r, i) => `${i + 1}. Title: ${r.title}\n   URL: ${r.url}\n   Snippet: ${r.snippet}`).join('\n\n')}
 
 REQUIREMENTS:
-- MUST include ALL relevant local ${country} articles (especially ${countryDomain} domains)
-- **CRITICAL**: Articles from prioritized outlets MUST have sourceCountry: "${country}"
-- ONLY articles from the last 60 days
-- **NATIVE LANGUAGE**: Recognize articles using these terms: ${searchTerms.native.fighter.join(', ')}, ${searchTerms.native.procurement.join(', ')}
+- MUST include ALL relevant articles from ALL ${country} media outlets
+- **CRITICAL**: Articles from ${country} outlets MUST have sourceCountry: "${country}"
+- ONLY articles from tracking period: ${trackingStartDate.toISOString().split('T')[0]} to ${trackingEndDate.toISOString().split('T')[0]}
+- **NATIVE + ENGLISH**: Recognize articles using: ${searchTerms.native.fighter.join(', ')}, ${searchTerms.native.procurement.join(', ')}, AND English equivalents
 - Identify source country accurately:
-  * Prioritized outlets listed above = "${country}" (MANDATORY)
+  * ${country} outlets listed above = "${country}" (MANDATORY)
   * ${countryDomain} domains = "${country}"
-  * Subdomains of prioritized outlets = "${country}" (e.g., if publico.pt is prioritized, then eco.publico.pt is also "${country}")
+  * Subdomains of ${country} outlets = "${country}"
   * .uk domains = "GB"
   * .com domains = "US" unless clearly from another country
-  * Use domain TLD to determine country when not a prioritized outlet
-- Include international coverage as secondary
-- Only articles about fighter procurement/defense (including articles using native language terms)
+  * Use domain TLD to determine country
+- Include international English coverage as secondary
+- Only articles about fighter procurement/defense in BOTH native language and English
 
 
 
@@ -403,16 +410,16 @@ REQUIREMENTS:
 - Extract dates from URLs: Look for "/2025/09/25/", "/20250925/", etc.
 - Extract dates from titles/snippets: "Sep 2025", "September 2025", "25 Sep", etc.
 - If you find a date in URL or content, use it
-- **If no clear date is found**: Make a best effort to include the article if it seems relevant and recent
-- Prefer articles where you can extract dates, but don't exclude all articles without dates
-- **CRITICAL**: If the URL or snippet shows a date from 2024 or before August 2025, EXCLUDE it
-- Calculate relative dates ("2 days ago") from TODAY: ${currentDate.toISOString().split('T')[0]}
+- **TRACKING PERIOD**: Only include if date is between ${trackingStartDate.toISOString().split('T')[0]} and ${trackingEndDate.toISOString().split('T')[0]}
+- If no clear date but appears recent and relevant, estimate within tracking period
+- **CRITICAL**: Exclude articles clearly outside the tracking period
+- Calculate relative dates ("2 days ago") from TODAY: ${trackingEndDate.toISOString().split('T')[0]}
 
 **BALANCED APPROACH:**
-- Prioritize articles with clear dates within last 60 days
-- Include potentially relevant recent articles even if exact date is unclear (use current month as estimate)
-- EXCLUDE articles with clear old dates (2024, early 2025)
-- Better to include some recent articles with estimated dates than return nothing
+- Prioritize articles with clear dates within tracking period
+- Include potentially relevant articles even if exact date is unclear (estimate within tracking period)
+- EXCLUDE articles clearly outside tracking period
+- Include comprehensive coverage from all ${country} outlets
 
 CRITICAL FIGHTER TAG DETECTION:
 Read the ENTIRE title AND snippet carefully. For the "fighters" field:
