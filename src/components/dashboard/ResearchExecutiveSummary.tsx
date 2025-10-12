@@ -1,8 +1,17 @@
 import { Card } from "@/components/ui/card";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Newspaper } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+
+interface TopSource {
+  name: string;
+  url: string;
+  type: string;
+  country: string;
+  mention_count: number;
+}
 
 interface ResearchReport {
   id: string;
@@ -20,9 +29,11 @@ interface ResearchExecutiveSummaryProps {
 export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiveSummaryProps) => {
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [topSources, setTopSources] = useState<TopSource[]>([]);
 
   useEffect(() => {
     fetchLatestReport();
+    fetchTopSources();
 
     const channel = supabase
       .channel('research-reports')
@@ -35,8 +46,20 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
       })
       .subscribe();
 
+    const itemsChannel = supabase
+      .channel('items-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'items'
+      }, () => {
+        fetchTopSources();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(itemsChannel);
     };
   }, []);
 
@@ -55,6 +78,57 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
       console.error('Error fetching research report:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTopSources = async () => {
+    try {
+      // Get source mention counts from items
+      const { data: items, error: itemsError } = await supabase
+        .from('items')
+        .select('source_id')
+        .not('source_id', 'is', null);
+
+      if (itemsError) throw itemsError;
+
+      // Count mentions per source
+      const sourceCounts = items?.reduce((acc: Record<string, number>, item) => {
+        const sourceId = item.source_id;
+        if (sourceId) {
+          acc[sourceId] = (acc[sourceId] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Get top 5 source IDs
+      const topSourceIds = Object.entries(sourceCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([id]) => id);
+
+      if (topSourceIds.length === 0) {
+        setTopSources([]);
+        return;
+      }
+
+      // Fetch source details
+      const { data: sources, error: sourcesError } = await supabase
+        .from('sources')
+        .select('id, name, url, type, country')
+        .in('id', topSourceIds);
+
+      if (sourcesError) throw sourcesError;
+
+      // Combine with counts
+      const topSourcesWithCounts = sources?.map(source => ({
+        ...source,
+        mention_count: sourceCounts[source.id] || 0
+      }))
+      .sort((a, b) => b.mention_count - a.mention_count) || [];
+
+      setTopSources(topSourcesWithCounts);
+    } catch (error) {
+      console.error('Error fetching top sources:', error);
     }
   };
 
@@ -117,6 +191,53 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {topSources.length > 0 && (
+          <div className="pt-4 border-t space-y-3">
+            <div className="flex items-center gap-2">
+              <Newspaper className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold">Top Referenced Media Sources</h3>
+            </div>
+            <div className="space-y-2">
+              {topSources.map((source, index) => (
+                <div 
+                  key={source.url} 
+                  className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
+                      <a 
+                        href={source.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-semibold text-foreground hover:text-primary transition-colors truncate"
+                      >
+                        {source.name}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {source.type}
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {source.country}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="ml-4 text-right">
+                    <div className="text-2xl font-bold text-primary">
+                      {source.mention_count}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      mentions
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
