@@ -344,41 +344,43 @@ export const MediaOutletsSettings = ({ onSettingsSaved }: MediaOutletsSettingsPr
         </div>
 
         {prioritizedOutlets.length > 0 && (
-          <div className="space-y-2 border rounded-lg p-3">
-            {prioritizedOutlets.map((outlet) => (
-              <div key={outlet.name} className="flex items-center justify-between gap-2 p-2 rounded bg-secondary/50">
-                <span className={cn(
-                  "text-sm flex-1",
-                  !outlet.active && "text-muted-foreground line-through"
-                )}>
-                  {outlet.name}
-                </span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    onClick={() => toggleOutletActive(outlet.name)}
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    title={outlet.active ? "Pause" : "Activate"}
-                  >
-                    {outlet.active ? (
-                      <Pause className="h-3 w-3" />
-                    ) : (
-                      <Play className="h-3 w-3" />
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => removeOutlet(outlet.name)}
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
+          <ScrollArea className="h-[300px] border rounded-lg p-3">
+            <div className="space-y-2 pr-4">
+              {prioritizedOutlets.map((outlet) => (
+                <div key={outlet.name} className="flex items-center justify-between gap-2 p-2 rounded bg-secondary/50">
+                  <span className={cn(
+                    "text-sm flex-1",
+                    !outlet.active && "text-muted-foreground line-through"
+                  )}>
+                    {outlet.name}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      onClick={() => toggleOutletActive(outlet.name)}
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title={outlet.active ? "Pause" : "Activate"}
+                    >
+                      {outlet.active ? (
+                        <Pause className="h-3 w-3" />
+                      ) : (
+                        <Play className="h-3 w-3" />
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => removeOutlet(outlet.name)}
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollArea>
         )}
       </div>
 
