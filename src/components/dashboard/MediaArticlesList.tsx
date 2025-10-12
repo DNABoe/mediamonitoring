@@ -28,9 +28,12 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // Only fetch on initial mount, not on every prop change
   useEffect(() => {
-    fetchMediaArticles();
-  }, [activeCountry, activeCompetitors, prioritizedOutlets]);
+    if (mediaArticles.length === 0) {
+      fetchMediaArticles();
+    }
+  }, []);
 
   const fetchMediaArticles = async () => {
     try {
@@ -53,14 +56,43 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       if (error) throw error;
 
       if (data?.success && data?.articles) {
-        console.log(`Found ${data.articles.length} articles`);
+        console.log(`Found ${data.articles.length} new articles`);
+        
+        // Calculate 60 days ago
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+        
+        // Merge new articles with existing ones
+        const mergedArticles = [...mediaArticles, ...data.articles];
+        
+        // Remove duplicates based on URL
+        const uniqueArticles = Array.from(
+          new Map(mergedArticles.map(article => [article.url, article])).values()
+        );
+        
+        // Filter out articles older than 60 days
+        const recentArticles = uniqueArticles.filter(article => {
+          const articleDate = new Date(article.publishedAt);
+          return articleDate >= sixtyDaysAgo;
+        });
+        
         // Sort by date, newest first
-        const sortedArticles = data.articles.sort((a: MediaArticle, b: MediaArticle) => {
+        const sortedArticles = recentArticles.sort((a: MediaArticle, b: MediaArticle) => {
           return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
         });
+        
         setMediaArticles(sortedArticles);
         
-        if (data.articles.length === 0) {
+        const newArticlesCount = data.articles.length;
+        const removedCount = uniqueArticles.length - recentArticles.length;
+        
+        toast({
+          title: "Articles updated",
+          description: `Added ${newArticlesCount} new articles${removedCount > 0 ? `, removed ${removedCount} old articles` : ''}. Total: ${sortedArticles.length}`,
+          duration: 3000,
+        });
+        
+        if (sortedArticles.length === 0) {
           toast({
             title: "No articles found",
             description: "No recent articles found about fighter procurement. Try again later.",
@@ -78,7 +110,6 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         variant: "destructive",
         duration: 3000,
       });
-      setMediaArticles([]);
     } finally {
       setLoading(false);
     }
