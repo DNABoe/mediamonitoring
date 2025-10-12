@@ -397,7 +397,7 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
             <Shield className="h-6 w-6 text-destructive" />
             <h2 className="text-2xl font-bold">Black Hat Analysis</h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-end gap-1">
             <Button
               onClick={generateAISuggestions}
               disabled={generating || !report}
