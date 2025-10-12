@@ -250,6 +250,15 @@ REQUIREMENTS:
 - Include international coverage as secondary
 - Only articles about fighter procurement/defense
 
+**CRITICAL DATE REQUIREMENTS:**
+- You MUST ONLY include articles if you can find a REAL date in the title or snippet
+- Look for: "Oct 2025", "October 2025", "2025-10-12", "12 Oct", month names, specific dates
+- If NO date is visible in title/snippet, use the current month: ${currentMonth} ${currentYear}
+- DO NOT make up dates or use placeholder dates
+- DO NOT distribute dates evenly across the 60-day period
+- If you see "2 days ago" or "last week" in snippet, calculate from TODAY: ${currentDate.toISOString().split('T')[0]}
+- Articles WITHOUT visible dates should default to CURRENT MONTH only
+
 CRITICAL FIGHTER TAG DETECTION:
 Read the ENTIRE title AND snippet carefully. For the "fighters" field:
 - Look for mentions of: ${fighters.join(', ')}
@@ -267,7 +276,7 @@ For each relevant article, provide:
 1. title (original language, cleaned)
 2. url (actual article URL)
 3. source (publication name)
-4. publishedAt (YYYY-MM-DD format - MUST be within last 60 days, use article date if available)
+4. publishedAt (YYYY-MM-DD format - MUST be from visible date in content OR current month if no date found)
 5. fighters (array of ALL fighters mentioned - read carefully!)
 6. sourceCountry (country code)
 
