@@ -23,34 +23,50 @@ serve(async (req) => {
     const fighters = ['Gripen', ...competitors];
     const allFighters = fighters.join(' OR ');
     
-    // Get country-specific domain for local search
+    // Get country-specific domain and search terms
     const countryDomains: Record<string, string> = {
       'PT': '.pt', 'US': '.us', 'GB': '.uk', 'FR': '.fr', 'DE': '.de', 
       'ES': '.es', 'IT': '.it', 'SE': '.se', 'NO': '.no', 'DK': '.dk',
       'FI': '.fi', 'PL': '.pl', 'IN': '.in', 'BR': '.br', 'CA': '.ca',
       'AU': '.au', 'NZ': '.nz', 'JP': '.jp', 'KR': '.kr', 'CN': '.cn'
     };
+    
+    // Country-specific defense/military terms
+    const countryTerms: Record<string, string[]> = {
+      'PT': ['caças', 'aviação militar', 'defesa', 'força aérea'],
+      'ES': ['cazas', 'aviación militar', 'defensa', 'fuerza aérea'],
+      'FR': ['chasseurs', 'aviation militaire', 'défense', 'armée de l\'air'],
+      'DE': ['Kampfflugzeuge', 'Luftwaffe', 'Verteidigung'],
+      'SE': ['stridsflygplan', 'flygvapnet', 'försvar'],
+    };
+    
     const countryDomain = countryDomains[country] || '';
+    const localTerms = countryTerms[country] || ['fighter jets', 'air force', 'defense', 'military aviation'];
     
-    // First, search for LOCAL articles from the target country
-    const localSearchQuery = `${country} fighter jet procurement defense ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`;
-    console.log('Local search query:', localSearchQuery);
-    
-    const localSearchResponse = await fetch(
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(localSearchQuery)}`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      }
-    );
+    // Multiple LOCAL searches with different approaches
+    const localSearches = await Promise.all([
+      // Search 1: Local domain with English terms
+      fetch(
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+      ),
+      // Search 2: Local domain with local language terms
+      fetch(
+        `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${localTerms[0]} ${localTerms[1]} ${allFighters}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+      ),
+      // Search 3: Each fighter individually in local domain
+      ...fighters.map(fighter =>
+        fetch(
+          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${fighter} ${country}${countryDomain ? ` site:${countryDomain}` : ''}`)}`,
+          { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }
+        )
+      )
+    ]);
 
-    // Then search for international articles
-    const intlSearchQuery = `${country} fighter jet procurement ${allFighters} news defense`;
-    console.log('International search query:', intlSearchQuery);
-    
+    // International search (limited)
     const intlSearchResponse = await fetch(
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(intlSearchQuery)}`,
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${country} fighter jet procurement ${allFighters} news`)}`,
       {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -58,28 +74,6 @@ serve(async (req) => {
       }
     );
 
-    // Additional targeted searches for each fighter
-    const fighterSearches = await Promise.all(
-      fighters.map(async (fighter) => {
-        const fighterQuery = `${country} "${fighter}" fighter procurement news`;
-        const response = await fetch(
-          `https://html.duckduckgo.com/html/?q=${encodeURIComponent(fighterQuery)}`,
-          {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-          }
-        );
-        return response.ok ? await response.text() : '';
-      })
-    );
-    
-
-    if (!localSearchResponse.ok && !intlSearchResponse.ok) {
-      throw new Error(`Search failed`);
-    }
-
-    const localHtml = localSearchResponse.ok ? await localSearchResponse.text() : '';
     const intlHtml = intlSearchResponse.ok ? await intlSearchResponse.text() : '';
     
     // Extract search results from HTML
@@ -114,12 +108,20 @@ serve(async (req) => {
       return results;
     };
     
-    const localResults = extractResults(localHtml);
-    const intlResults = extractResults(intlHtml);
-    const fighterSpecificResults = fighterSearches.flatMap(html => extractResults(html));
+    // Process all local search results
+    const localHtmls = await Promise.all(
+      localSearches.map(async (response: Response) => response.ok ? await response.text() : '')
+    );
+    const localResults = localHtmls.flatMap((html: string) => extractResults(html));
     
-    // Combine all results, prioritizing local, then remove duplicates by URL
-    const allResultsWithDupes = [...localResults.slice(0, 15), ...intlResults.slice(0, 10), ...fighterSpecificResults.slice(0, 10)];
+    const intlResults = extractResults(intlHtml);
+    
+    // Heavily prioritize local results: 30 local, 5 international
+    const allResultsWithDupes = [
+      ...localResults.slice(0, 30),
+      ...intlResults.slice(0, 5)
+    ];
+    
     const seenUrls = new Set<string>();
     const allResults = allResultsWithDupes.filter(result => {
       if (seenUrls.has(result.url)) return false;
@@ -127,7 +129,7 @@ serve(async (req) => {
       return true;
     });
 
-    console.log(`Found ${localResults.length} local + ${intlResults.length} international + ${fighterSpecificResults.length} fighter-specific = ${allResults.length} unique results`);
+    console.log(`Found ${localResults.length} local + ${intlResults.length} international = ${allResults.length} unique results`);
 
     if (allResults.length === 0) {
       return new Response(
