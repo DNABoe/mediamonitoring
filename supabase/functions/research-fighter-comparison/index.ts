@@ -52,10 +52,12 @@ serve(async (req) => {
 
     const today = new Date().toISOString().split('T')[0];
     
-    // Fetch the latest baseline for this user
+    // Fetch the latest baseline for this user and country
     const { data: baselineData } = await supabase
       .from('baselines')
       .select('start_date')
+      .eq('created_by', user.id)
+      .eq('tracking_country', country)
       .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .limit(1)
@@ -207,10 +209,12 @@ Return structured data using the analysis_report tool.`;
       );
     });
 
-    // Fetch ALL articles from database since baseline
+    // Fetch ALL articles from database since baseline for this user and country
     const { data: realArticles } = await supabase
       .from('items')
       .select('title_en, url, published_at, fighter_tags, sentiment')
+      .eq('user_id', user.id)
+      .eq('tracking_country', country)
       .not('fighter_tags', 'is', null)
       .gte('published_at', trackingStartDate)
       .order('published_at', { ascending: false });

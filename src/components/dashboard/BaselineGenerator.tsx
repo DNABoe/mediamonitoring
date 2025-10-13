@@ -49,6 +49,15 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
 
       console.log('Baseline generated:', data);
       
+      // Get user's active country
+      const { data: userSettingsData } = await supabase
+        .from('user_settings')
+        .select('active_country')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const trackingCountry = userSettingsData?.active_country || 'PT';
+      
       toast.success(
         `Tracking date set to ${format(date, 'PPP')}!`
       );
@@ -60,6 +69,8 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
       const { data: baseline, error: baselineError } = await supabase
         .from('baselines')
         .select('start_date, end_date')
+        .eq('created_by', user.id)
+        .eq('tracking_country', trackingCountry)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

@@ -78,7 +78,7 @@ export type Database = {
         Row: {
           alerts_count: number | null
           created_at: string | null
-          created_by: string | null
+          created_by: string
           data: Json | null
           end_date: string
           id: string
@@ -86,11 +86,12 @@ export type Database = {
           metrics_summary: Json | null
           start_date: string
           status: string | null
+          tracking_country: string
         }
         Insert: {
           alerts_count?: number | null
           created_at?: string | null
-          created_by?: string | null
+          created_by: string
           data?: Json | null
           end_date: string
           id?: string
@@ -98,11 +99,12 @@ export type Database = {
           metrics_summary?: Json | null
           start_date: string
           status?: string | null
+          tracking_country?: string
         }
         Update: {
           alerts_count?: number | null
           created_at?: string | null
-          created_by?: string | null
+          created_by?: string
           data?: Json | null
           end_date?: string
           id?: string
@@ -110,6 +112,7 @@ export type Database = {
           metrics_summary?: Json | null
           start_date?: string
           status?: string | null
+          tracking_country?: string
         }
         Relationships: []
       }
@@ -174,7 +177,9 @@ export type Database = {
           summary_en: string | null
           title_en: string | null
           title_pt: string | null
+          tracking_country: string
           url: string
+          user_id: string
         }
         Insert: {
           created_at?: string | null
@@ -194,7 +199,9 @@ export type Database = {
           summary_en?: string | null
           title_en?: string | null
           title_pt?: string | null
+          tracking_country?: string
           url: string
+          user_id: string
         }
         Update: {
           created_at?: string | null
@@ -214,7 +221,9 @@ export type Database = {
           summary_en?: string | null
           title_en?: string | null
           title_pt?: string | null
+          tracking_country?: string
           url?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -523,6 +532,10 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_country_data: {
+        Args: { _old_country: string; _user_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

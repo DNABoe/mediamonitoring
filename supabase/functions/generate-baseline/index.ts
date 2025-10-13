@@ -44,6 +44,15 @@ Deno.serve(async (req) => {
 
     const { start_date } = await req.json()
     
+    // Get user's active country
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('active_country')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    const trackingCountry = userSettings?.active_country || 'PT'
+    
     // Log admin action
     await supabase
       .from('admin_audit_log')
@@ -68,7 +77,8 @@ Deno.serve(async (req) => {
         created_by: user.id,
         start_date,
         end_date: endDate,
-        status: 'processing'
+        status: 'processing',
+        tracking_country: trackingCountry
       })
       .select()
       .single()
@@ -85,6 +95,8 @@ Deno.serve(async (req) => {
       supabase
         .from('items')
         .select('*')
+        .eq('user_id', user.id)
+        .eq('tracking_country', trackingCountry)
         .gte('published_at', start_date)
         .lte('published_at', endDate),
       supabase

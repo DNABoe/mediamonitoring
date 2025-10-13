@@ -52,7 +52,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const startDate = sixtyDaysAgo.toISOString();
 
-      // Fetch articles from database (last 60 days)
+      // Fetch articles from database (last 60 days) for this user and country
       const { data: items, error } = await supabase
         .from('items')
         .select(`
@@ -63,6 +63,8 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
             type
           )
         `)
+        .eq('user_id', user.id)
+        .eq('tracking_country', activeCountry)
         .gte('published_at', startDate)
         .order('published_at', { ascending: false });
 

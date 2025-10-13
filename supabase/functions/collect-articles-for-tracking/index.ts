@@ -28,13 +28,40 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Step 1: Parsing request body...');
+    console.log('Step 1: Authenticating user...');
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const userId = user.id;
+    console.log('Step 1 SUCCESS: User authenticated:', userId);
+
+    console.log('Step 2: Parsing request body...');
     let body;
     try {
       body = await req.json();
-      console.log('Step 1 SUCCESS: Request body parsed:', JSON.stringify(body));
+      console.log('Step 2 SUCCESS: Request body parsed:', JSON.stringify(body));
     } catch (parseError) {
-      console.error('Step 1 FAILED: Request parsing error:', parseError);
+      console.error('Step 2 FAILED: Request parsing error:', parseError);
       return new Response(JSON.stringify({ 
         error: 'Invalid request format - failed to parse JSON',
         details: parseError instanceof Error ? parseError.message : 'Unknown parse error'
@@ -66,12 +93,7 @@ serve(async (req) => {
     
     console.log('Step 2 SUCCESS: All parameters validated');
 
-    console.log('Step 3: Creating Supabase client...');
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-    console.log('Step 3 SUCCESS: Supabase client created');
+    console.log('Step 3: Supabase client already created during auth');
 
     console.log('Step 4: Checking API keys...');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -694,7 +716,9 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
           published_at: publishedAt,
           fighter_tags: article.fighter_tags,
           sentiment: typeof article.sentiment === 'number' ? article.sentiment : 0,
-          fetched_at: new Date().toISOString()
+          fetched_at: new Date().toISOString(),
+          user_id: userId,
+          tracking_country: country
         };
         
         console.log(`  Inserting with data:`, JSON.stringify(insertData, null, 2));

@@ -69,10 +69,21 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch the baseline to get the tracking period
+      // Get user's active country
+      const { data: userSettings } = await supabase
+        .from('user_settings')
+        .select('active_country')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const trackingCountry = userSettings?.active_country || 'PT';
+
+      // Fetch the baseline to get the tracking period for this user and country
       const { data: baseline } = await supabase
         .from('baselines')
         .select('start_date, end_date')
+        .eq('created_by', user.id)
+        .eq('tracking_country', trackingCountry)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -89,6 +100,8 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
       const { data: articles, error } = await supabase
         .from('items')
         .select('*')
+        .eq('user_id', user.id)
+        .eq('tracking_country', trackingCountry)
         .gte('published_at', startDate.toISOString())
         .lte('published_at', endDate.toISOString())
         .order('published_at', { ascending: true });

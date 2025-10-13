@@ -154,6 +154,32 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Get current settings to check if country changed
+      const { data: currentSettings } = await supabase
+        .from('user_settings')
+        .select('active_country')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const oldCountry = currentSettings?.active_country;
+
+      // If country changed, clean up old data
+      if (oldCountry && oldCountry !== activeCountry) {
+        const { error: cleanupError } = await supabase.rpc('cleanup_country_data', {
+          _user_id: user.id,
+          _old_country: oldCountry
+        });
+
+        if (cleanupError) {
+          console.error('Error cleaning up old data:', cleanupError);
+          toast.error('Failed to clean up previous country data');
+          setSaving(false);
+          return;
+        }
+
+        toast.success(`Switched to ${activeCountry}. Previous ${oldCountry} data cleared.`);
+      }
+
       const { error } = await supabase
         .from('user_settings')
         .upsert({

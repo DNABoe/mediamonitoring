@@ -43,10 +43,24 @@ export const ResearchControls = () => {
   }, []);
 
   const checkBaseline = async () => {
-    // Only check existence, no need for internal fields
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get user's active country
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('active_country')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const trackingCountry = userSettings?.active_country || 'PT';
+
+    // Only check existence for this user and country
     const { data } = await supabase
       .from('baselines')
       .select('id')
+      .eq('created_by', user.id)
+      .eq('tracking_country', trackingCountry)
       .eq('status', 'completed')
       .limit(1)
       .maybeSingle();
