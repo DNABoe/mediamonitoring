@@ -7,31 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Decode DuckDuckGo redirect URLs to get real article URLs
-function decodeDuckDuckGoUrl(url: string): string {
-  try {
-    // Fix protocol-relative URLs
-    if (url.startsWith('//')) {
-      url = 'https:' + url;
-    }
-    
-    // Check if it's a DuckDuckGo redirect URL
-    if (url.includes('duckduckgo.com/l/?') || url.includes('uddg=')) {
-      const urlObj = new URL(url);
-      const uddg = urlObj.searchParams.get('uddg');
-      if (uddg) {
-        const decoded = decodeURIComponent(uddg);
-        console.log('Decoded DDG URL:', url.substring(0, 80), '->', decoded.substring(0, 80));
-        return decoded;
-      }
-    }
-    return url;
-  } catch (e) {
-    console.error('Error decoding URL:', url, e);
-    return url;
-  }
-}
-
 // Normalize URLs by removing tracking parameters and cleaning up
 function normalizeUrl(url: string): string {
   try {
@@ -98,13 +73,20 @@ serve(async (req) => {
     );
     console.log('Step 3 SUCCESS: Supabase client created');
 
-    console.log('Step 4: Checking API key...');
+    console.log('Step 4: Checking API keys...');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const GOOGLE_SEARCH_API_KEY = Deno.env.get('GOOGLE_SEARCH_API_KEY');
+    const GOOGLE_SEARCH_ENGINE_ID = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
+    
     if (!LOVABLE_API_KEY) {
       console.error('Step 4 FAILED: LOVABLE_API_KEY not configured');
       throw new Error('LOVABLE_API_KEY not configured');
     }
-    console.log('Step 4 SUCCESS: API key present');
+    if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+      console.error('Step 4 FAILED: Google Search credentials not configured');
+      throw new Error('GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID must be configured');
+    }
+    console.log('Step 4 SUCCESS: All API keys present');
 
     console.log('Step 5: Fetching enabled media sources...');
     const { data: sources, error: sourcesError } = await supabaseClient
@@ -202,106 +184,106 @@ serve(async (req) => {
     // Determine domain suffix from country code
     const domainSuffix = `.${country.toLowerCase()}`;
 
-    // Helper: batch fetch with rate limiting
-    async function batchFetch(urls: string[], batchSize = 10, delayMs = 500) {
+    // Helper: Google Custom Search with rate limiting
+    async function googleSearch(query: string, siteRestrict?: string): Promise<any[]> {
+      try {
+        let searchUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=10`;
+        
+        if (siteRestrict) {
+          searchUrl += `&siteSearch=${encodeURIComponent(siteRestrict)}&siteSearchFilter=i`;
+        }
+        
+        console.log(`  Google search: ${query.substring(0, 60)}${siteRestrict ? ` (site: ${siteRestrict})` : ''}`);
+        
+        const response = await fetch(searchUrl);
+        
+        if (!response.ok) {
+          console.error(`  Google search failed: ${response.status}`);
+          return [];
+        }
+        
+        const data = await response.json();
+        const items = data.items || [];
+        
+        console.log(`  Found ${items.length} results`);
+        
+        return items.map((item: any) => ({
+          title: item.title,
+          url: item.link,
+          snippet: item.snippet || ''
+        }));
+      } catch (e) {
+        console.error('  Google search error:', e);
+        return [];
+      }
+    }
+
+    // Batch searches with rate limiting
+    async function batchGoogleSearch(searches: Array<{query: string, site?: string}>, delayMs = 100) {
       const results = [];
-      for (let i = 0; i < urls.length; i += batchSize) {
-        const batch = urls.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batch.map(async (url) => {
-            try {
-              const controller = new AbortController();
-              const timeout = setTimeout(() => controller.abort(), 15000);
-              const response = await fetch(url, { 
-                signal: controller.signal,
-                headers: { 'User-Agent': 'Mozilla/5.0' }
-              });
-              clearTimeout(timeout);
-              if (!response.ok) return null;
-              return await response.text();
-            } catch {
-              return null;
-            }
-          })
-        );
-        results.push(...batchResults);
-        if (i + batchSize < urls.length) {
+      for (const search of searches) {
+        const items = await googleSearch(search.query, search.site);
+        results.push(...items);
+        if (searches.indexOf(search) < searches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, delayMs));
         }
       }
       return results;
     }
 
-    // Generate comprehensive search URLs
-    const allSearchUrls: string[] = [];
-    const dateFilter = `after:${startDate} before:${endDate}`;
+    // Generate comprehensive search queries for Google Custom Search
+    const allSearchQueries: Array<{query: string, site?: string}> = [];
+    const dateRestrict = `d${Math.floor((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))}`; // days
+    
+    console.log(`Step 6: Building search queries for ${country} (${countryName})`);
     
     // 1. Search LOCAL country sources (if configured) with local language terms
-    // PRIORITIZE sources based on country - search ALL sources regardless of configuration
-    console.log(`Searching local ${domainSuffix} sources with native terms (prioritizing configured outlets)`);
-    
-    // Search configured sources FIRST with more comprehensive queries
     if (hasCountrySources) {
       console.log(`Prioritizing ${sources.length} configured local sources`);
       for (const source of sources || []) {
         const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
         
         // Local language searches on local sources
-        for (const term of localSearchTerms) {
-          const encodedTerm = encodeURIComponent(term);
-          allSearchUrls.push(
-            `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedTerm}+${dateFilter}`
-          );
+        for (const term of localSearchTerms.slice(0, 3)) { // Top 3 terms per source
+          allSearchQueries.push({
+            query: term,
+            site: domain
+          });
         }
         
         // Fighter-specific searches on local sources
         for (const fighter of [...competitors, 'Gripen']) {
-          const encodedFighter = encodeURIComponent(fighter);
-          allSearchUrls.push(
-            `https://html.duckduckgo.com/html/?q=site:${domain}+${encodedFighter}+${dateFilter}`
-          );
-          
-          // Add variations for common misspellings/formats
-          if (fighter === 'F-35') {
-            allSearchUrls.push(
-              `https://html.duckduckgo.com/html/?q=site:${domain}+F35+${dateFilter}`,
-              `https://html.duckduckgo.com/html/?q=site:${domain}+"F-35"+${dateFilter}`
-            );
-          }
-          if (fighter === 'F-16V') {
-            allSearchUrls.push(
-              `https://html.duckduckgo.com/html/?q=site:${domain}+F16+${dateFilter}`
-            );
-          }
+          allSearchQueries.push({
+            query: fighter,
+            site: domain
+          });
         }
       }
     }
 
-    // 2. Search general country domain with local terms (works without configured sources)
-    console.log(`Searching general ${domainSuffix} domain with native terms`);
-    for (const term of localSearchTerms) {
-      const encodedTerm = encodeURIComponent(term);
-      allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=${encodedTerm}+site:${domainSuffix}+${dateFilter}`
-      );
+    // 2. Search general country domain with local terms
+    console.log(`Searching general ${domainSuffix} domain`);
+    for (const term of localSearchTerms.slice(0, 5)) {
+      allSearchQueries.push({
+        query: `${term} site:${domainSuffix}`
+      });
     }
     
+    // Fighters on country domain
     for (const fighter of [...competitors, 'Gripen']) {
-      const encodedFighter = encodeURIComponent(fighter);
-      allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=${encodedFighter}+site:${domainSuffix}+${dateFilter}`
-      );
+      allSearchQueries.push({
+        query: `${fighter} site:${domainSuffix}`
+      });
       
-      // Add broader searches without site restriction for country-specific content
-      allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=${encodedFighter}+${encodeURIComponent(countryName)}+${dateFilter}`
-      );
+      // Broader search: fighter + country name
+      allSearchQueries.push({
+        query: `${fighter} ${countryName}`
+      });
     }
 
-    // 3. Search INTERNATIONAL media for articles mentioning fighters + country name
+    // 3. Search INTERNATIONAL media
     console.log(`Searching international media for articles about fighters in ${countryName}`);
     
-    // Major international defense/aviation outlets
     const internationalOutlets = [
       'defenseone.com',
       'defensenews.com', 
@@ -310,14 +292,9 @@ serve(async (req) => {
       'airforcemag.com',
       'aviationweek.com',
       'breakingdefense.com',
-      'thedrive.com/the-war-zone',
       'forbes.com',
       'reuters.com',
-      'apnews.com',
-      'bloomberg.com',
-      'theguardian.com',
-      'bbc.com',
-      'cnn.com'
+      'bloomberg.com'
     ];
     
     // Fetch configured international sources
@@ -327,107 +304,31 @@ serve(async (req) => {
       .in('country', ['INT', 'EU', 'US', 'UK'])
       .eq('enabled', true);
     
-    // Combine configured sources with default outlets
     const allInternationalSources = [
       ...(intlSources || []).map(s => s.url.replace(/^https?:\/\//i, '').split('/')[0]),
       ...internationalOutlets
     ];
     
-    // Remove duplicates
     const uniqueIntlSources = [...new Set(allInternationalSources)];
     
     console.log(`Searching ${uniqueIntlSources.length} international sources`);
-    for (const domain of uniqueIntlSources) {
-      // Search for "fighter name + country name" on international outlets
+    for (const domain of uniqueIntlSources.slice(0, 10)) { // Top 10 international sources
       for (const fighter of [...competitors, 'Gripen']) {
-        const searchQuery = encodeURIComponent(`${fighter} ${countryName}`);
-        allSearchUrls.push(
-          `https://html.duckduckgo.com/html/?q=site:${domain}+${searchQuery}+${dateFilter}`
-        );
-        
-        // Add variant searches
-        if (fighter === 'F-35') {
-          allSearchUrls.push(
-            `https://html.duckduckgo.com/html/?q=site:${domain}+F35+${encodeURIComponent(countryName)}+${dateFilter}`
-          );
-        }
-      }
-      
-      // General defense procurement searches mentioning the country
-      const defenseQuery = encodeURIComponent(`fighter aircraft ${countryName}`);
-      allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=site:${domain}+${defenseQuery}+${dateFilter}`
-      );
-      
-      // Military procurement general
-      const militaryQuery = encodeURIComponent(`military procurement ${countryName}`);
-      allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=site:${domain}+${militaryQuery}+${dateFilter}`
-      );
-    }
-    
-    // 4. General web search for fighters + country (fallback)
-    for (const fighter of [...competitors, 'Gripen']) {
-      const searchQuery = encodeURIComponent(`${fighter} ${countryName} -site:${domainSuffix}`);
-      allSearchUrls.push(
-        `https://html.duckduckgo.com/html/?q=${searchQuery}+${dateFilter}`
-      );
-    }
-
-    console.log(`Executing ${allSearchUrls.length} searches for tracking period...`);
-
-    // Execute all searches
-    const searchResults = await batchFetch(allSearchUrls);
-
-    // Extract results from HTML
-    function extractResults(html: string): Array<{title: string, url: string, snippet: string}> {
-      const results: Array<{title: string, url: string, snippet: string}> = [];
-      const resultRegex = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
-      const snippetRegex = /<a[^>]+class="result__snippet"[^>]*>([^<]+)<\/a>/g;
-      
-      let match;
-      const urls: string[] = [];
-      const titles: string[] = [];
-      
-      while ((match = resultRegex.exec(html)) !== null) {
-        // Decode DuckDuckGo redirect URLs immediately
-        let url = match[1];
-        url = decodeDuckDuckGoUrl(url);
-        urls.push(url);
-        titles.push(match[2].trim());
-      }
-      
-      const snippets: string[] = [];
-      while ((match = snippetRegex.exec(html)) !== null) {
-        snippets.push(match[1].trim());
-      }
-      
-      // Log sample of extracted URLs for debugging
-      if (urls.length > 0) {
-        console.log('Sample extracted URLs:', urls.slice(0, 3).map((url, i) => ({ 
-          title: titles[i]?.substring(0, 50), 
-          url: url.substring(0, 100) 
-        })));
-      }
-      
-      for (let i = 0; i < urls.length; i++) {
-        results.push({
-          url: urls[i],
-          title: titles[i] || '',
-          snippet: snippets[i] || ''
+        allSearchQueries.push({
+          query: `${fighter} ${countryName}`,
+          site: domain
         });
       }
-      
-      return results;
     }
 
-    // Combine and deduplicate
-    const allResults = searchResults
-      .filter(html => html !== null)
-      .flatMap(html => extractResults(html!));
+    console.log(`Step 7: Executing ${allSearchQueries.length} Google searches...`);
+
+    // Execute all searches
+    const searchResults = await batchGoogleSearch(allSearchQueries);
     
+    // Deduplicate by URL
     const uniqueResults = Array.from(
-      new Map(allResults.map(r => [r.url, r])).values()
+      new Map(searchResults.map(r => [normalizeUrl(r.url), r])).values()
     );
 
     console.log(`Found ${uniqueResults.length} unique articles for tracking period`);
@@ -568,25 +469,23 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
     });
     console.log('========================================');
 
-    // Recover URLs by matching titles to original search results (with fuzzy matching)
-    console.log('Step 10: Recovering URLs from title matching...');
+    // Map AI results back to URLs (Google already provides clean URLs)
+    console.log('Step 10: Mapping article URLs...');
     const validArticles = structuredArticles.map((article: any) => {
-      // Normalize titles for better matching
       const normalizeTitle = (title: string) => {
         return title.toLowerCase()
           .trim()
-          .replace(/\s+/g, ' ')  // normalize whitespace
-          .replace(/[^\w\s-]/g, '');  // remove special chars except dash
+          .replace(/\s+/g, ' ')
+          .replace(/[^\w\s-]/g, '');
       };
       
       const aiTitle = normalizeTitle(article.title || '');
       
-      // Try exact match first
+      // Find matching result
       let matchingResult = preFilteredResults.find(r => 
         normalizeTitle(r.title) === aiTitle
       );
       
-      // If no exact match, try fuzzy match (contains)
       if (!matchingResult) {
         matchingResult = preFilteredResults.find(r => {
           const resultTitle = normalizeTitle(r.title);
@@ -595,18 +494,12 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
       }
       
       if (!matchingResult) {
-        console.warn('Could not match article to original results:', article.title?.substring(0, 50));
-        console.warn('Available titles sample:', preFilteredResults.slice(0, 3).map(r => r.title.substring(0, 50)));
+        console.warn('Could not match article:', article.title?.substring(0, 50));
         return null;
       }
       
-      // Decode and normalize the URL from the original search result
-      let decodedUrl = decodeDuckDuckGoUrl(matchingResult.url);
-      decodedUrl = normalizeUrl(decodedUrl);
-      
-      article.url = decodedUrl;
-      console.log(`✓ Matched "${article.title?.substring(0, 40)}" -> ${decodedUrl.substring(0, 60)}`);
-      
+      article.url = normalizeUrl(matchingResult.url);
+      console.log(`✓ Matched "${article.title?.substring(0, 40)}" -> ${article.url.substring(0, 60)}`);
       
       // Ensure fighter_tags is array
       if (!article.fighter_tags || !Array.isArray(article.fighter_tags)) {
