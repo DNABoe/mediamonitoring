@@ -237,8 +237,12 @@ serve(async (req) => {
     const dateFilter = `after:${startDate} before:${endDate}`;
     
     // 1. Search LOCAL country sources (if configured) with local language terms
+    // PRIORITIZE sources based on country - search ALL sources regardless of configuration
+    console.log(`Searching local ${domainSuffix} sources with native terms (prioritizing configured outlets)`);
+    
+    // Search configured sources FIRST with more comprehensive queries
     if (hasCountrySources) {
-      console.log(`Searching ${sources.length} local sources with native terms`);
+      console.log(`Prioritizing ${sources.length} configured local sources`);
       for (const source of sources || []) {
         const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
         

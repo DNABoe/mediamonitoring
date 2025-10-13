@@ -121,8 +121,34 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   }
 
   // Separate articles by local vs international
-  const localArticles = mediaArticles.filter(article => article.source_country === activeCountry);
-  const internationalArticles = mediaArticles.filter(article => article.source_country !== activeCountry);
+  // ALWAYS prioritize articles from outlets in prioritizedOutlets list, regardless of activeCountry
+  const activePrioritizedOutlets = prioritizedOutlets
+    .filter(outlet => outlet.active)
+    .map(outlet => outlet.name.toLowerCase());
+  
+  const localArticles = mediaArticles.filter(article => {
+    // If we have prioritized outlets, use those to determine "local"
+    if (activePrioritizedOutlets.length > 0) {
+      return activePrioritizedOutlets.some(outlet => 
+        article.source.toLowerCase().includes(outlet) || 
+        article.url.toLowerCase().includes(outlet)
+      );
+    }
+    // Otherwise fall back to country matching
+    return article.source_country === activeCountry;
+  });
+  
+  const internationalArticles = mediaArticles.filter(article => {
+    // If we have prioritized outlets, anything NOT in that list is international
+    if (activePrioritizedOutlets.length > 0) {
+      return !activePrioritizedOutlets.some(outlet => 
+        article.source.toLowerCase().includes(outlet) || 
+        article.url.toLowerCase().includes(outlet)
+      );
+    }
+    // Otherwise fall back to country matching
+    return article.source_country !== activeCountry;
+  });
 
   const ArticleCard = ({ article, index }: { article: MediaArticle; index: number }) => (
     <div 
