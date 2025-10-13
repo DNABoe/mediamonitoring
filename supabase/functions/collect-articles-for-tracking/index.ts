@@ -424,10 +424,7 @@ serve(async (req) => {
 
     // Use AI with tool calling for structured output
     console.log('Sending to AI for structured analysis...');
-    
-    // Create title-to-url mapping BEFORE sending to AI
-    const titleUrlMap = new Map(preFilteredResults.map(r => [r.title.toLowerCase().trim(), r.url]));
-    
+    // AI analyzes ALL articles and picks the most important ones
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -438,35 +435,27 @@ serve(async (req) => {
         model: 'google/gemini-2.5-flash',
         messages: [{
           role: 'user',
-          content: `You are analyzing news articles about military fighter jets. Extract fighter jet information from these ${preFilteredResults.length} articles.
+          content: `You are analyzing news articles about military fighter jets for ${countryName}.
 
-CRITICAL INSTRUCTIONS:
-1. For EVERY article provided, you MUST return an entry - do not skip any articles
-2. Look for these fighters: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50
-3. If an article mentions ANY fighter jet (even just once), include it in fighter_tags
-4. For sentiment: positive (0.7), neutral (0.0), or negative (-0.7)
-5. For source_country: 
-   - "${country}" if the URL ends with ${domainSuffix}
-   - "INTERNATIONAL" for all other domains
+I have ${uniqueResults.length} articles from the last ${daysDiff} days. Your task is to:
+1. Identify which articles are ACTUALLY about fighter jets (Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50)
+2. Focus on articles relevant to ${countryName}'s fighter procurement or air force
+3. Return ONLY the most important and relevant articles (max 50)
+4. For each article, identify which fighters are mentioned and the sentiment
 
-IMPORTANT RULES:
-- Include the article even if only ONE fighter is mentioned briefly
-- Multiple fighters can be in fighter_tags if mentioned
-- When in doubt, include the fighter rather than exclude it
-- Return ALL ${preFilteredResults.length} articles with their fighter_tags (empty array if truly no fighters found)
+CRITICAL: Only include articles that are genuinely newsworthy and relevant to fighter procurement/operations.
 
 Articles to analyze:
-${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({ 
+${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({ 
   title: r.title, 
-  snippet: r.snippet?.substring(0, 200) || '',
-  url_hint: r.url.includes(domainSuffix) ? 'local' : 'international' 
+  snippet: r.snippet
 })), null, 2)}`
         }],
         tools: [{
           type: 'function',
           function: {
-            name: 'extract_articles',
-            description: 'Extract structured article data',
+            name: 'extract_important_articles',
+            description: 'Extract the most important fighter jet articles',
             parameters: {
               type: 'object',
               properties: {
@@ -479,12 +468,22 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
                       fighter_tags: { 
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Exact names: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50'
+                        description: 'Fighter jets mentioned: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50'
                       },
-                      sentiment: { type: 'number', description: 'Between -1 and 1' },
-                      source_country: { type: 'string' }
+                      sentiment: { 
+                        type: 'number', 
+                        description: 'Sentiment: positive (0.7), neutral (0.0), negative (-0.7)' 
+                      },
+                      importance: {
+                        type: 'number',
+                        description: 'Importance score 1-10, where 10 is breaking news about procurement'
+                      },
+                      source_country: { 
+                        type: 'string',
+                        description: `Use "${country}" for local ${countryName} sources, "INTERNATIONAL" for others`
+                      }
                     },
-                    required: ['title', 'fighter_tags', 'sentiment', 'source_country']
+                    required: ['title', 'fighter_tags', 'sentiment', 'importance', 'source_country']
                   }
                 }
               },
@@ -492,13 +491,13 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
             }
           }
         }],
-        tool_choice: { type: 'function', function: { name: 'extract_articles' } }
+        tool_choice: { type: 'function', function: { name: 'extract_important_articles' } }
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
+      console.error('AI API error:', aiResponse.status, errorText.substring(0, 500));
       throw new Error(`AI API error: ${aiResponse.status}`);
     }
 
@@ -507,29 +506,35 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
     
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
-      console.error('AI did not use tool:', JSON.stringify(aiData.choices?.[0]?.message));
+      console.error('AI did not use tool:', JSON.stringify(aiData.choices?.[0]?.message).substring(0, 500));
       throw new Error('AI did not return structured data');
     }
     
     const extractedData = JSON.parse(toolCall.function.arguments);
-    const structuredArticles = extractedData.articles || [];
+    let structuredArticles = extractedData.articles || [];
     
-    console.log(`Step 9: AI extracted ${structuredArticles.length} articles with fighter mentions`);
+    console.log(`Step 11: AI identified ${structuredArticles.length} important articles`);
     
-    // Log FULL AI response for debugging
-    console.log('========== AI RETURNED TITLES ==========');
-    structuredArticles.forEach((a: any, idx: number) => {
-      console.log(`Article ${idx + 1}:`, {
-        title: a.title,
-        fighters: a.fighter_tags,
-        sentiment: a.sentiment,
-        country: a.source_country
-      });
+    // Log what AI returned
+    console.log('========== AI ANALYSIS RESULTS ==========');
+    structuredArticles.slice(0, 10).forEach((a: any, idx: number) => {
+      console.log(`${idx + 1}. "${a.title?.substring(0, 60)}" | Fighters: ${a.fighter_tags?.join(', ')} | Importance: ${a.importance} | Sentiment: ${a.sentiment}`);
     });
+    if (structuredArticles.length > 10) {
+      console.log(`... and ${structuredArticles.length - 10} more articles`);
+    }
     console.log('========================================');
+    
+    // Sort by importance and take top articles
+    structuredArticles = structuredArticles
+      .filter((a: any) => a.importance >= 5) // Only keep important articles (5+/10)
+      .sort((a: any, b: any) => (b.importance || 0) - (a.importance || 0))
+      .slice(0, 50); // Max 50 articles
+    
+    console.log(`Step 12: Filtered to top ${structuredArticles.length} articles (importance >= 5/10)`);
 
-    // Map AI results back to URLs (Google already provides clean URLs)
-    console.log('Step 10: Mapping article URLs...');
+    // Map AI results to URLs from original Google results
+    console.log(`Step 13: Mapping ${structuredArticles.length} articles to URLs...`);
     const validArticles = structuredArticles.map((article: any) => {
       const normalizeTitle = (title: string) => {
         return title.toLowerCase()
@@ -540,13 +545,13 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
       
       const aiTitle = normalizeTitle(article.title || '');
       
-      // Find matching result
-      let matchingResult = preFilteredResults.find(r => 
+      // Find matching result from uniqueResults (all Google results)
+      let matchingResult = uniqueResults.find(r => 
         normalizeTitle(r.title) === aiTitle
       );
       
       if (!matchingResult) {
-        matchingResult = preFilteredResults.find(r => {
+        matchingResult = uniqueResults.find(r => {
           const resultTitle = normalizeTitle(r.title);
           return resultTitle.includes(aiTitle) || aiTitle.includes(resultTitle);
         });
@@ -565,16 +570,11 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
         article.fighter_tags = [];
       }
       
-      // Fallback fighter detection if AI missed them - check title AND snippet
+      // Fallback fighter detection if AI missed them
       if (article.fighter_tags.length === 0) {
-        const matchingResult = preFilteredResults.find(r => 
-          normalizeTitle(r.title) === normalizeTitle(article.title || '')
-        );
-        
         const combined = `${article.title} ${matchingResult?.snippet || ''}`.toLowerCase();
         const detected = [];
         
-        // More comprehensive fighter detection
         if (combined.includes('gripen') || combined.includes('jas 39') || combined.includes('jas-39')) {
           detected.push('Gripen');
         }
@@ -601,8 +601,7 @@ ${JSON.stringify(preFilteredResults.slice(0, 100).map(r => ({
           console.log(`✓ Fallback detection for "${article.title?.substring(0, 40)}": ${detected.join(', ')}`);
           article.fighter_tags = detected;
         } else {
-          console.warn(`✗ No fighters detected (AI + fallback failed), skipping: "${article.title?.substring(0, 50)}"`);
-          console.warn(`  Snippet was: "${matchingResult?.snippet?.substring(0, 100)}"`);
+          console.warn(`✗ No fighters detected, skipping: "${article.title?.substring(0, 50)}"`);
           return null;
         }
       }
