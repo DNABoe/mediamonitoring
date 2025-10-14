@@ -3,9 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlayCircle, PauseCircle, RefreshCw, Trash2, Clock } from "lucide-react";
+import { Loader2, PlayCircle, PauseCircle, RefreshCw, Trash2, Clock, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface AgentStatus {
@@ -33,6 +34,8 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [researchData, setResearchData] = useState<any>(null);
+  const [topArticles, setTopArticles] = useState<any[]>([]);
   const { toast } = useToast();
 
   const fetchAgentStatus = async () => {
@@ -56,8 +59,41 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
     }
   };
 
+  const fetchAnalysisData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch latest research report
+      const { data: research } = await supabase
+        .from('research_reports')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('country', activeCountry)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setResearchData(research);
+
+      // Fetch top articles (most recent)
+      const { data: articles } = await supabase
+        .from('items')
+        .select('title_en, url, published_at, source_country, fighter_tags')
+        .eq('user_id', user.id)
+        .eq('tracking_country', activeCountry)
+        .order('published_at', { ascending: false })
+        .limit(10);
+
+      setTopArticles(articles || []);
+    } catch (error) {
+      console.error('Error fetching analysis data:', error);
+    }
+  };
+
   useEffect(() => {
     fetchAgentStatus();
+    fetchAnalysisData();
 
     // Set up realtime subscription
     const channel = supabase
@@ -72,6 +108,17 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
         },
         () => {
           fetchAgentStatus();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'research_reports',
+        },
+        () => {
+          fetchAnalysisData();
         }
       )
       .subscribe();
@@ -378,6 +425,68 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
           </Button>
           </div>
         </div>
+
+        {researchData && (
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="analysis">
+              <AccordionTrigger>Latest Analysis</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 text-sm">
+                  {researchData.executive_summary && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Executive Summary</h4>
+                      <p className="text-muted-foreground">{researchData.executive_summary}</p>
+                    </div>
+                  )}
+                  {researchData.capability_analysis && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Capability Analysis</h4>
+                      <p className="text-muted-foreground">{researchData.capability_analysis}</p>
+                    </div>
+                  )}
+                  {researchData.political_analysis && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Political Analysis</h4>
+                      <p className="text-muted-foreground">{researchData.political_analysis}</p>
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            
+            {topArticles.length > 0 && (
+              <AccordionItem value="articles">
+                <AccordionTrigger>Top Articles ({topArticles.length})</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {topArticles.map((article, idx) => (
+                      <a
+                        key={idx}
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-2 p-2 rounded hover:bg-accent transition-colors"
+                      >
+                        <ExternalLink className="h-4 w-4 mt-1 flex-shrink-0 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm line-clamp-2">{article.title_en}</p>
+                          <div className="flex gap-2 mt-1">
+                            {article.source_country && (
+                              <Badge variant="outline" className="text-xs">{article.source_country}</Badge>
+                            )}
+                            {article.fighter_tags?.map((tag: string) => (
+                              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+          </Accordion>
+        )}
       </div>
     </Card>
   );

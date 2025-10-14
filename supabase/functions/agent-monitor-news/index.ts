@@ -80,7 +80,7 @@ serve(async (req) => {
               country: agent.active_country,
               competitors: agent.active_competitors,
               outlets: isFirstRun ? outlets : outlets.slice(0, 10), // Use all outlets on first run
-              startDate: agent.last_run_at || new Date(Date.now() - (isFirstRun ? 7 : 1) * 24 * 60 * 60 * 1000).toISOString(), // 7 days for first run, 1 day for updates
+              startDate: agent.last_run_at || new Date(Date.now() - (isFirstRun ? 60 : 1) * 24 * 60 * 60 * 1000).toISOString(), // 60 days for first run, 1 day for updates
               endDate: new Date().toISOString(),
             },
             headers: {
