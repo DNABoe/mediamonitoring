@@ -46,6 +46,9 @@ serve(async (req) => {
       try {
         console.log(`Processing agent for user ${agent.user_id}, country ${agent.active_country}`);
         
+        const isFirstRun = agent.articles_collected_total === 0;
+        console.log(`First run: ${isFirstRun}`);
+        
         // Get user's prioritized outlets
         const { data: userSettings } = await supabaseClient
           .from('user_settings')
@@ -76,8 +79,8 @@ serve(async (req) => {
               userId: agent.user_id,
               country: agent.active_country,
               competitors: agent.active_competitors,
-              outlets: outlets.slice(0, 10), // Limit to top 10 outlets per run
-              startDate: agent.last_run_at || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+              outlets: isFirstRun ? outlets : outlets.slice(0, 10), // Use all outlets on first run
+              startDate: agent.last_run_at || new Date(Date.now() - (isFirstRun ? 7 : 1) * 24 * 60 * 60 * 1000).toISOString(), // 7 days for first run, 1 day for updates
               endDate: new Date().toISOString(),
             },
             headers: {
@@ -102,12 +105,54 @@ serve(async (req) => {
 
         const articlesCollected = collectionResult?.articlesCollected || 0;
         
+        // On first run, trigger comprehensive analysis
+        if (isFirstRun && articlesCollected > 0) {
+          console.log('First run - triggering comprehensive analysis');
+          
+          // Trigger research comparison
+          const { error: researchError } = await supabaseClient.functions.invoke(
+            'research-fighter-comparison',
+            {
+              body: {
+                userId: agent.user_id,
+                country: agent.active_country,
+                competitors: agent.active_competitors,
+              },
+              headers: {
+                Authorization: `Bearer ${supabaseKey}`,
+              }
+            }
+          );
+          
+          if (researchError) {
+            console.error('Research analysis error:', researchError);
+          } else {
+            console.log('Initial research analysis completed');
+          }
+        }
+        
+        // Calculate next run time based on frequency
+        let nextRunDelay: number;
+        switch (agent.update_frequency) {
+          case 'hourly':
+            nextRunDelay = 60 * 60 * 1000;
+            break;
+          case 'daily':
+            nextRunDelay = 24 * 60 * 60 * 1000;
+            break;
+          case 'weekly':
+            nextRunDelay = 7 * 24 * 60 * 60 * 1000;
+            break;
+          default:
+            nextRunDelay = 60 * 60 * 1000;
+        }
+        
         // Update agent status
         await supabaseClient
           .from('agent_status')
           .update({
             last_run_at: new Date().toISOString(),
-            next_run_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+            next_run_at: new Date(Date.now() + nextRunDelay).toISOString(),
             articles_collected_total: agent.articles_collected_total + articlesCollected,
             last_error: null,
             updated_at: new Date().toISOString(),
@@ -118,10 +163,11 @@ serve(async (req) => {
           userId: agent.user_id,
           country: agent.active_country,
           articlesCollected,
+          isFirstRun,
           success: true,
         });
 
-        console.log(`Completed agent run: ${articlesCollected} articles collected`);
+        console.log(`Completed agent run: ${articlesCollected} articles collected${isFirstRun ? ' (initial run with analysis)' : ''}`);
 
       } catch (agentError) {
         console.error(`Error processing agent ${agent.id}:`, agentError);
