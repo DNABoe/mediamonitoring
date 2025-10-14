@@ -68,16 +68,20 @@ serve(async (req) => {
           continue;
         }
 
-        // Collect articles using existing function
+        // Collect articles using existing function with service role authentication
         const { data: collectionResult, error: collectionError } = await supabaseClient.functions.invoke(
           'collect-articles-for-tracking',
           {
             body: {
+              userId: agent.user_id,
               country: agent.active_country,
               competitors: agent.active_competitors,
               outlets: outlets.slice(0, 10), // Limit to top 10 outlets per run
               startDate: agent.last_run_at || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
               endDate: new Date().toISOString(),
+            },
+            headers: {
+              Authorization: `Bearer ${supabaseKey}`,
             }
           }
         );

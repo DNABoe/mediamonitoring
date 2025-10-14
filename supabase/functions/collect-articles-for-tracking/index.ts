@@ -43,17 +43,43 @@ serve(async (req) => {
     );
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
     
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    // Parse body first to check if userId is provided (for service role calls)
+    let bodyPreview;
+    try {
+      const bodyText = await req.text();
+      bodyPreview = JSON.parse(bodyText);
+      // Re-create request with the body for later parsing
+      req = new Request(req.url, {
+        method: req.method,
+        headers: req.headers,
+        body: bodyText,
       });
+    } catch (e) {
+      console.error('Failed to preview body:', e);
     }
 
-    const userId = user.id;
-    console.log('Step 1 SUCCESS: User authenticated:', userId);
+    let userId: string;
+    
+    // If userId is provided in body (service role call from agent), use it
+    if (bodyPreview?.userId) {
+      console.log('Step 1: Using userId from request body (service role call)');
+      userId = bodyPreview.userId;
+      console.log('Step 1 SUCCESS: Service role authenticated for user:', userId);
+    } else {
+      // Otherwise, authenticate the user from the token
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+      
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      userId = user.id;
+      console.log('Step 1 SUCCESS: User authenticated:', userId);
+    }
 
     console.log('Step 2: Parsing request body...');
     let body;
