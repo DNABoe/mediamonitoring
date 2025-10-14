@@ -157,17 +157,17 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
       // Get current settings to check if country changed
       const { data: currentSettings } = await supabase
         .from('user_settings')
-        .select('active_country')
+        .select('active_country, active_competitors')
         .eq('user_id', user.id)
         .maybeSingle();
 
       const oldCountry = currentSettings?.active_country;
 
-      // If country changed, clean up old data
+      // If country changed, trigger agent discovery and cleanup
       if (oldCountry && oldCountry !== activeCountry) {
-        const { error: cleanupError } = await supabase.rpc('cleanup_country_data', {
+        const { error: cleanupError } = await supabase.rpc('stop_agent_and_cleanup', {
           _user_id: user.id,
-          _old_country: oldCountry
+          _country: oldCountry
         });
 
         if (cleanupError) {
@@ -177,7 +177,46 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
           return;
         }
 
-        toast.success(`Switched to ${activeCountry}. Previous ${oldCountry} data cleared.`);
+        toast('Switching country...', { description: `Discovering media outlets for ${activeCountry}...` });
+
+        // Discover outlets for new country
+        const countryObj = COUNTRIES.find(c => c.code === activeCountry);
+        const { data: discoverData, error: discoverError } = await supabase.functions.invoke(
+          'agent-discover-outlets',
+          {
+            body: {
+              country: activeCountry,
+              countryName: countryObj?.name || activeCountry,
+            }
+          }
+        );
+
+        if (discoverError) {
+          console.error('Error discovering outlets:', discoverError);
+          toast.error('Failed to discover media outlets automatically');
+        } else {
+          const outletsCount = discoverData?.count || 0;
+          
+          // Start the agent
+          const { error: agentError } = await supabase
+            .from('agent_status')
+            .upsert({
+              user_id: user.id,
+              active_country: activeCountry,
+              active_competitors: activeCompetitors,
+              status: 'running',
+              next_run_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+              outlets_discovered: outletsCount,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'user_id,active_country'
+            });
+
+          if (!agentError) {
+            toast.success(`Discovered ${outletsCount} media outlets. AI agent monitoring started!`);
+          }
+        }
       }
 
       const { error } = await supabase

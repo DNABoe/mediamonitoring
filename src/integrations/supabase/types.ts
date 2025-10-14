@@ -41,6 +41,51 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_status: {
+        Row: {
+          active_competitors: string[]
+          active_country: string
+          articles_collected_total: number | null
+          created_at: string | null
+          id: string
+          last_error: string | null
+          last_run_at: string | null
+          next_run_at: string | null
+          outlets_discovered: number | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active_competitors?: string[]
+          active_country: string
+          articles_collected_total?: number | null
+          created_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          next_run_at?: string | null
+          outlets_discovered?: number | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active_competitors?: string[]
+          active_country?: string
+          articles_collected_total?: number | null
+          created_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          next_run_at?: string | null
+          outlets_discovered?: number | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       alerts: {
         Row: {
           context_items: string[] | null
@@ -542,6 +587,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      stop_agent_and_cleanup: {
+        Args: { _country: string; _user_id: string }
+        Returns: undefined
       }
     }
     Enums: {

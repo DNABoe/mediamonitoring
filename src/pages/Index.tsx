@@ -15,6 +15,7 @@ import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { BlackHatAnalysis } from "@/components/dashboard/BlackHatAnalysis";
 import { MediaArticlesList } from "@/components/dashboard/MediaArticlesList";
+import { AgentStatusPanel } from "@/components/dashboard/AgentStatusPanel";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportPDF } from "@/components/dashboard/ExportPDF";
@@ -169,6 +170,13 @@ const Index = () => {
 
         <div className="mb-6">
           <ResearchSources />
+        </div>
+
+        <div className="mb-6">
+          <AgentStatusPanel
+            activeCountry={userSettings.activeCountry}
+            activeCompetitors={userSettings.activeCompetitors}
+          />
         </div>
 
         <div className="mb-6">
