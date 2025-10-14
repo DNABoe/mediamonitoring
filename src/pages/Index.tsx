@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { WinnerMetar } from "@/components/dashboard/WinnerMetar";
 import { BaselineGenerator } from "@/components/dashboard/BaselineGenerator";
-import { SourceArticles } from "@/components/dashboard/SourceArticles";
 import { ResearchExecutiveSummary } from "@/components/dashboard/ResearchExecutiveSummary";
 import { ResearchDimensions } from "@/components/dashboard/ResearchDimensions";
 import { SentimentTimeline } from "@/components/dashboard/SentimentTimeline";
@@ -14,7 +13,6 @@ import { StrategicSuggestions } from "@/components/dashboard/StrategicSuggestion
 import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { BlackHatAnalysis } from "@/components/dashboard/BlackHatAnalysis";
-import { MediaArticlesList } from "@/components/dashboard/MediaArticlesList";
 import { AgentStatusPanel } from "@/components/dashboard/AgentStatusPanel";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -176,18 +174,6 @@ const Index = () => {
           <AgentStatusPanel
             activeCountry={userSettings.activeCountry}
             activeCompetitors={userSettings.activeCompetitors}
-          />
-        </div>
-
-        <div className="mb-6">
-          <SourceArticles />
-        </div>
-
-        <div className="mb-6">
-          <MediaArticlesList 
-            activeCountry={userSettings.activeCountry}
-            activeCompetitors={userSettings.activeCompetitors}
-            prioritizedOutlets={userSettings.prioritizedOutlets}
           />
         </div>
       </div>

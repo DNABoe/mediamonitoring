@@ -53,6 +53,7 @@ export type Database = {
           next_run_at: string | null
           outlets_discovered: number | null
           status: string
+          update_frequency: string
           updated_at: string | null
           user_id: string
         }
@@ -67,6 +68,7 @@ export type Database = {
           next_run_at?: string | null
           outlets_discovered?: number | null
           status?: string
+          update_frequency?: string
           updated_at?: string | null
           user_id: string
         }
@@ -81,6 +83,7 @@ export type Database = {
           next_run_at?: string | null
           outlets_discovered?: number | null
           status?: string
+          update_frequency?: string
           updated_at?: string | null
           user_id?: string
         }

@@ -164,6 +164,7 @@ export const useUserSettings = () => {
             active_country: activeCountry,
             active_competitors: data?.active_competitors || ['F-35'],
             status: 'running',
+            update_frequency: 'hourly',
             next_run_at: new Date(Date.now() + 1 * 60 * 1000).toISOString(), // Run in 1 minute
             outlets_discovered: prioritizedOutlets?.length || 0,
             created_at: new Date().toISOString(),

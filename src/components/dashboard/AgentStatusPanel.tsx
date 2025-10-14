@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlayCircle, PauseCircle, RefreshCw, Trash2 } from "lucide-react";
+import { Loader2, PlayCircle, PauseCircle, RefreshCw, Trash2, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface AgentStatus {
@@ -18,6 +19,7 @@ interface AgentStatus {
   articles_collected_total: number;
   outlets_discovered: number;
   last_error: string | null;
+  update_frequency: 'hourly' | 'daily' | 'weekly';
   created_at: string;
   updated_at: string;
 }
@@ -146,6 +148,56 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
     }
   };
 
+  const handleFrequencyChange = async (frequency: 'hourly' | 'daily' | 'weekly') => {
+    if (!agentStatus) return;
+    setActionLoading(true);
+
+    try {
+      // Calculate next run time based on frequency
+      const now = Date.now();
+      let nextRunTime: number;
+      
+      switch (frequency) {
+        case 'hourly':
+          nextRunTime = now + 60 * 60 * 1000; // 1 hour
+          break;
+        case 'daily':
+          nextRunTime = now + 24 * 60 * 60 * 1000; // 24 hours
+          break;
+        case 'weekly':
+          nextRunTime = now + 7 * 24 * 60 * 60 * 1000; // 7 days
+          break;
+      }
+
+      const { error } = await supabase
+        .from('agent_status')
+        .update({ 
+          update_frequency: frequency,
+          next_run_at: new Date(nextRunTime).toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', agentStatus.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Frequency updated",
+        description: `Agent will now update ${frequency}`,
+      });
+
+      fetchAgentStatus();
+    } catch (error) {
+      console.error('Error updating frequency:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update frequency",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleDeleteAll = async () => {
     if (!agentStatus || !confirm('This will delete all collected data and stop the agent. Continue?')) return;
     setActionLoading(true);
@@ -246,7 +298,29 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Update Frequency
+            </label>
+            <Select
+              value={agentStatus.update_frequency}
+              onValueChange={(value) => handleFrequencyChange(value as 'hourly' | 'daily' | 'weekly')}
+              disabled={actionLoading}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hourly">Every Hour</SelectItem>
+                <SelectItem value="daily">Once a Day</SelectItem>
+                <SelectItem value="weekly">Once a Week</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-2">
           <Button
             onClick={handlePauseResume}
             disabled={actionLoading || agentStatus.status === 'stopped'}
@@ -293,6 +367,7 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
             <Trash2 className="h-4 w-4 mr-2" />
             Delete All Data
           </Button>
+          </div>
         </div>
       </div>
     </Card>
