@@ -86,25 +86,34 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
     setActionLoading(true);
 
     try {
-      const newStatus = agentStatus.status === 'running' ? 'paused' : 'running';
+      // If stopped, restart it. Otherwise toggle between running and paused
+      let newStatus: 'running' | 'paused' | 'stopped';
+      let updateData: any = { updated_at: new Date().toISOString() };
+      
+      if (agentStatus.status === 'stopped') {
+        newStatus = 'running';
+        updateData.status = 'running';
+        updateData.next_run_at = new Date(Date.now() + 60 * 1000).toISOString(); // 1 minute from now
+        updateData.last_error = null; // Clear error
+      } else {
+        newStatus = agentStatus.status === 'running' ? 'paused' : 'running';
+        updateData.status = newStatus;
+        updateData.next_run_at = newStatus === 'running' 
+          ? new Date(Date.now() + 60 * 1000).toISOString()
+          : null;
+      }
       
       const { error } = await supabase
         .from('agent_status')
-        .update({ 
-          status: newStatus,
-          next_run_at: newStatus === 'running' 
-            ? new Date(Date.now() + 5 * 60 * 1000).toISOString() // Run in 5 minutes
-            : null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', agentStatus.id);
 
       if (error) throw error;
 
       toast({
-        title: newStatus === 'running' ? 'Agent resumed' : 'Agent paused',
+        title: newStatus === 'running' ? 'Agent started' : 'Agent paused',
         description: newStatus === 'running' 
-          ? 'News monitoring will resume shortly'
+          ? 'News monitoring will start shortly'
           : 'News monitoring is paused',
       });
 
@@ -323,7 +332,7 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
           <div className="flex gap-2">
           <Button
             onClick={handlePauseResume}
-            disabled={actionLoading || agentStatus.status === 'stopped'}
+            disabled={actionLoading}
             variant="outline"
             size="sm"
           >
@@ -337,7 +346,7 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
             ) : (
               <>
                 <PlayCircle className="h-4 w-4 mr-2" />
-                Resume
+                {agentStatus.status === 'stopped' ? 'Start' : 'Resume'}
               </>
             )}
           </Button>
