@@ -117,6 +117,65 @@ export const useUserSettings = () => {
         countryName: country?.name || 'Portugal',
         prioritizedOutlets,
       });
+
+      // Initialize agent if it doesn't exist
+      const activeCountry = data?.active_country || 'PT';
+      const { data: agentData } = await supabase
+        .from('agent_status')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('active_country', activeCountry)
+        .maybeSingle();
+
+      if (!agentData) {
+        console.log('No agent found, initializing for', activeCountry);
+        
+        // Discover outlets if none exist
+        if (!prioritizedOutlets || prioritizedOutlets.length === 0) {
+          console.log('Discovering media outlets...');
+          const countryObj = COUNTRIES.find(c => c.code === activeCountry);
+          const { data: discoverData } = await supabase.functions.invoke(
+            'agent-discover-outlets',
+            {
+              body: {
+                country: activeCountry,
+                countryName: countryObj?.name || activeCountry,
+              }
+            }
+          );
+
+          if (discoverData?.outlets) {
+            console.log(`Discovered ${discoverData.outlets.length} outlets`);
+            await supabase
+              .from('user_settings')
+              .update({
+                prioritized_outlets: discoverData.outlets,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('user_id', user.id);
+          }
+        }
+
+        // Create and start agent
+        const { error: agentError } = await supabase
+          .from('agent_status')
+          .insert({
+            user_id: user.id,
+            active_country: activeCountry,
+            active_competitors: data?.active_competitors || ['F-35'],
+            status: 'running',
+            next_run_at: new Date(Date.now() + 1 * 60 * 1000).toISOString(), // Run in 1 minute
+            outlets_discovered: prioritizedOutlets?.length || 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+
+        if (!agentError) {
+          console.log('✅ Agent initialized and will start collecting news in 1 minute');
+        } else {
+          console.error('Error creating agent:', agentError);
+        }
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
