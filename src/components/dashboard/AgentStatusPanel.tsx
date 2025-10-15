@@ -76,14 +76,15 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
 
       setResearchData(research);
 
-      // Fetch top articles (most recent)
+      // Fetch top 20 articles to separate local/international
       const { data: articles } = await supabase
         .from('items')
-        .select('title_en, url, published_at, source_country, fighter_tags')
+        .select('title_en, url, published_at, source_country, fighter_tags, sentiment')
         .eq('user_id', user.id)
         .eq('tracking_country', activeCountry)
+        .not('fighter_tags', 'is', null)
         .order('published_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       setTopArticles(articles || []);
     } catch (error) {
@@ -113,9 +114,20 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'research_reports',
+        },
+        () => {
+          fetchAnalysisData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'items',
         },
         () => {
           fetchAnalysisData();
@@ -426,67 +438,121 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
           </div>
         </div>
 
-        {researchData && (
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="analysis">
-              <AccordionTrigger>Latest Analysis</AccordionTrigger>
+        <Accordion type="single" collapsible className="w-full">
+          {researchData && (
+            <AccordionItem value="sentiment">
+              <AccordionTrigger>Media Sentiment Analysis</AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-4 text-sm">
-                  {researchData.executive_summary && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Executive Summary</h4>
-                      <p className="text-muted-foreground">{researchData.executive_summary}</p>
-                    </div>
-                  )}
-                  {researchData.capability_analysis && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Capability Analysis</h4>
-                      <p className="text-muted-foreground">{researchData.capability_analysis}</p>
-                    </div>
-                  )}
-                  {researchData.political_analysis && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Political Analysis</h4>
-                      <p className="text-muted-foreground">{researchData.political_analysis}</p>
+                <div className="space-y-4">
+                  <div className="text-sm">
+                    <p className="text-muted-foreground whitespace-pre-line">{researchData.executive_summary}</p>
+                  </div>
+                  
+                  {researchData.media_tonality && (
+                    <div className="grid gap-3">
+                      <h4 className="font-semibold text-sm">Fighter Sentiment & Tonality</h4>
+                      {Object.entries(researchData.media_tonality).map(([fighter, data]: [string, any]) => (
+                        <div key={fighter} className="p-3 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{fighter}</span>
+                            <div className="flex gap-2 items-center">
+                              <Badge variant={data.sentiment > 0.2 ? 'default' : data.sentiment < -0.2 ? 'destructive' : 'secondary'}>
+                                {data.sentiment > 0 ? '↑' : data.sentiment < 0 ? '↓' : '→'} {(data.sentiment * 100).toFixed(0)}%
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">{data.mentions} mentions</span>
+                            </div>
+                          </div>
+                          {data.tonality && (
+                            <p className="text-xs text-muted-foreground">{data.tonality}</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               </AccordionContent>
             </AccordionItem>
-            
-            {topArticles.length > 0 && (
-              <AccordionItem value="articles">
-                <AccordionTrigger>Top Articles ({topArticles.length})</AccordionTrigger>
+          )}
+          
+          {topArticles.length > 0 && (
+            <>
+              <AccordionItem value="local">
+                <AccordionTrigger>
+                  Local Articles ({topArticles.filter(a => a.source_country === activeCountry).length})
+                </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2">
-                    {topArticles.map((article, idx) => (
-                      <a
-                        key={idx}
-                        href={article.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-start gap-2 p-2 rounded hover:bg-accent transition-colors"
-                      >
-                        <ExternalLink className="h-4 w-4 mt-1 flex-shrink-0 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm line-clamp-2">{article.title_en}</p>
-                          <div className="flex gap-2 mt-1">
-                            {article.source_country && (
-                              <Badge variant="outline" className="text-xs">{article.source_country}</Badge>
-                            )}
-                            {article.fighter_tags?.map((tag: string) => (
-                              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                            ))}
+                    {topArticles
+                      .filter(a => a.source_country === activeCountry)
+                      .map((article, idx) => (
+                        <a
+                          key={idx}
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-start gap-2 p-2 rounded hover:bg-accent transition-colors"
+                        >
+                          <ExternalLink className="h-4 w-4 mt-1 flex-shrink-0 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm line-clamp-2">{article.title_en}</p>
+                            <div className="flex gap-2 mt-1 flex-wrap">
+                              {article.fighter_tags?.map((tag: string) => (
+                                <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                              ))}
+                              {article.sentiment !== null && (
+                                <Badge variant={article.sentiment > 0.2 ? 'default' : article.sentiment < -0.2 ? 'destructive' : 'outline'} className="text-xs">
+                                  {article.sentiment > 0 ? '↑' : article.sentiment < 0 ? '↓' : '→'}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </a>
-                    ))}
+                        </a>
+                      ))}
                   </div>
                 </AccordionContent>
               </AccordionItem>
-            )}
-          </Accordion>
-        )}
+              
+              <AccordionItem value="international">
+                <AccordionTrigger>
+                  International Articles ({topArticles.filter(a => a.source_country !== activeCountry).length})
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {topArticles
+                      .filter(a => a.source_country !== activeCountry)
+                      .map((article, idx) => (
+                        <a
+                          key={idx}
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-start gap-2 p-2 rounded hover:bg-accent transition-colors"
+                        >
+                          <ExternalLink className="h-4 w-4 mt-1 flex-shrink-0 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm line-clamp-2">{article.title_en}</p>
+                            <div className="flex gap-2 mt-1 flex-wrap">
+                              {article.source_country && (
+                                <Badge variant="outline" className="text-xs">{article.source_country}</Badge>
+                              )}
+                              {article.fighter_tags?.map((tag: string) => (
+                                <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                              ))}
+                              {article.sentiment !== null && (
+                                <Badge variant={article.sentiment > 0.2 ? 'default' : article.sentiment < -0.2 ? 'destructive' : 'outline'} className="text-xs">
+                                  {article.sentiment > 0 ? '↑' : article.sentiment < 0 ? '↓' : '→'}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </a>
+                      ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </>
+          )}
+        </Accordion>
       </div>
     </Card>
   );
