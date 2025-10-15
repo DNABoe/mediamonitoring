@@ -3,11 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlayCircle, PauseCircle, RefreshCw, Trash2, Clock, ExternalLink } from "lucide-react";
+import { Loader2, PlayCircle, PauseCircle, RefreshCw, Trash2, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { SentimentDashboard } from "./SentimentDashboard";
 
 interface AgentStatus {
   id: string;
@@ -438,121 +438,14 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
           </div>
         </div>
 
-        <Accordion type="single" collapsible className="w-full">
-          {researchData && (
-            <AccordionItem value="sentiment">
-              <AccordionTrigger>Media Sentiment Analysis</AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4">
-                  <div className="text-sm">
-                    <p className="text-muted-foreground whitespace-pre-line">{researchData.executive_summary}</p>
-                  </div>
-                  
-                  {researchData.media_tonality && (
-                    <div className="grid gap-3">
-                      <h4 className="font-semibold text-sm">Fighter Sentiment & Tonality</h4>
-                      {Object.entries(researchData.media_tonality).map(([fighter, data]: [string, any]) => (
-                        <div key={fighter} className="p-3 border rounded-lg space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{fighter}</span>
-                            <div className="flex gap-2 items-center">
-                              <Badge variant={data.sentiment > 0.2 ? 'default' : data.sentiment < -0.2 ? 'destructive' : 'secondary'}>
-                                {data.sentiment > 0 ? '↑' : data.sentiment < 0 ? '↓' : '→'} {(data.sentiment * 100).toFixed(0)}%
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">{data.mentions} mentions</span>
-                            </div>
-                          </div>
-                          {data.tonality && (
-                            <p className="text-xs text-muted-foreground">{data.tonality}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
-          
-          {topArticles.length > 0 && (
-            <>
-              <AccordionItem value="local">
-                <AccordionTrigger>
-                  Local Articles ({topArticles.filter(a => a.source_country === activeCountry).length})
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-2">
-                    {topArticles
-                      .filter(a => a.source_country === activeCountry)
-                      .map((article, idx) => (
-                        <a
-                          key={idx}
-                          href={article.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-start gap-2 p-2 rounded hover:bg-accent transition-colors"
-                        >
-                          <ExternalLink className="h-4 w-4 mt-1 flex-shrink-0 text-muted-foreground" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm line-clamp-2">{article.title_en}</p>
-                            <div className="flex gap-2 mt-1 flex-wrap">
-                              {article.fighter_tags?.map((tag: string) => (
-                                <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                              ))}
-                              {article.sentiment !== null && (
-                                <Badge variant={article.sentiment > 0.2 ? 'default' : article.sentiment < -0.2 ? 'destructive' : 'outline'} className="text-xs">
-                                  {article.sentiment > 0 ? '↑' : article.sentiment < 0 ? '↓' : '→'}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </a>
-                      ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-              
-              <AccordionItem value="international">
-                <AccordionTrigger>
-                  International Articles ({topArticles.filter(a => a.source_country !== activeCountry).length})
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-2">
-                    {topArticles
-                      .filter(a => a.source_country !== activeCountry)
-                      .map((article, idx) => (
-                        <a
-                          key={idx}
-                          href={article.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-start gap-2 p-2 rounded hover:bg-accent transition-colors"
-                        >
-                          <ExternalLink className="h-4 w-4 mt-1 flex-shrink-0 text-muted-foreground" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm line-clamp-2">{article.title_en}</p>
-                            <div className="flex gap-2 mt-1 flex-wrap">
-                              {article.source_country && (
-                                <Badge variant="outline" className="text-xs">{article.source_country}</Badge>
-                              )}
-                              {article.fighter_tags?.map((tag: string) => (
-                                <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                              ))}
-                              {article.sentiment !== null && (
-                                <Badge variant={article.sentiment > 0.2 ? 'default' : article.sentiment < -0.2 ? 'destructive' : 'outline'} className="text-xs">
-                                  {article.sentiment > 0 ? '↑' : article.sentiment < 0 ? '↓' : '→'}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </a>
-                      ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </>
-          )}
-        </Accordion>
+        {/* Dashboard - Always visible */}
+        <div className="mt-6">
+          <SentimentDashboard 
+            mediaSentiment={researchData?.media_tonality}
+            articles={topArticles}
+            activeCountry={activeCountry}
+          />
+        </div>
       </div>
     </Card>
   );
