@@ -103,7 +103,7 @@ serve(async (req) => {
           continue;
         }
 
-        const articlesCollected = collectionResult?.articlesCollected || 0;
+        const articlesCollected = collectionResult?.articlesStored || 0;
         
         // On first run, trigger comprehensive analysis
         if (isFirstRun && articlesCollected > 0) {
