@@ -17,6 +17,7 @@ import { AgentStatusPanel } from "@/components/dashboard/AgentStatusPanel";
 import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportPDF } from "@/components/dashboard/ExportPDF";
+import { MediaArticlesList } from "@/components/dashboard/MediaArticlesList";
 
 const Index = () => {
   const {
@@ -168,6 +169,14 @@ const Index = () => {
 
         <div className="mb-6">
           <ResearchSources />
+        </div>
+
+        <div className="mb-6">
+          <MediaArticlesList 
+            activeCountry={userSettings.activeCountry}
+            activeCompetitors={userSettings.activeCompetitors}
+            prioritizedOutlets={userSettings.prioritizedOutlets}
+          />
         </div>
 
         <div className="mb-6">
