@@ -417,12 +417,13 @@ serve(async (req) => {
       }
     }
 
-    // STRATEGY 4: General defense/military terms
+    // STRATEGY 4: General procurement and acquisition terms
     allSearchQueries.push(
-      { query: `fighter aircraft ${countryName}`, dateRange },
-      { query: `fighter jet ${countryName}`, dateRange },
-      { query: `air force ${countryName}`, dateRange },
-      { query: `military aircraft ${countryName}`, dateRange }
+      { query: `fighter aircraft procurement ${countryName}`, dateRange },
+      { query: `fighter jet acquisition ${countryName}`, dateRange },
+      { query: `air force modernization ${countryName}`, dateRange },
+      { query: `military aircraft purchase ${countryName}`, dateRange },
+      { query: `defense procurement ${countryName}`, dateRange }
     );
 
     console.log(`Step 7: Total of ${allSearchQueries.length} Google search queries prepared`);
@@ -483,15 +484,20 @@ serve(async (req) => {
         model: 'google/gemini-2.5-flash',
         messages: [{
           role: 'user',
-          content: `You are analyzing news articles about military fighter jets for ${countryName}.
+          content: `You are analyzing news articles about FIGHTER JET PROCUREMENT for ${countryName}.
 
 I have ${uniqueResults.length} articles from the last ${daysDiff} days. Your task is to:
-1. Identify which articles are ACTUALLY about fighter jets (Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50)
-2. Focus on articles relevant to ${countryName}'s fighter procurement or air force
-3. Return ONLY the most important and relevant articles (max 50)
+1. ONLY identify articles about fighter jet PROCUREMENT, ACQUISITION, or PURCHASE decisions (NOT general military news)
+2. Focus SPECIFICALLY on ${countryName}'s potential purchase or acquisition of fighter jets: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50
+3. Return ONLY articles discussing procurement decisions, bids, offers, negotiations, or purchases (max 50)
 4. For each article, identify which fighters are mentioned and the sentiment
 
-CRITICAL: Only include articles that are genuinely newsworthy and relevant to fighter procurement/operations.
+CRITICAL EXCLUSION RULES:
+- EXCLUDE general military exercises or operations
+- EXCLUDE historical or technical articles about fighters (unless discussing procurement)
+- EXCLUDE articles that only mention fighters in passing
+- EXCLUDE articles about other countries' purchases (unless comparing to ${countryName})
+- ONLY INCLUDE articles where ${countryName} is considering, negotiating, or purchasing fighter jets
 
 Articles to analyze:
 ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({ 
