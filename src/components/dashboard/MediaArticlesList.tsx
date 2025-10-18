@@ -28,6 +28,17 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // Helper function to extract source name from URL
+  const extractSourceFromUrl = (url: string): string => {
+    try {
+      const hostname = new URL(url).hostname;
+      // Remove www. and get main domain
+      return hostname.replace('www.', '').split('.')[0].toUpperCase();
+    } catch {
+      return 'Unknown Source';
+    }
+  };
+
   useEffect(() => {
     fetchMediaArticles();
   }, [activeCountry, activeCompetitors]);
@@ -55,14 +66,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       // Fetch articles from database (last 60 days) for this user and country
       const { data: items, error } = await supabase
         .from('items')
-        .select(`
-          *,
-          sources (
-            name,
-            country,
-            type
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .eq('tracking_country', activeCountry)
         .gte('published_at', startDate)
@@ -74,10 +78,10 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       const fetchedArticles: MediaArticle[] = (items || []).map(item => ({
         title: item.title_en || item.title_pt || 'Untitled',
         url: item.url,
-        source: item.sources?.name || 'Unknown Source',
+        source: extractSourceFromUrl(item.url),
         published_at: item.published_at,
         fighter_tags: item.fighter_tags || [],
-        source_country: item.source_country || item.sources?.country || 'INTERNATIONAL'
+        source_country: item.source_country || 'INTERNATIONAL'
       }));
 
       // Filter by active competitors
