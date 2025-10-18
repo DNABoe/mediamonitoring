@@ -351,9 +351,8 @@ serve(async (req) => {
     // STRATEGY 2: General country domain searches (works even without configured sources)
     console.log(`Building general ${domainSuffix} domain searches`);
     
-    // Search for ALL fighters (not just competitors)
-    const allFighters = ['Gripen', 'F-35', 'Rafale', 'F-16V', 'Eurofighter', 'F/A-50'];
-    for (const fighter of allFighters) {
+    // Fighters on country TLD (selected competitors + Gripen)
+    for (const fighter of [...competitors, 'Gripen']) {
       allSearchQueries.push({
         query: `${fighter} site:${domainSuffix}`,
         dateRange
@@ -369,7 +368,7 @@ serve(async (req) => {
     }
     
     // Broad terms (without site restriction to catch aggregators)
-    for (const fighter of allFighters) {
+    for (const fighter of [...competitors, 'Gripen']) {
       allSearchQueries.push({
         query: `${fighter} ${countryName}`,
         dateRange
@@ -412,7 +411,7 @@ serve(async (req) => {
     
     // Search top international sources for each fighter + country
     for (const domain of uniqueIntlSources.slice(0, 8)) {
-      for (const fighter of allFighters) {
+      for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
           query: `${fighter} ${countryName}`,
           site: domain,
