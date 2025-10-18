@@ -750,7 +750,7 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
         console.log(`  Inserting with data:`, JSON.stringify(insertData, null, 2));
 
         // Store with all available data, using defaults for missing fields
-        const { data: insertData2, error: insertError } = await supabaseClient
+        const { data: insertedData, error: insertError } = await supabaseClient
           .from('items')
           .upsert(insertData, {
             onConflict: 'url'
@@ -759,10 +759,11 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
 
         if (insertError) {
           errors.push({ url: article.url, error: insertError.message, details: insertError });
-          console.error(`  ✗ INSERT ERROR:`, insertError);
+          console.error(`  ✗ INSERT ERROR:`, JSON.stringify(insertError, null, 2));
+          console.error(`  Insert data was:`, JSON.stringify(insertData, null, 2));
         } else {
           storedCount++;
-          console.log(`  ✓ STORED SUCCESSFULLY (ID: ${insertData2?.[0]?.id || 'unknown'})`);
+          console.log(`  ✓ STORED SUCCESSFULLY (ID: ${insertedData?.[0]?.id || 'unknown'})`);
         }
       } catch (e) {
         errors.push({ url: article.url, error: e instanceof Error ? e.message : 'Unknown' });
