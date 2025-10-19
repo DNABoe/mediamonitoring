@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 
 interface MediaArticle {
   title: string;
+  titleOriginal?: string;
   url: string;
   source: string;
   published_at: string;
@@ -77,6 +78,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       // Transform database items to MediaArticle format
       const fetchedArticles: MediaArticle[] = (items || []).map(item => ({
         title: item.title_en || item.title_pt || 'Untitled',
+        titleOriginal: item.title_pt && item.title_en ? item.title_pt : undefined,
         url: item.url,
         source: extractSourceFromUrl(item.url),
         published_at: item.published_at,
@@ -169,9 +171,16 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         className="group"
       >
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors flex-1 leading-snug">
-            {article.title}
-          </h3>
+          <div className="flex-1">
+            <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors leading-snug mb-1">
+              {article.title}
+            </h3>
+            {article.titleOriginal && (
+              <p className="text-sm text-muted-foreground italic">
+                Original: {article.titleOriginal}
+              </p>
+            )}
+          </div>
           <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-0.5" />
         </div>
       </a>
@@ -183,7 +192,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
           {article.source_country}
         </Badge>
         <span>•</span>
-        <span>
+        <span className="font-medium">
           {(() => {
             const date = new Date(article.published_at);
             return isNaN(date.getTime()) ? 'Recent' : format(date, 'MMM d, yyyy');
