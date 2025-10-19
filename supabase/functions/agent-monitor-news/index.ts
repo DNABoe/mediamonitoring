@@ -63,7 +63,7 @@ serve(async (req) => {
           await supabaseClient
             .from('agent_status')
             .update({
-              last_error: 'No outlets configured',
+              last_error: 'No media outlets configured. Please configure outlets in settings.',
               next_run_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
               updated_at: new Date().toISOString(),
             })
@@ -71,7 +71,7 @@ serve(async (req) => {
           continue;
         }
 
-        // Collect articles using existing function with service role authentication
+        // Collect articles - first run gets 6 months of data, subsequent runs get new articles
         const { data: collectionResult, error: collectionError } = await supabaseClient.functions.invoke(
           'collect-articles-for-tracking',
           {
@@ -79,8 +79,8 @@ serve(async (req) => {
               userId: agent.user_id,
               country: agent.active_country,
               competitors: agent.active_competitors,
-              outlets: isFirstRun ? outlets : outlets.slice(0, 10), // Use all outlets on first run
-              startDate: agent.last_run_at || new Date(Date.now() - (isFirstRun ? 60 : 1) * 24 * 60 * 60 * 1000).toISOString(), // 60 days for first run, 1 day for updates
+              outlets: outlets, // Use all configured outlets
+              startDate: agent.last_run_at || new Date(Date.now() - (isFirstRun ? 180 : 1) * 24 * 60 * 60 * 1000).toISOString(), // 180 days (6 months) for first run, 1 day for updates
               endDate: new Date().toISOString(),
             },
             headers: {
@@ -105,31 +105,7 @@ serve(async (req) => {
 
         const articlesCollected = collectionResult?.articlesStored || 0;
         
-        // On first run, trigger comprehensive analysis
-        if (isFirstRun && articlesCollected > 0) {
-          console.log('First run - triggering comprehensive analysis');
-          
-          // Trigger research comparison
-          const { error: researchError } = await supabaseClient.functions.invoke(
-            'research-fighter-comparison',
-            {
-              body: {
-                userId: agent.user_id,
-                country: agent.active_country,
-                competitors: agent.active_competitors,
-              },
-              headers: {
-                Authorization: `Bearer ${supabaseKey}`,
-              }
-            }
-          );
-          
-          if (researchError) {
-            console.error('Research analysis error:', researchError);
-          } else {
-            console.log('Initial research analysis completed');
-          }
-        }
+        console.log(`Collected ${articlesCollected} articles. First run: ${isFirstRun}`);
         
         // Calculate next run time based on frequency
         let nextRunDelay: number;
@@ -167,7 +143,7 @@ serve(async (req) => {
           success: true,
         });
 
-        console.log(`Completed agent run: ${articlesCollected} articles collected${isFirstRun ? ' (initial run with analysis)' : ''}`);
+        console.log(`Completed media monitoring: ${articlesCollected} articles collected${isFirstRun ? ' (initial 6-month collection)' : ''}`);
 
       } catch (agentError) {
         console.error(`Error processing agent ${agent.id}:`, agentError);

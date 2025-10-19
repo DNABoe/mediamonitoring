@@ -58,12 +58,12 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         return;
       }
 
-      // Calculate date 60 days ago
-      const sixtyDaysAgo = new Date();
-      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-      const startDate = sixtyDaysAgo.toISOString();
+      // Calculate date 6 months ago
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      const startDate = sixMonthsAgo.toISOString();
 
-      // Fetch articles from database (last 60 days) for this user and country
+      // Fetch articles from database (last 6 months) for this user and country
       const { data: items, error } = await supabase
         .from('items')
         .select('*')
@@ -84,11 +84,12 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         source_country: item.source_country || 'INTERNATIONAL'
       }));
 
-      // Filter by active competitors
+      // Filter by active competitors + Gripen
       const filteredArticles = fetchedArticles.filter(article => {
+        const fightersToTrack = [...activeCompetitors, 'Gripen'];
         return article.fighter_tags.some(tag => 
-          activeCompetitors.some(comp => 
-            tag.toLowerCase().includes(comp.toLowerCase())
+          fightersToTrack.some(fighter => 
+            tag.toLowerCase().includes(fighter.toLowerCase())
           )
         );
       });
@@ -210,7 +211,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ExternalLink className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-bold">Key Media References (Last 60 Days)</h2>
+            <h2 className="text-2xl font-bold">Media Monitoring - Fighter Procurement</h2>
           </div>
           <Button 
             onClick={fetchMediaArticles} 
@@ -224,7 +225,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         </div>
         
         <p className="text-sm text-muted-foreground">
-          Articles discussing fighter procurement programs from {activeCountry} and international sources
+          Monitoring media coverage of Gripen vs {activeCompetitors.join(', ')} in {activeCountry} fighter procurement (Last 6 months)
         </p>
 
         {mediaArticles.length === 0 ? (
@@ -236,7 +237,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
             {/* Local Media Column */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Local Media ({activeCountry})</h3>
+                <h3 className="text-lg font-semibold">Local Media</h3>
                 <Badge variant="secondary">{localArticles.length}</Badge>
               </div>
               {localArticles.length === 0 ? (
