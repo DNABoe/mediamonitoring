@@ -107,6 +107,24 @@ serve(async (req) => {
         
         console.log(`Collected ${articlesCollected} articles. First run: ${isFirstRun}`);
         
+        // Generate comprehensive research analysis with dimensional scores on first run
+        if (isFirstRun && articlesCollected > 0) {
+          console.log('Generating dimensional analysis for WinnerMetar...');
+          const { error: analysisError } = await supabaseClient.functions.invoke('research-fighter-comparison', {
+            body: { 
+              country: agent.active_country,
+              competitors: agent.active_competitors,
+              userId: agent.user_id
+            }
+          });
+          
+          if (analysisError) {
+            console.error('Failed to generate dimensional analysis:', analysisError);
+          } else {
+            console.log('✓ Dimensional analysis complete');
+          }
+        }
+        
         // Calculate next run time based on frequency
         let nextRunDelay: number;
         switch (agent.update_frequency) {
