@@ -134,6 +134,35 @@ serve(async (req) => {
           console.error('Error collecting social media:', socialErr);
           // Continue even if social media collection fails
         }
+
+        // Run full research analysis on first run or if enough new articles collected
+        if (isFirstRun || articlesCollected >= 10) {
+          console.log('Running comprehensive fighter comparison analysis...');
+          try {
+            const { error: researchError } = await supabaseClient.functions.invoke(
+              'research-fighter-comparison',
+              {
+                body: {
+                  userId: agent.user_id,
+                  country: agent.active_country,
+                  competitors: agent.active_competitors,
+                },
+                headers: {
+                  Authorization: `Bearer ${supabaseKey}`,
+                }
+              }
+            );
+
+            if (researchError) {
+              console.error('Research analysis error:', researchError);
+            } else {
+              console.log('Research analysis completed successfully');
+            }
+          } catch (researchErr) {
+            console.error('Error running research analysis:', researchErr);
+            // Continue even if research fails
+          }
+        }
         
         // Calculate next run time based on frequency
         let nextRunDelay: number;
