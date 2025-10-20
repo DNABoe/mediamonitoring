@@ -122,6 +122,56 @@ export type Database = {
         }
         Relationships: []
       }
+      article_comments: {
+        Row: {
+          article_id: string | null
+          author_name: string | null
+          comment_id: string | null
+          content: string
+          created_at: string | null
+          fetched_at: string | null
+          fighter_tags: string[] | null
+          id: string
+          published_at: string | null
+          sentiment: number | null
+          user_id: string
+        }
+        Insert: {
+          article_id?: string | null
+          author_name?: string | null
+          comment_id?: string | null
+          content: string
+          created_at?: string | null
+          fetched_at?: string | null
+          fighter_tags?: string[] | null
+          id?: string
+          published_at?: string | null
+          sentiment?: number | null
+          user_id: string
+        }
+        Update: {
+          article_id?: string | null
+          author_name?: string | null
+          comment_id?: string | null
+          content?: string
+          created_at?: string | null
+          fetched_at?: string | null
+          fighter_tags?: string[] | null
+          id?: string
+          published_at?: string | null
+          sentiment?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_comments_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       baselines: {
         Row: {
           alerts_count: number | null
@@ -453,6 +503,60 @@ export type Database = {
           key?: string
           updated_at?: string | null
           value?: Json
+        }
+        Relationships: []
+      }
+      social_media_posts: {
+        Row: {
+          author_name: string | null
+          author_username: string | null
+          content: string
+          created_at: string | null
+          engagement: Json | null
+          fetched_at: string | null
+          fighter_tags: string[] | null
+          id: string
+          platform: string
+          post_id: string
+          post_url: string
+          published_at: string
+          sentiment: number | null
+          tracking_country: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          author_username?: string | null
+          content: string
+          created_at?: string | null
+          engagement?: Json | null
+          fetched_at?: string | null
+          fighter_tags?: string[] | null
+          id?: string
+          platform: string
+          post_id: string
+          post_url: string
+          published_at: string
+          sentiment?: number | null
+          tracking_country?: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string | null
+          author_username?: string | null
+          content?: string
+          created_at?: string | null
+          engagement?: Json | null
+          fetched_at?: string | null
+          fighter_tags?: string[] | null
+          id?: string
+          platform?: string
+          post_id?: string
+          post_url?: string
+          published_at?: string
+          sentiment?: number | null
+          tracking_country?: string
+          user_id?: string
         }
         Relationships: []
       }

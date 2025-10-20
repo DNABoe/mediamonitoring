@@ -107,6 +107,34 @@ serve(async (req) => {
         
         console.log(`Collected ${articlesCollected} articles. First run: ${isFirstRun}`);
         
+        // Collect social media posts and comments
+        let socialPostsCollected = 0;
+        try {
+          const { data: socialData, error: socialError } = await supabaseClient.functions.invoke(
+            'collect-social-media',
+            {
+              body: {
+                userId: agent.user_id,
+                country: agent.active_country,
+                competitors: agent.active_competitors,
+                startDate: agent.last_run_at || new Date(Date.now() - (isFirstRun ? 180 : 1) * 24 * 60 * 60 * 1000).toISOString(),
+                endDate: new Date().toISOString(),
+              },
+              headers: {
+                Authorization: `Bearer ${supabaseKey}`,
+              }
+            }
+          );
+          
+          if (!socialError && socialData) {
+            socialPostsCollected = socialData.postsCollected || 0;
+            console.log(`Collected ${socialPostsCollected} social media posts`);
+          }
+        } catch (socialErr) {
+          console.error('Error collecting social media:', socialErr);
+          // Continue even if social media collection fails
+        }
+        
         // Calculate next run time based on frequency
         let nextRunDelay: number;
         switch (agent.update_frequency) {

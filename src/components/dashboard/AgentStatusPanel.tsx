@@ -36,6 +36,8 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
   const [actionLoading, setActionLoading] = useState(false);
   const [researchData, setResearchData] = useState<any>(null);
   const [topArticles, setTopArticles] = useState<any[]>([]);
+  const [socialPosts, setSocialPosts] = useState<any[]>([]);
+  const [socialSentiment, setSocialSentiment] = useState<any>(null);
   const { toast } = useToast();
 
   const fetchAgentStatus = async () => {
@@ -87,6 +89,33 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
         .limit(20);
 
       setTopArticles(articles || []);
+
+      // Fetch social media posts
+      const { data: socialData } = await supabase
+        .from('social_media_posts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('tracking_country', activeCountry)
+        .order('published_at', { ascending: false })
+        .limit(20);
+
+      setSocialPosts(socialData || []);
+
+      // Calculate social sentiment
+      if (socialData && socialData.length > 0) {
+        const sentimentByFighter: any = {};
+        activeCompetitors.forEach(fighter => {
+          const fighterPosts = socialData.filter(p => p.fighter_tags?.includes(fighter));
+          if (fighterPosts.length > 0) {
+            const avgSentiment = fighterPosts.reduce((sum, p) => sum + (p.sentiment || 0), 0) / fighterPosts.length;
+            sentimentByFighter[fighter] = {
+              sentiment_score: avgSentiment,
+              mentions: fighterPosts.length
+            };
+          }
+        });
+        setSocialSentiment(sentimentByFighter);
+      }
     } catch (error) {
       console.error('Error fetching analysis data:', error);
     }
@@ -444,6 +473,8 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
             mediaSentiment={researchData?.media_tonality}
             articles={topArticles}
             activeCountry={activeCountry}
+            socialPosts={socialPosts}
+            socialSentiment={socialSentiment}
           />
         </div>
       </div>

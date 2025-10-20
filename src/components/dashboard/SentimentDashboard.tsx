@@ -2,13 +2,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { formatDistanceToNow } from "date-fns";
 
 interface SentimentData {
-  [fighter: string]: {
-    sentiment: number;
-    mentions: number;
-    tonality?: string;
-  };
+  sentiment_score: number;
+  mentions: number;
+  tonality?: string;
 }
 
 interface Article {
@@ -20,21 +19,42 @@ interface Article {
   sentiment: number;
 }
 
-interface SentimentDashboardProps {
-  mediaSentiment?: SentimentData;
-  articles: Article[];
-  activeCountry: string;
+interface SocialPost {
+  platform: string;
+  content: string;
+  author_name: string;
+  published_at: string;
+  sentiment: number;
+  post_url: string;
 }
 
-export const SentimentDashboard = ({ mediaSentiment, articles, activeCountry }: SentimentDashboardProps) => {
+interface SentimentDashboardProps {
+  mediaSentiment?: {
+    [fighter: string]: SentimentData;
+  };
+  articles: Article[];
+  activeCountry: string;
+  socialPosts?: SocialPost[];
+  socialSentiment?: {
+    [fighter: string]: SentimentData;
+  };
+}
+
+export const SentimentDashboard = ({ 
+  mediaSentiment, 
+  articles, 
+  activeCountry, 
+  socialPosts = [], 
+  socialSentiment 
+}: SentimentDashboardProps) => {
   
   // Prepare data for media sentiment chart
   const mediaChartData = mediaSentiment ? Object.entries(mediaSentiment).map(([fighter, data]) => ({
     name: fighter,
-    value: Math.abs(data.sentiment * 100),
-    sentiment: data.sentiment,
+    value: Math.abs(data.sentiment_score * 100),
+    sentiment: data.sentiment_score,
     mentions: data.mentions,
-    fill: data.sentiment > 0.2 ? '#10b981' : data.sentiment < -0.2 ? '#ef4444' : '#6b7280'
+    fill: data.sentiment_score > 0.2 ? '#10b981' : data.sentiment_score < -0.2 ? '#ef4444' : '#6b7280'
   })) : [];
 
   const getSentimentIcon = (sentiment: number) => {
@@ -89,12 +109,46 @@ export const SentimentDashboard = ({ mediaSentiment, articles, activeCountry }: 
           )}
         </Card>
 
-        {/* Social Media Sentiment Chart - Placeholder */}
+        {/* Social Media Sentiment Chart */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Social Media Sentiment</h3>
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            Coming soon - social media tracking
-          </div>
+          {socialSentiment && Object.keys(socialSentiment).length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={Object.entries(socialSentiment).map(([fighter, data]) => ({
+                    name: fighter,
+                    value: Math.abs(data.sentiment_score * 100),
+                    sentiment: data.sentiment_score,
+                    mentions: data.mentions,
+                    fill: data.sentiment_score > 0.2 ? '#10b981' : data.sentiment_score < -0.2 ? '#ef4444' : '#6b7280'
+                  }))}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, sentiment }) => `${name} (${(sentiment * 100).toFixed(0)}%)`}
+                >
+                  {Object.entries(socialSentiment).map(([fighter], index) => (
+                    <Cell key={`cell-${index}`} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: any, name: string, props: any) => [
+                    `${props.payload.mentions} posts`,
+                    props.payload.name
+                  ]}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              No social media data yet
+            </div>
+          )}
         </Card>
       </div>
 
@@ -107,10 +161,10 @@ export const SentimentDashboard = ({ mediaSentiment, articles, activeCountry }: 
               <div key={fighter} className="p-4 border rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{fighter}</span>
-                  {getSentimentIcon(data.sentiment)}
+                  {getSentimentIcon(data.sentiment_score)}
                 </div>
                 <div className="flex items-center gap-2">
-                  {getSentimentBadge(data.sentiment)}
+                  {getSentimentBadge(data.sentiment_score)}
                   <span className="text-sm text-muted-foreground">
                     {data.mentions} mentions
                   </span>
@@ -119,6 +173,40 @@ export const SentimentDashboard = ({ mediaSentiment, articles, activeCountry }: 
                   <p className="text-xs text-muted-foreground mt-2">{data.tonality}</p>
                 )}
               </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Latest Social Media Posts */}
+      {socialPosts && socialPosts.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Latest Social Media Posts</h3>
+          <div className="space-y-3">
+            {socialPosts.slice(0, 10).map((post, idx) => (
+              <a
+                key={idx}
+                href={post.post_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {post.platform}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {post.author_name}
+                    </span>
+                    {getSentimentBadge(post.sentiment)}
+                  </div>
+                  <p className="text-sm mb-2 line-clamp-2">{post.content}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDistanceToNow(new Date(post.published_at), { addSuffix: true })}
+                  </p>
+                </div>
+              </a>
             ))}
           </div>
         </Card>
