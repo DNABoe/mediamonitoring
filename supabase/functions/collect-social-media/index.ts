@@ -14,13 +14,65 @@ serve(async (req) => {
   try {
     console.log('Social media collection started');
     
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const googleApiKey = Deno.env.get('GOOGLE_SEARCH_API_KEY');
     const googleSearchEngineId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const { userId, country, competitors, startDate, endDate } = await req.json();
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const userId = user.id;
+    
+    const body = await req.json();
+    const { country, competitors, startDate, endDate } = body;
+    
+    // Validate input parameters
+    if (!country || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid country code. Must be 2-letter uppercase code'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    if (!Array.isArray(competitors) || competitors.length === 0 || competitors.length > 10) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid competitors. Must be array with 1-10 items'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    for (const competitor of competitors) {
+      if (typeof competitor !== 'string' || competitor.length > 50) {
+        return new Response(JSON.stringify({ 
+          error: 'Invalid competitor name. Must be string, max 50 characters'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
 
     if (!googleApiKey || !googleSearchEngineId) {
       throw new Error('Google Search API credentials not configured');

@@ -4,25 +4,25 @@ project_id = "bmlxazcllmoupkjzrrnl"
 verify_jwt = true
 
 [functions.collect-articles-for-tracking]
-verify_jwt = false
+verify_jwt = true
 
 [functions.research-fighter-comparison]
-verify_jwt = false
+verify_jwt = true
 
 [functions.reset-research-data]
 verify_jwt = true
 
 [functions.suggest-dimension-weights]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-strategic-suggestions]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-blackhat-analysis]
-verify_jwt = false
+verify_jwt = true
 
 [functions.agent-discover-outlets]
-verify_jwt = false
+verify_jwt = true
 
 [functions.agent-monitor-news]
-verify_jwt = false
+verify_jwt = true

@@ -12,20 +12,40 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+    
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (!lovableApiKey) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Fetch the latest research report
-    const { data: report } = await supabase
+    // Fetch the latest research report for this user
+    const { data: report } = await supabaseClient
       .from('research_reports')
       .select('*')
+      .eq('user_id', user.id)
       .order('report_date', { ascending: false })
       .limit(1)
       .maybeSingle();

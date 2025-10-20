@@ -12,16 +12,66 @@ serve(async (req) => {
   }
 
   try {
-    const { country, competitors, startDate, endDate } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const body = await req.json();
+    const { country, competitors, startDate, endDate } = body;
+    
+    // Validate input parameters
+    if (!country || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid country code. Must be 2-letter uppercase code'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    if (!Array.isArray(competitors) || competitors.length === 0 || competitors.length > 10) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid competitors. Must be array with 1-10 items'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    for (const competitor of competitors) {
+      if (typeof competitor !== 'string' || competitor.length > 50) {
+        return new Response(JSON.stringify({ 
+          error: 'Invalid competitor name. Must be string, max 50 characters'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Get all media sources for the active country
     const { data: sources, error: sourcesError } = await supabase

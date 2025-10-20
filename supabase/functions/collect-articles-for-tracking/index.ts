@@ -47,80 +47,85 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // Parse body first to check if userId is provided (for service role calls)
-    let bodyPreview;
-    try {
-      const bodyText = await req.text();
-      bodyPreview = JSON.parse(bodyText);
-      // Re-create request with the body for later parsing
-      req = new Request(req.url, {
-        method: req.method,
-        headers: req.headers,
-        body: bodyText,
+    // Authenticate the user from JWT token
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
-    } catch (e) {
-      console.error('Failed to preview body:', e);
     }
 
-    let userId: string;
+    const userId = user.id;
+    console.log('Step 1 SUCCESS: User authenticated:', userId);
+
+    console.log('Step 2: Parsing and validating request body...');
+    const body = await req.json();
     
-    // If userId is provided in body (service role call from agent), use it
-    if (bodyPreview?.userId) {
-      console.log('Step 1: Using userId from request body (service role call)');
-      userId = bodyPreview.userId;
-      console.log('Step 1 SUCCESS: Service role authenticated for user:', userId);
-    } else {
-      // Otherwise, authenticate the user from the token
-      const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-      
-      if (userError || !user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
+    // Validate input parameters
+    const { country, competitors, startDate, endDate } = body;
+    
+    if (!country || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid country code. Must be 2-letter uppercase code (e.g., PT, US)'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    if (!Array.isArray(competitors) || competitors.length === 0 || competitors.length > 10) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid competitors. Must be array with 1-10 items'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    for (const competitor of competitors) {
+      if (typeof competitor !== 'string' || competitor.length > 50) {
+        return new Response(JSON.stringify({ 
+          error: 'Invalid competitor name. Must be string, max 50 characters'
+        }), {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-
-      userId = user.id;
-      console.log('Step 1 SUCCESS: User authenticated:', userId);
     }
-
-    console.log('Step 2: Parsing request body...');
-    let body;
-    try {
-      body = await req.json();
-      console.log('Step 2 SUCCESS: Request body parsed:', JSON.stringify(body));
-    } catch (parseError) {
-      console.error('Step 2 FAILED: Request parsing error:', parseError);
-      return new Response(JSON.stringify({ 
-        error: 'Invalid request format - failed to parse JSON',
-        details: parseError instanceof Error ? parseError.message : 'Unknown parse error'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    const { country, competitors, startDate, endDate } = body;
-    console.log('Step 2: Parameters extracted:', { country, competitors, startDate, endDate });
     
-    if (!country || !competitors || !startDate || !endDate) {
-      const missing = [];
-      if (!country) missing.push('country');
-      if (!competitors) missing.push('competitors');
-      if (!startDate) missing.push('startDate');
-      if (!endDate) missing.push('endDate');
-      console.error('Step 2 FAILED: Missing required parameters:', missing);
+    if (!startDate || !endDate) {
       return new Response(JSON.stringify({ 
-        error: 'Missing required parameters',
-        missing,
-        received: { country, competitors, startDate, endDate }
+        error: 'Missing required date parameters'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    console.log('Step 2 SUCCESS: All parameters validated');
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid date format'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    if (endDateObj <= startDateObj) {
+      return new Response(JSON.stringify({ 
+        error: 'End date must be after start date'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    console.log('Step 2 SUCCESS: Request validated:', { country, competitors, startDate, endDate });
 
     console.log('Step 3: Supabase client already created during auth');
 
