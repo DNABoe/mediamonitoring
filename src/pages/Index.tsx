@@ -18,6 +18,11 @@ import { Settings, LogOut, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportPDF } from "@/components/dashboard/ExportPDF";
 import { MediaArticlesList } from "@/components/dashboard/MediaArticlesList";
+import { BackgroundAnalysis } from "@/components/dashboard/BackgroundAnalysis";
+import { SentimentOverTimeChart } from "@/components/dashboard/SentimentOverTimeChart";
+import { SentimentDistributionChart } from "@/components/dashboard/SentimentDistributionChart";
+import { PublicationTimelineChart } from "@/components/dashboard/PublicationTimelineChart";
+import { useSentimentData } from "@/hooks/useSentimentData";
 
 const Index = () => {
   const {
@@ -30,6 +35,12 @@ const Index = () => {
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { settings: userSettings, loading: settingsLoading } = useUserSettings();
+  const { 
+    sentimentOverTime, 
+    publicationTimeline, 
+    sentimentDistribution, 
+    loading: sentimentLoading 
+  } = useSentimentData(userSettings.activeCountry, userSettings.activeCompetitors);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -140,11 +151,40 @@ const Index = () => {
           </div>}
 
         <div className="mb-6">
+          <BackgroundAnalysis 
+            activeCountry={userSettings.activeCountry}
+            countryName={userSettings.countryName}
+            activeCompetitors={userSettings.activeCompetitors}
+          />
+        </div>
+
+        <div className="mb-6">
           <ResearchChanges />
         </div>
 
         <div className="mb-6">
           <ResearchExecutiveSummary activeCompetitors={userSettings.activeCompetitors} />
+        </div>
+
+        <div className="mb-6">
+          <SentimentOverTimeChart 
+            activeCompetitors={userSettings.activeCompetitors}
+            data={sentimentOverTime}
+          />
+        </div>
+
+        <div className="mb-6">
+          <SentimentDistributionChart 
+            activeCompetitors={userSettings.activeCompetitors}
+            sentimentData={sentimentDistribution}
+          />
+        </div>
+
+        <div className="mb-6">
+          <PublicationTimelineChart 
+            activeCompetitors={userSettings.activeCompetitors}
+            data={publicationTimeline}
+          />
         </div>
 
         <div className="mb-6">

@@ -26,3 +26,21 @@ verify_jwt = true
 
 [functions.agent-monitor-news]
 verify_jwt = true
+
+[functions.generate-background-analysis]
+verify_jwt = true
+
+[functions.generate-media-outlets]
+verify_jwt = true
+
+[functions.analyze-sentiment]
+verify_jwt = true
+
+[functions.collect-social-media]
+verify_jwt = true
+
+[functions.search-fighter-articles]
+verify_jwt = true
+
+[functions.search-recent-media-references]
+verify_jwt = true

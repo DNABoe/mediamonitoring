@@ -172,6 +172,54 @@ export type Database = {
           },
         ]
       }
+      background_analysis: {
+        Row: {
+          competitor_overview: string
+          competitors: string[]
+          country: string
+          created_at: string
+          economic_factors: string
+          geopolitical_factors: string
+          gripen_overview: string
+          historical_patterns: string
+          id: string
+          political_context: string
+          procurement_context: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          competitor_overview?: string
+          competitors?: string[]
+          country: string
+          created_at?: string
+          economic_factors?: string
+          geopolitical_factors?: string
+          gripen_overview?: string
+          historical_patterns?: string
+          id?: string
+          political_context?: string
+          procurement_context?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          competitor_overview?: string
+          competitors?: string[]
+          country?: string
+          created_at?: string
+          economic_factors?: string
+          geopolitical_factors?: string
+          gripen_overview?: string
+          historical_patterns?: string
+          id?: string
+          political_context?: string
+          procurement_context?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       baselines: {
         Row: {
           alerts_count: number | null
