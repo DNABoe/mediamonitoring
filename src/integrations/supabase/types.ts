@@ -41,6 +41,30 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_activity_log: {
+        Row: {
+          activity_type: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       agent_status: {
         Row: {
           active_competitors: string[]
@@ -48,6 +72,7 @@ export type Database = {
           articles_collected_total: number | null
           created_at: string | null
           id: string
+          last_articles_fetch: string | null
           last_error: string | null
           last_run_at: string | null
           next_run_at: string | null
@@ -63,6 +88,7 @@ export type Database = {
           articles_collected_total?: number | null
           created_at?: string | null
           id?: string
+          last_articles_fetch?: string | null
           last_error?: string | null
           last_run_at?: string | null
           next_run_at?: string | null
@@ -78,6 +104,7 @@ export type Database = {
           articles_collected_total?: number | null
           created_at?: string | null
           id?: string
+          last_articles_fetch?: string | null
           last_error?: string | null
           last_run_at?: string | null
           next_run_at?: string | null
@@ -121,6 +148,56 @@ export type Database = {
           type?: string
         }
         Relationships: []
+      }
+      article_analyses: {
+        Row: {
+          article_id: string
+          article_tone: string | null
+          created_at: string | null
+          extracted_quotes: Json | null
+          id: string
+          influence_score: number | null
+          key_points: string[] | null
+          main_sentiment: Json | null
+          narrative_themes: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          article_id: string
+          article_tone?: string | null
+          created_at?: string | null
+          extracted_quotes?: Json | null
+          id?: string
+          influence_score?: number | null
+          key_points?: string[] | null
+          main_sentiment?: Json | null
+          narrative_themes?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          article_id?: string
+          article_tone?: string | null
+          created_at?: string | null
+          extracted_quotes?: Json | null
+          id?: string
+          influence_score?: number | null
+          key_points?: string[] | null
+          main_sentiment?: Json | null
+          narrative_themes?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_analyses_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       article_comments: {
         Row: {
@@ -556,15 +633,18 @@ export type Database = {
       }
       social_media_posts: {
         Row: {
+          author_info: Json | null
           author_name: string | null
           author_username: string | null
           content: string
           created_at: string | null
           engagement: Json | null
+          engagement_metrics: Json | null
           fetched_at: string | null
           fighter_tags: string[] | null
           id: string
           platform: string
+          platform_metadata: Json | null
           post_id: string
           post_url: string
           published_at: string
@@ -573,15 +653,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          author_info?: Json | null
           author_name?: string | null
           author_username?: string | null
           content: string
           created_at?: string | null
           engagement?: Json | null
+          engagement_metrics?: Json | null
           fetched_at?: string | null
           fighter_tags?: string[] | null
           id?: string
           platform: string
+          platform_metadata?: Json | null
           post_id: string
           post_url: string
           published_at: string
@@ -590,15 +673,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          author_info?: Json | null
           author_name?: string | null
           author_username?: string | null
           content?: string
           created_at?: string | null
           engagement?: Json | null
+          engagement_metrics?: Json | null
           fetched_at?: string | null
           fighter_tags?: string[] | null
           id?: string
           platform?: string
+          platform_metadata?: Json | null
           post_id?: string
           post_url?: string
           published_at?: string
@@ -669,27 +755,33 @@ export type Database = {
         Row: {
           active_competitors: string[]
           active_country: string
+          auto_refresh_enabled: boolean | null
           created_at: string | null
           id: string
           prioritized_outlets: Json | null
+          social_media_platforms: Json | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           active_competitors?: string[]
           active_country?: string
+          auto_refresh_enabled?: boolean | null
           created_at?: string | null
           id?: string
           prioritized_outlets?: Json | null
+          social_media_platforms?: Json | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           active_competitors?: string[]
           active_country?: string
+          auto_refresh_enabled?: boolean | null
           created_at?: string | null
           id?: string
           prioritized_outlets?: Json | null
+          social_media_platforms?: Json | null
           updated_at?: string | null
           user_id?: string
         }

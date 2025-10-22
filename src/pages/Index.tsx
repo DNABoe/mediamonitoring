@@ -22,7 +22,10 @@ import { BackgroundAnalysis } from "@/components/dashboard/BackgroundAnalysis";
 import { SentimentOverTimeChart } from "@/components/dashboard/SentimentOverTimeChart";
 import { SentimentDistributionChart } from "@/components/dashboard/SentimentDistributionChart";
 import { PublicationTimelineChart } from "@/components/dashboard/PublicationTimelineChart";
+import { MediaMonitoringAgent } from "@/components/dashboard/MediaMonitoringAgent";
+import { SocialMediaFeed } from "@/components/dashboard/SocialMediaFeed";
 import { useSentimentData } from "@/hooks/useSentimentData";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const {
@@ -212,11 +215,29 @@ const Index = () => {
         </div>
 
         <div className="mb-6">
-          <MediaArticlesList 
-            activeCountry={userSettings.activeCountry}
-            activeCompetitors={userSettings.activeCompetitors}
-            prioritizedOutlets={userSettings.prioritizedOutlets}
-          />
+          <MediaMonitoringAgent />
+        </div>
+
+        <div className="mb-6">
+          <Tabs defaultValue="articles" className="w-full">
+            <TabsList>
+              <TabsTrigger value="articles">Media Articles</TabsTrigger>
+              <TabsTrigger value="social">Social Media</TabsTrigger>
+            </TabsList>
+            <TabsContent value="articles">
+              <MediaArticlesList 
+                activeCountry={userSettings.activeCountry}
+                activeCompetitors={userSettings.activeCompetitors}
+                prioritizedOutlets={userSettings.prioritizedOutlets}
+              />
+            </TabsContent>
+            <TabsContent value="social">
+              <SocialMediaFeed 
+                activeCountry={userSettings.activeCountry}
+                activeCompetitors={userSettings.activeCompetitors}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
 
         <div className="mb-6">
