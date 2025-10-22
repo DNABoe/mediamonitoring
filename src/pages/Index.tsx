@@ -34,7 +34,7 @@ const Index = () => {
     loading: authLoading,
     signOut
   } = useAuth();
-  const [lastUpdate, setLastUpdate] = useState(new Date);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { settings: userSettings, loading: settingsLoading } = useUserSettings();
