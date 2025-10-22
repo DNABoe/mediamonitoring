@@ -85,6 +85,61 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
     return () => clearInterval(interval);
   }, [activeCountry, activeCompetitors, autoRefreshEnabled]);
 
+  const collectNewArticles = async () => {
+    try {
+      setLoading(true);
+      console.log('Collecting new articles from web...');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to collect articles",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Collecting articles...",
+        description: "This may take a few minutes. You'll be notified when complete.",
+      });
+
+      // Calculate date range: 60 days ago to today
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 60);
+
+      const { data, error } = await supabase.functions.invoke('collect-articles-for-tracking', {
+        body: {
+          country: activeCountry,
+          competitors: activeCompetitors,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0]
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Collection complete",
+        description: `Collected ${data?.totalSaved || 0} new articles`,
+      });
+
+      // Refresh the list
+      await fetchMediaArticles();
+    } catch (error: any) {
+      console.error('Error collecting articles:', error);
+      toast({
+        title: "Collection failed",
+        description: error.message || "Failed to collect articles. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchMediaArticles = async () => {
     try {
       setLoading(true);
@@ -147,8 +202,8 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       if (filteredArticles.length === 0) {
         toast({
           title: "No articles found",
-          description: "No recent articles found. Try setting a tracking period or refreshing.",
-          duration: 3000,
+          description: "Click 'Collect Articles' to gather recent media coverage.",
+          duration: 5000,
         });
       }
     } catch (error) {
@@ -285,6 +340,15 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
               <div className="text-xs text-muted-foreground">
                 Last updated: {formatDistanceToNow(lastFetchTime, { addSuffix: true })}
               </div>
+              <Button 
+                onClick={collectNewArticles} 
+                variant="default" 
+                size="sm"
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Collect Articles
+              </Button>
               <Button 
                 onClick={fetchMediaArticles} 
                 variant="outline" 
