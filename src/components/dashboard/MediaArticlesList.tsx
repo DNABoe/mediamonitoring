@@ -88,10 +88,16 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const collectNewArticles = async () => {
     try {
       setLoading(true);
-      console.log('Collecting new articles from web...');
+      console.log('=== COLLECT ARTICLES START ===');
+      console.log('Active country:', activeCountry);
+      console.log('Active competitors:', activeCompetitors);
 
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('User authenticated:', !!user);
+      console.log('User ID:', user?.id);
+      
       if (!user) {
+        console.error('No user authenticated');
         toast({
           title: "Authentication required",
           description: "Please log in to collect articles",
@@ -110,26 +116,45 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 60);
 
+      const requestBody = {
+        country: activeCountry,
+        competitors: activeCompetitors,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+      };
+      
+      console.log('Invoking collect-articles-for-tracking with:', requestBody);
+      console.log('Function URL:', `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/collect-articles-for-tracking`);
+
       const { data, error } = await supabase.functions.invoke('collect-articles-for-tracking', {
-        body: {
-          country: activeCountry,
-          competitors: activeCompetitors,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0]
-        }
+        body: requestBody
       });
 
-      if (error) throw error;
+      console.log('Function response data:', data);
+      console.log('Function response error:', error);
 
+      if (error) {
+        console.error('Function invocation error:', error);
+        throw error;
+      }
+
+      console.log('Collection successful. Total saved:', data?.totalSaved);
       toast({
         title: "Collection complete",
         description: `Collected ${data?.totalSaved || 0} new articles`,
       });
 
       // Refresh the list
+      console.log('Refreshing article list...');
       await fetchMediaArticles();
+      console.log('=== COLLECT ARTICLES END ===');
     } catch (error: any) {
-      console.error('Error collecting articles:', error);
+      console.error('=== COLLECT ARTICLES ERROR ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error);
+      console.error('Error stack:', error.stack);
+      
       toast({
         title: "Collection failed",
         description: error.message || "Failed to collect articles. Please try again.",
