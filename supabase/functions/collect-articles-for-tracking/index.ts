@@ -283,17 +283,24 @@ serve(async (req) => {
       }
     }
 
-    // Batch searches with rate limiting and progress tracking
+    // Batch searches with rate limiting, progress tracking, and quota detection
     async function batchGoogleSearch(searches: Array<{query: string, site?: string, dateRange?: string}>, delayMs = 200) {
       const results = [];
       let successCount = 0;
       let failCount = 0;
+      let quotaExceeded = false;
       
       console.log(`Starting ${searches.length} Google searches...`);
       
       for (let i = 0; i < searches.length; i++) {
         const search = searches[i];
         const items = await googleSearch(search.query, search.site, search.dateRange);
+        
+        // Check for quota exceeded (empty results after successful ones might indicate quota)
+        if (items.length === 0 && successCount > 0 && i > 10) {
+          console.warn(`Possible quota exceeded at search ${i + 1}/${searches.length}`);
+          quotaExceeded = true;
+        }
         
         if (items.length > 0) {
           results.push(...items);
@@ -302,8 +309,8 @@ serve(async (req) => {
           failCount++;
         }
         
-        // Progress logging every 10 searches
-        if ((i + 1) % 10 === 0 || i === searches.length - 1) {
+        // Progress logging every 5 searches
+        if ((i + 1) % 5 === 0 || i === searches.length - 1) {
           console.log(`Progress: ${i + 1}/${searches.length} searches | ${successCount} with results | ${failCount} empty | ${results.length} total articles`);
         }
         
@@ -314,133 +321,103 @@ serve(async (req) => {
       }
       
       console.log(`Search complete: ${successCount} successful, ${failCount} empty, ${results.length} total articles found`);
-      return results;
+      if (quotaExceeded) {
+        console.warn(`⚠️ Google API quota may have been exceeded`);
+      }
+      return { results, quotaExceeded, successCount, failCount };
     }
 
-    // Generate comprehensive search queries for Google Custom Search
+    // Generate OPTIMIZED search queries (reduced from 50-100+ to ~25)
     const allSearchQueries: Array<{query: string, site?: string, dateRange?: string}> = [];
     
     // Calculate date range in days for Google's dateRestrict parameter
     const daysDiff = Math.floor((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
     const dateRange = `d${Math.min(daysDiff, 365)}`; // Google max is 365 days
     
-    console.log(`Step 6: Building search queries for ${country} (${countryName}), date range: ${dateRange} (${daysDiff} days)`);
+    console.log(`Step 6: Building OPTIMIZED search queries for ${country} (${countryName}), date range: ${dateRange} (${daysDiff} days)`);
     
-    // STRATEGY 1: Search with configured local sources (most precise)
+    // STRATEGY 1: Top 3 configured local sources ONLY (most precise)
     if (hasCountrySources && sources && sources.length > 0) {
-      console.log(`Building queries for ${sources.length} configured local sources`);
+      const topSources = sources.slice(0, 3); // Limit to 3 sources
+      console.log(`Building queries for TOP ${topSources.length} configured local sources (limited from ${sources.length})`);
       
-      for (const source of sources) {
+      for (const source of topSources) {
         const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
         
-        // Fighter names on each source (highest priority)
-        for (const fighter of [...competitors, 'Gripen']) {
+        // Only most important fighters on each source
+        for (const fighter of [...competitors.slice(0, 2), 'Gripen']) { // Max 3 fighters
           allSearchQueries.push({
             query: fighter,
             site: domain,
             dateRange
           });
         }
-        
-        // Top native terms on each source
-        for (const term of localSearchTerms.slice(0, 2)) {
-          allSearchQueries.push({
-            query: term,
-            site: domain,
-            dateRange
-          });
-        }
       }
     }
 
-    // STRATEGY 2: General country domain searches (works even without configured sources)
-    console.log(`Building general ${domainSuffix} domain searches`);
+    // STRATEGY 2: Reduced country domain searches
+    console.log(`Building reduced ${domainSuffix} domain searches`);
     
-    // Fighters on country TLD (selected competitors + Gripen)
-    for (const fighter of [...competitors, 'Gripen']) {
+    // Top 2 fighters only on country TLD
+    for (const fighter of [...competitors.slice(0, 1), 'Gripen']) {
       allSearchQueries.push({
         query: `${fighter} site:${domainSuffix}`,
         dateRange
       });
     }
     
-    // Native language terms on country TLD
-    for (const term of localSearchTerms.slice(0, 4)) {
-      allSearchQueries.push({
-        query: `${term} site:${domainSuffix}`,
-        dateRange
-      });
-    }
+    // Only top native term
+    allSearchQueries.push({
+      query: `${localSearchTerms[0]} site:${domainSuffix}`,
+      dateRange
+    });
     
-    // Broad terms (without site restriction to catch aggregators)
+    // Broad terms for all fighters
     for (const fighter of [...competitors, 'Gripen']) {
-      allSearchQueries.push({
-        query: `${fighter} ${countryName}`,
-        dateRange
-      });
-      
-      // Add "procurement" context
       allSearchQueries.push({
         query: `${fighter} ${countryName} procurement`,
         dateRange
       });
     }
 
-    // STRATEGY 3: International defense media
-    console.log(`Building international media searches`);
+    // STRATEGY 3: Top 3 international defense media ONLY
+    console.log(`Building top 3 international media searches`);
     
     const topInternationalOutlets = [
       'defensenews.com',
-      'flightglobal.com', 
       'janes.com',
-      'aviationweek.com',
-      'reuters.com',
-      'bloomberg.com'
-    ];
+      'flightglobal.com'
+    ]; // Reduced from 6 to 3
     
-    // Fetch configured international sources
-    const { data: intlSources } = await supabaseClient
-      .from('sources')
-      .select('*')
-      .in('country', ['INT', 'EU', 'US', 'UK'])
-      .eq('enabled', true);
-    
-    const allInternationalSources = [
-      ...(intlSources || []).map(s => s.url.replace(/^https?:\/\//i, '').split('/')[0]),
-      ...topInternationalOutlets
-    ];
-    
-    const uniqueIntlSources = [...new Set(allInternationalSources)];
-    
-    console.log(`Will search ${uniqueIntlSources.length} international sources`);
-    
-    // Search top international sources for each fighter + country
-    for (const domain of uniqueIntlSources.slice(0, 8)) {
-      for (const fighter of [...competitors, 'Gripen']) {
+    // Only search these 3 outlets for Gripen + top competitor
+    for (const domain of topInternationalOutlets) {
+      allSearchQueries.push({
+        query: `Gripen ${countryName}`,
+        site: domain,
+        dateRange
+      });
+      if (competitors.length > 0) {
         allSearchQueries.push({
-          query: `${fighter} ${countryName}`,
+          query: `${competitors[0]} ${countryName}`,
           site: domain,
           dateRange
         });
       }
     }
 
-    // STRATEGY 4: General procurement and acquisition terms
+    // STRATEGY 4: Reduced general terms (2 instead of 5)
     allSearchQueries.push(
       { query: `fighter aircraft procurement ${countryName}`, dateRange },
-      { query: `fighter jet acquisition ${countryName}`, dateRange },
-      { query: `air force modernization ${countryName}`, dateRange },
-      { query: `military aircraft purchase ${countryName}`, dateRange },
-      { query: `defense procurement ${countryName}`, dateRange }
+      { query: `air force modernization ${countryName}`, dateRange }
     );
 
     console.log(`Step 7: Total of ${allSearchQueries.length} Google search queries prepared`);
     console.log(`Sample queries:`, allSearchQueries.slice(0, 5).map(q => `"${q.query}"${q.site ? ` site:${q.site}` : ''}`));
 
-    console.log(`Step 7: Executing ${allSearchQueries.length} Google searches...`);
+    console.log(`Step 7: Executing ${allSearchQueries.length} OPTIMIZED Google searches (reduced from ~100+)...`);
 
     // Execute all searches
-    const searchResults = await batchGoogleSearch(allSearchQueries);
+    const { results: searchResults, quotaExceeded, successCount, failCount } = await batchGoogleSearch(allSearchQueries);
     
     // Deduplicate by URL
     const uniqueResults = Array.from(
@@ -452,7 +429,9 @@ serve(async (req) => {
     if (uniqueResults.length === 0) {
       return new Response(JSON.stringify({ 
         articles: [],
-        message: 'No articles found for tracking period'
+        message: 'No articles found for tracking period',
+        quotaExceeded,
+        searchStats: { total: allSearchQueries.length, success: successCount, failed: failCount }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -796,7 +775,14 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
       success: true,
       articlesFound: uniqueResults.length,
       articlesStored: storedCount,
-      trackingPeriod: `${startDate} to ${endDate}`
+      totalSaved: storedCount,
+      trackingPeriod: `${startDate} to ${endDate}`,
+      quotaExceeded,
+      searchStats: { 
+        total: allSearchQueries.length, 
+        success: successCount, 
+        failed: failCount 
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

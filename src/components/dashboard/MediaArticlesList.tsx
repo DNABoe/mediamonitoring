@@ -139,10 +139,22 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       }
 
       console.log('Collection successful. Total saved:', data?.totalSaved);
-      toast({
-        title: "Collection complete",
-        description: `Collected ${data?.totalSaved || 0} new articles`,
-      });
+      
+      // Check for quota issues
+      if (data?.quotaExceeded) {
+        toast({
+          title: "Quota limit reached",
+          description: `Collected ${data?.totalSaved || 0} articles before hitting Google API quota. ${data?.searchStats?.success || 0}/${data?.searchStats?.total || 0} searches completed. Try again tomorrow.`,
+          variant: "destructive",
+          duration: 8000,
+        });
+      } else {
+        toast({
+          title: "Collection complete",
+          description: `Collected ${data?.totalSaved || 0} new articles. ${data?.searchStats?.success || 0}/${data?.searchStats?.total || 0} searches successful.`,
+          duration: 5000,
+        });
+      }
 
       // Refresh the list
       console.log('Refreshing article list...');
@@ -155,10 +167,18 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       console.error('Error details:', error);
       console.error('Error stack:', error.stack);
       
+      // Check if it's a quota error
+      const isQuotaError = error.message?.toLowerCase().includes('quota') || 
+                          error.message?.toLowerCase().includes('429') ||
+                          error.message?.toLowerCase().includes('rate limit');
+      
       toast({
-        title: "Collection failed",
-        description: error.message || "Failed to collect articles. Please try again.",
+        title: isQuotaError ? "Google API Quota Exceeded" : "Collection failed",
+        description: isQuotaError 
+          ? "Daily Google API quota limit reached (100 searches/day). Try again tomorrow or upgrade your Google API key."
+          : error.message || "Failed to collect articles. Please try again.",
         variant: "destructive",
+        duration: isQuotaError ? 10000 : 5000,
       });
     } finally {
       setLoading(false);
