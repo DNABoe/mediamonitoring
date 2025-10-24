@@ -68,9 +68,6 @@ export const SentimentDistributionChart = ({
         {chartData.every(d => d.total === 0) ? <div className="h-[400px] flex items-center justify-center text-muted-foreground">
             No sentiment data available yet. Start collecting articles to see distribution.
           </div> : <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-              {chartData.map(item => {})}
-            </div>
 
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={chartData} margin={{
@@ -108,7 +105,10 @@ export const SentimentDistributionChart = ({
             </ResponsiveContainer>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div 
+              className="grid gap-4 mt-4" 
+              style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(0, 1fr))` }}
+            >
               {chartData.map(item => <div key={item.fighter} className="p-3 border rounded-lg">
                   <p className="font-semibold text-sm mb-2">{item.fighter}</p>
                   <div className="space-y-1 text-xs">
