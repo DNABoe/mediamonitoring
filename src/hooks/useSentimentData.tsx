@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 interface Article {
   published_at: string;
   sentiment: number;
   fighter_tags: string[];
+  article_analyses?: {
+    main_sentiment: Json;
+    article_tone: string;
+    influence_score: number;
+  }[];
 }
 
 interface SentimentDataPoint {
@@ -45,7 +51,12 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
 
       const { data: articles, error } = await supabase
         .from('items')
-        .select('published_at, sentiment, fighter_tags')
+        .select(`
+          published_at, 
+          sentiment, 
+          fighter_tags,
+          article_analyses(main_sentiment, article_tone, influence_score)
+        `)
         .eq('user_id', user.id)
         .eq('tracking_country', activeCountry)
         .gte('published_at', sixMonthsAgo.toISOString())
@@ -90,20 +101,24 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
         article.fighter_tags?.forEach((tag: string) => {
           const fighter = fighters.find(f => tag.toLowerCase().includes(f.toLowerCase()));
           if (fighter) {
+            // Use analyzed sentiment if available, otherwise fall back to basic sentiment
+            const mainSentiment = article.article_analyses?.[0]?.main_sentiment as { score?: number } | undefined;
+            const analyzedSentiment = mainSentiment?.score;
+            const sentimentScore = analyzedSentiment !== undefined ? analyzedSentiment : (article.sentiment || 0);
+            
             // Sentiment over time
             if (!weekSentiment[fighter]) {
               weekSentiment[fighter] = [];
             }
-            weekSentiment[fighter].push(article.sentiment || 0);
+            weekSentiment[fighter].push(sentimentScore);
 
             // Publication timeline
             weekPublication[fighter] = (weekPublication[fighter] || 0) + 1;
 
-            // Sentiment distribution
-            const sentiment = article.sentiment || 0;
-            if (sentiment > 0.2) {
+            // Sentiment distribution - use analyzed sentiment or fall back to basic
+            if (sentimentScore > 0.2) {
               sentimentCounts[fighter].positive++;
-            } else if (sentiment < -0.2) {
+            } else if (sentimentScore < -0.2) {
               sentimentCounts[fighter].negative++;
             } else {
               sentimentCounts[fighter].neutral++;
