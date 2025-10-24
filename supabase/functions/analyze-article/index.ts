@@ -33,7 +33,31 @@ serve(async (req) => {
 
     const { articleId, competitors } = await req.json();
 
-    console.log('Analyzing article:', articleId);
+    // Validate articleId is a valid UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!articleId || typeof articleId !== 'string' || !uuidRegex.test(articleId)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate competitors array
+    if (!Array.isArray(competitors) || competitors.length === 0 || competitors.length > 10) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    for (const competitor of competitors) {
+      if (typeof competitor !== 'string' || competitor.length > 50 || competitor.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid request parameters' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // Fetch article details
     const { data: article, error: articleError } = await supabase
@@ -98,9 +122,7 @@ Provide analysis in the following JSON structure:
     });
 
     if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      throw new Error('AI analysis failed');
+      throw new Error('Analysis service unavailable');
     }
 
     const aiData = await aiResponse.json();
@@ -135,9 +157,8 @@ Provide analysis in the following JSON structure:
     );
 
   } catch (error) {
-    console.error('Error in analyze-article function:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'Failed to analyze article' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

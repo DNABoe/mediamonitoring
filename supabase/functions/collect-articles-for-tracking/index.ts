@@ -40,9 +40,6 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     
-    console.log(`Supabase URL: ${SUPABASE_URL.substring(0, 30)}...`);
-    console.log(`Service key exists: ${SUPABASE_SERVICE_ROLE_KEY.length > 0}`);
-    
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const token = authHeader.replace('Bearer ', '');
@@ -68,7 +65,7 @@ serve(async (req) => {
     
     if (!country || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) {
       return new Response(JSON.stringify({ 
-        error: 'Invalid country code. Must be 2-letter uppercase code (e.g., PT, US)'
+        error: 'Invalid request parameters'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -77,7 +74,7 @@ serve(async (req) => {
     
     if (!Array.isArray(competitors) || competitors.length === 0 || competitors.length > 10) {
       return new Response(JSON.stringify({ 
-        error: 'Invalid competitors. Must be array with 1-10 items'
+        error: 'Invalid request parameters'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -87,7 +84,7 @@ serve(async (req) => {
     for (const competitor of competitors) {
       if (typeof competitor !== 'string' || competitor.length > 50) {
         return new Response(JSON.stringify({ 
-          error: 'Invalid competitor name. Must be string, max 50 characters'
+          error: 'Invalid request parameters'
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -97,7 +94,7 @@ serve(async (req) => {
     
     if (!startDate || !endDate) {
       return new Response(JSON.stringify({ 
-        error: 'Missing required date parameters'
+        error: 'Invalid request parameters'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -109,7 +106,7 @@ serve(async (req) => {
     
     if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
       return new Response(JSON.stringify({ 
-        error: 'Invalid date format'
+        error: 'Invalid request parameters'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -118,7 +115,19 @@ serve(async (req) => {
     
     if (endDateObj <= startDateObj) {
       return new Response(JSON.stringify({ 
-        error: 'End date must be after start date'
+        error: 'Invalid request parameters'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Limit date range to maximum 1 year to prevent resource exhaustion
+    const maxDays = 365;
+    const daysDiff = Math.floor((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff > maxDays) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request parameters'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -330,8 +339,7 @@ serve(async (req) => {
     // Generate OPTIMIZED search queries (reduced from 50-100+ to ~25)
     const allSearchQueries: Array<{query: string, site?: string, dateRange?: string}> = [];
     
-    // Calculate date range in days for Google's dateRestrict parameter
-    const daysDiff = Math.floor((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+    // Use previously calculated daysDiff for date range
     const dateRange = `d${Math.min(daysDiff, 365)}`; // Google max is 365 days
     
     console.log(`Step 6: Building OPTIMIZED search queries for ${country} (${countryName}), date range: ${dateRange} (${daysDiff} days)`);

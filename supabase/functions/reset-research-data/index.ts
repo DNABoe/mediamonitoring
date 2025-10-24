@@ -44,13 +44,17 @@ Deno.serve(async (req) => {
     
     // Parse request body for selective deletion options
     const body = await req.json()
-    const {
-      researchReports = true,
-      blackHatAnalysis = true,
-      strategicMessaging = true,
-      mediaList = true,
-      baselines = true
-    } = body || {}
+    
+    // Validate boolean flags
+    const validateBoolean = (value: any, defaultValue: boolean) => {
+      return typeof value === 'boolean' ? value : defaultValue;
+    };
+    
+    const researchReports = validateBoolean(body?.researchReports, true);
+    const blackHatAnalysis = validateBoolean(body?.blackHatAnalysis, true);
+    const strategicMessaging = validateBoolean(body?.strategicMessaging, true);
+    const mediaList = validateBoolean(body?.mediaList, true);
+    const baselines = validateBoolean(body?.baselines, true);
 
     // Log admin action
     await supabase
@@ -166,10 +170,8 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error in reset-research-data:', error)
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Failed to reset research data' }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

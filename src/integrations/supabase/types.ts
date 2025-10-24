@@ -201,7 +201,7 @@ export type Database = {
       }
       article_comments: {
         Row: {
-          article_id: string | null
+          article_id: string
           author_name: string | null
           comment_id: string | null
           content: string
@@ -214,7 +214,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          article_id?: string | null
+          article_id: string
           author_name?: string | null
           comment_id?: string | null
           content: string
@@ -227,7 +227,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          article_id?: string | null
+          article_id?: string
           author_name?: string | null
           comment_id?: string | null
           content?: string
@@ -351,7 +351,7 @@ export type Database = {
           metric_date: string
           political_support_score: number
           sentiment_score: number
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           country?: string | null
@@ -364,7 +364,7 @@ export type Database = {
           metric_date?: string
           political_support_score?: number
           sentiment_score?: number
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           country?: string | null
@@ -377,7 +377,7 @@ export type Database = {
           metric_date?: string
           political_support_score?: number
           sentiment_score?: number
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
