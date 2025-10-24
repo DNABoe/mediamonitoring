@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
-import { PieChart } from "lucide-react";
+import { PieChart, Circle } from "lucide-react";
 
 interface SentimentCounts {
   positive: number;
@@ -21,7 +21,16 @@ interface SentimentDistributionChartProps {
   sentimentData: Record<string, SentimentCounts>;
 }
 
-export const SentimentDistributionChart = ({ 
+const FIGHTER_COLORS = {
+  'Gripen': 'hsl(217, 91%, 60%)',     // Primary blue
+  'F-35': 'hsl(0, 84%, 60%)',         // Red
+  'F-16': 'hsl(142, 71%, 45%)',       // Green
+  'Eurofighter': 'hsl(38, 92%, 50%)', // Amber
+  'Rafale': 'hsl(258, 90%, 66%)',     // Purple
+  'F-18': 'hsl(330, 81%, 60%)',       // Pink
+};
+
+export const SentimentDistributionChart = ({
   activeCompetitors, 
   sentimentData 
 }: SentimentDistributionChartProps) => {
@@ -63,10 +72,40 @@ export const SentimentDistributionChart = ({
           </div>
         ) : (
           <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+              {chartData.map(item => (
+                <div key={item.fighter} className="flex items-center gap-2 p-2 rounded-lg border bg-card/50">
+                  <Circle 
+                    className="shrink-0" 
+                    fill={FIGHTER_COLORS[item.fighter as keyof typeof FIGHTER_COLORS] || 'hsl(var(--muted))'} 
+                    color={FIGHTER_COLORS[item.fighter as keyof typeof FIGHTER_COLORS] || 'hsl(var(--muted))'} 
+                    size={16} 
+                  />
+                  <span className="font-semibold text-sm">{item.fighter}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{item.total} articles</span>
+                </div>
+              ))}
+            </div>
+
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="fighter" className="text-xs" />
+                <XAxis 
+                  dataKey="fighter" 
+                  className="text-xs"
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const fighterColor = FIGHTER_COLORS[payload.value as keyof typeof FIGHTER_COLORS] || 'hsl(var(--muted))';
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <circle cx={0} cy={-5} r={4} fill={fighterColor} />
+                        <text x={0} y={10} textAnchor="middle" fill="hsl(var(--foreground))" fontSize={12}>
+                          {payload.value}
+                        </text>
+                      </g>
+                    );
+                  }}
+                />
                 <YAxis 
                   tickFormatter={(value) => `${value}%`}
                   domain={[0, 100]}
@@ -81,9 +120,9 @@ export const SentimentDistributionChart = ({
                   }}
                 />
                 <Legend />
-                <Bar dataKey="positive" stackId="a" fill="#10b981" name="Positive" />
-                <Bar dataKey="neutral" stackId="a" fill="#6b7280" name="Neutral" />
-                <Bar dataKey="negative" stackId="a" fill="#ef4444" name="Negative" />
+                <Bar dataKey="positive" stackId="a" fill="hsl(142, 71%, 45%)" name="Positive" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="neutral" stackId="a" fill="hsl(215, 16%, 55%)" name="Neutral" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="negative" stackId="a" fill="hsl(0, 84%, 60%)" name="Negative" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
 
