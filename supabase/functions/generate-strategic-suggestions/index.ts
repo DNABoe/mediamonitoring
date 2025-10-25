@@ -136,7 +136,7 @@ Provide 3-4 suggestions per category for each platform.`;
         messages: [
           {
             role: 'system',
-            content: 'You are a strategic communications expert for defense procurement. Provide objective, actionable messaging strategies for both competing platforms. Return only valid JSON.'
+            content: 'You are a strategic communications expert for defense procurement. Provide objective, actionable messaging strategies for both competing platforms. Return only valid JSON without markdown code blocks.'
           },
           {
             role: 'user',
@@ -144,7 +144,7 @@ Provide 3-4 suggestions per category for each platform.`;
           }
         ],
         temperature: 0.8,
-        max_tokens: 2000,
+        max_tokens: 4000,
       }),
     });
 
@@ -163,12 +163,17 @@ Provide 3-4 suggestions per category for each platform.`;
     try {
       let jsonStr = content.trim();
       
+      // Remove markdown code blocks if present
       if (jsonStr.startsWith('```')) {
-        const firstNewline = jsonStr.indexOf('\n');
-        const lastCodeBlock = jsonStr.lastIndexOf('```');
-        
-        if (firstNewline !== -1 && lastCodeBlock > firstNewline) {
-          jsonStr = jsonStr.substring(firstNewline + 1, lastCodeBlock).trim();
+        const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match && match[1]) {
+          jsonStr = match[1].trim();
+        } else {
+          // Fallback: remove first and last lines if they contain ```
+          const lines = jsonStr.split('\n');
+          if (lines[0].includes('```')) lines.shift();
+          if (lines[lines.length - 1].includes('```')) lines.pop();
+          jsonStr = lines.join('\n').trim();
         }
       }
       
