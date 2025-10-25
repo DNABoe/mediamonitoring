@@ -24,6 +24,7 @@ interface AnalysisData {
   economic_factors: string;
   geopolitical_factors: string;
   historical_patterns: string;
+  industry_cooperation: string;
   created_at: string;
 }
 
@@ -166,11 +167,12 @@ export const BackgroundAnalysis = ({
         </div>
 
         <Tabs defaultValue="procurement" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="procurement">Procurement</TabsTrigger>
             <TabsTrigger value="competitors">Competitors</TabsTrigger>
             <TabsTrigger value="political">Political</TabsTrigger>
             <TabsTrigger value="strategic">Strategic</TabsTrigger>
+            <TabsTrigger value="industry">Industry</TabsTrigger>
           </TabsList>
 
           <TabsContent value="procurement" className="space-y-4">
@@ -243,6 +245,17 @@ export const BackgroundAnalysis = ({
               <h3 className="text-lg font-semibold">Geopolitical Factors</h3>
               <div className="prose prose-sm max-w-none dark:prose-invert">
                 {analysis.geopolitical_factors.split('\n\n').map((paragraph, idx) => (
+                  <p key={idx} className="text-foreground">{paragraph}</p>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="industry" className="space-y-4">
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold">Industry Cooperation Analysis</h3>
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                {analysis.industry_cooperation.split('\n\n').map((paragraph, idx) => (
                   <p key={idx} className="text-foreground">{paragraph}</p>
                 ))}
               </div>

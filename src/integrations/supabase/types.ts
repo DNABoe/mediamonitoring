@@ -260,6 +260,7 @@ export type Database = {
           gripen_overview: string
           historical_patterns: string
           id: string
+          industry_cooperation: string
           political_context: string
           procurement_context: string
           updated_at: string
@@ -275,6 +276,7 @@ export type Database = {
           gripen_overview?: string
           historical_patterns?: string
           id?: string
+          industry_cooperation?: string
           political_context?: string
           procurement_context?: string
           updated_at?: string
@@ -290,6 +292,7 @@ export type Database = {
           gripen_overview?: string
           historical_patterns?: string
           id?: string
+          industry_cooperation?: string
           political_context?: string
           procurement_context?: string
           updated_at?: string

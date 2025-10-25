@@ -116,6 +116,16 @@ Review ${countryName}'s defense procurement history:
 - Past offset and industrial cooperation deals
 - Lessons from previous procurements
 
+8. INDUSTRY COOPERATION OPPORTUNITIES
+Analyze ${countryName}'s local defense industry and cooperation potential:
+- Key domestic aerospace and defense companies
+- Existing capabilities in aviation, electronics, and systems integration
+- Technology transfer priorities and requirements
+- Potential industrial participation agreements
+- Local manufacturing and assembly opportunities
+- Skills and workforce readiness
+- Research and development collaboration potential
+
 Format your response as a JSON object with these keys:
 {
   "procurement_context": "...",
@@ -124,7 +134,8 @@ Format your response as a JSON object with these keys:
   "political_context": "...",
   "economic_factors": "...",
   "geopolitical_factors": "...",
-  "historical_patterns": "..."
+  "historical_patterns": "...",
+  "industry_cooperation": "..."
 }
 
 Be specific, factual, and comprehensive. Each section should provide actionable intelligence for understanding the procurement landscape.`;
@@ -187,6 +198,7 @@ Be specific, factual, and comprehensive. Each section should provide actionable 
         economic_factors: analysisData.economic_factors || '',
         geopolitical_factors: analysisData.geopolitical_factors || '',
         historical_patterns: analysisData.historical_patterns || '',
+        industry_cooperation: analysisData.industry_cooperation || '',
       })
       .select()
       .single();
