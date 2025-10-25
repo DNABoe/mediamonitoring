@@ -82,35 +82,35 @@ ${Object.entries(report.media_tonality as any)
   .map(([key, value]) => `${key.replace('_sentiment', '')}: ${value}`)
   .join('\n')}
 
-Generate strategic messaging suggestions for ALL platforms (Gripen and ${competitors.join(', ')}) to improve their positioning. Return as JSON with this structure:
+Generate strategic messaging suggestions for ALL platforms (Gripen and ${competitors.join(', ')}) to improve their positioning. Return ONLY valid JSON (no markdown code blocks) with this structure:
 
 {
   "gripen": {
     "media": [
       {"message": "suggestion text", "messenger": "who should deliver this"},
-      ...
+      {"message": "suggestion text", "messenger": "who should deliver this"}
     ],
     "politicians": [
       {"message": "suggestion text", "messenger": "who should deliver this"},
-      ...
+      {"message": "suggestion text", "messenger": "who should deliver this"}
     ],
     "airforce": [
       {"message": "suggestion text", "messenger": "who should deliver this"},
-      ...
+      {"message": "suggestion text", "messenger": "who should deliver this"}
     ]
   },
   ${competitors.map((comp: string) => `"${comp.toLowerCase().replace('-', '')}": {
     "media": [
       {"message": "suggestion text", "messenger": "who should deliver this"},
-      ...
+      {"message": "suggestion text", "messenger": "who should deliver this"}
     ],
     "politicians": [
       {"message": "suggestion text", "messenger": "who should deliver this"},
-      ...
+      {"message": "suggestion text", "messenger": "who should deliver this"}
     ],
     "airforce": [
       {"message": "suggestion text", "messenger": "who should deliver this"},
-      ...
+      {"message": "suggestion text", "messenger": "who should deliver this"}
     ]
   }`).join(',\n  ')}
 }
@@ -123,7 +123,7 @@ Each suggestion should be:
 - Tailored to the Portuguese context
 - Concrete messaging points or strategies
 
-Provide 3-4 suggestions per category for each platform.`;
+Provide exactly 2 suggestions per category for each platform. Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -136,15 +136,15 @@ Provide 3-4 suggestions per category for each platform.`;
         messages: [
           {
             role: 'system',
-            content: 'You are a strategic communications expert for defense procurement. Provide objective, actionable messaging strategies for both competing platforms. Return only valid JSON without markdown code blocks.'
+            content: 'You are a strategic communications expert for defense procurement. Provide objective, actionable messaging strategies. Return ONLY valid JSON without any markdown formatting or code blocks.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.8,
-        max_tokens: 4000,
+        temperature: 0.7,
+        max_tokens: 3000,
       }),
     });
 
@@ -164,24 +164,33 @@ Provide 3-4 suggestions per category for each platform.`;
       let jsonStr = content.trim();
       
       // Remove markdown code blocks if present
-      if (jsonStr.startsWith('```')) {
+      if (jsonStr.includes('```')) {
         const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
         if (match && match[1]) {
           jsonStr = match[1].trim();
         } else {
-          // Fallback: remove first and last lines if they contain ```
-          const lines = jsonStr.split('\n');
-          if (lines[0].includes('```')) lines.shift();
-          if (lines[lines.length - 1].includes('```')) lines.pop();
-          jsonStr = lines.join('\n').trim();
+          // Fallback: remove lines with ```
+          jsonStr = jsonStr.split('\n')
+            .filter((line: string) => !line.trim().startsWith('```'))
+            .join('\n')
+            .trim();
         }
+      }
+      
+      // Validate JSON is complete (ends with })
+      if (!jsonStr.endsWith('}')) {
+        console.error('Incomplete JSON detected - response may be truncated');
+        console.error('Last 100 chars:', jsonStr.slice(-100));
+        throw new Error('AI response was truncated - try again or reduce complexity');
       }
       
       suggestions = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      console.error('Raw content:', content);
-      throw new Error('Failed to parse AI suggestions response');
+      console.error('Content length:', content.length);
+      console.error('First 200 chars:', content.slice(0, 200));
+      console.error('Last 200 chars:', content.slice(-200));
+      throw new Error('Failed to parse AI suggestions response - the response may be too long or malformed');
     }
 
     console.log('✓ Suggestions generated successfully');
