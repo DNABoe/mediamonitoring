@@ -194,9 +194,9 @@ const Index = () => {
           <SentimentTimeline activeCompetitors={userSettings.activeCompetitors} />
         </div>
 
-        <div className="mb-6">
+        {/* <div className="mb-6">
           <ResearchDimensions />
-        </div>
+        </div> */}
 
         <div className="mb-6">
           <WinnerMetar activeCompetitors={userSettings.activeCompetitors} />
