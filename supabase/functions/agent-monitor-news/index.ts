@@ -14,12 +14,16 @@ serve(async (req) => {
   try {
     console.log('Agent monitor news started');
     
-    // This function is called by cron/scheduled tasks with service role authorization
-    // Verify it's being called with proper service role credentials
+    // This function is called by cron/scheduled tasks and must use service role authorization
+    // Verify the request has the correct service role key
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const expectedAuth = `Bearer ${serviceRoleKey}`;
+    
+    if (!authHeader || authHeader !== expectedAuth) {
+      console.error('Unauthorized attempt to access agent monitor');
+      return new Response(JSON.stringify({ error: 'Unauthorized - service role required' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
