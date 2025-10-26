@@ -106,15 +106,28 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         return;
       }
 
-      toast({
-        title: "Collecting articles...",
-        description: "This may take a few minutes. You'll be notified when complete.",
-      });
-
-      // Calculate date range: 60 days ago to today
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 60);
+      // Use filter dates if set, otherwise default to 60 days ago to today
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (filters.dateFrom && filters.dateTo) {
+        startDate = filters.dateFrom;
+        endDate = filters.dateTo;
+        console.log('Using filter date range:', filters.dateFrom, 'to', filters.dateTo);
+        toast({
+          title: "Collecting articles...",
+          description: `Collecting from ${format(startDate, 'MMM d, yyyy')} to ${format(endDate, 'MMM d, yyyy')}. This may take a few minutes.`,
+        });
+      } else {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 60);
+        console.log('Using default 60-day range');
+        toast({
+          title: "Collecting articles...",
+          description: "Using default 60-day range. Set date filters to customize. This may take a few minutes.",
+        });
+      }
 
       const requestBody = {
         country: activeCountry,
@@ -410,17 +423,29 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
             Monitoring media coverage of Gripen vs {activeCompetitors.join(', ')} in {activeCountry} fighter procurement (Last 6 months)
           </p>
 
-          <ArticleFilters
-            filters={filters}
-            onSearchChange={setSearchText}
-            onDateRangeChange={setDateRange}
-            onSentimentChange={setSentiment}
-            onSourceTypeChange={setSourceType}
-            onCompetitorsChange={setCompetitors}
-            onClearFilters={clearFilters}
-            activeFilterCount={activeFilterCount}
-            availableCompetitors={['Gripen', ...activeCompetitors]}
-          />
+          <div className="space-y-3">
+            <ArticleFilters
+              filters={filters}
+              onSearchChange={setSearchText}
+              onDateRangeChange={setDateRange}
+              onSentimentChange={setSentiment}
+              onSourceTypeChange={setSourceType}
+              onCompetitorsChange={setCompetitors}
+              onClearFilters={clearFilters}
+              activeFilterCount={activeFilterCount}
+              availableCompetitors={['Gripen', ...activeCompetitors]}
+            />
+            
+            {filters.dateFrom && filters.dateTo && (
+              <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                <p className="text-sm">
+                  <strong>Collection Date Range Set:</strong> When you click "Collect Articles", 
+                  it will fetch articles from <strong>{format(filters.dateFrom, 'MMM d, yyyy')}</strong> to <strong>{format(filters.dateTo, 'MMM d, yyyy')}</strong>. 
+                  Clear the date filter to use the default 60-day range.
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="text-sm text-muted-foreground">
             Showing {startIndex + 1}-{Math.min(endIndex, allArticles.length)} of {allArticles.length} articles
