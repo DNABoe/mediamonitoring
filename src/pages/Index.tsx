@@ -24,6 +24,9 @@ import { SentimentDistributionChart } from "@/components/dashboard/SentimentDist
 import { PublicationTimelineChart } from "@/components/dashboard/PublicationTimelineChart";
 import { MediaMonitoringAgent } from "@/components/dashboard/MediaMonitoringAgent";
 import { SocialMediaFeed } from "@/components/dashboard/SocialMediaFeed";
+import { SocialMediaAnalysis } from "@/components/dashboard/SocialMediaAnalysis";
+import { SocialSentimentTimeline } from "@/components/dashboard/SocialSentimentTimeline";
+import { SocialPlatformComparison } from "@/components/dashboard/SocialPlatformComparison";
 import { useSentimentData } from "@/hooks/useSentimentData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -220,9 +223,11 @@ const Index = () => {
 
         <div className="mb-6">
           <Tabs defaultValue="articles" className="w-full">
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="articles">Media Articles</TabsTrigger>
-              <TabsTrigger value="social">Social Media</TabsTrigger>
+              <TabsTrigger value="social">Social Feed</TabsTrigger>
+              <TabsTrigger value="analysis">Social Analysis</TabsTrigger>
+              <TabsTrigger value="trends">Social Trends</TabsTrigger>
             </TabsList>
             <TabsContent value="articles">
               <MediaArticlesList 
@@ -236,6 +241,24 @@ const Index = () => {
                 activeCountry={userSettings.activeCountry}
                 activeCompetitors={userSettings.activeCompetitors}
               />
+            </TabsContent>
+            <TabsContent value="analysis">
+              <SocialMediaAnalysis 
+                activeCountry={userSettings.activeCountry}
+                activeCompetitors={userSettings.activeCompetitors}
+              />
+            </TabsContent>
+            <TabsContent value="trends">
+              <div className="space-y-6">
+                <SocialSentimentTimeline 
+                  activeCountry={userSettings.activeCountry}
+                  activeCompetitors={userSettings.activeCompetitors}
+                />
+                <SocialPlatformComparison 
+                  activeCountry={userSettings.activeCountry}
+                  activeCompetitors={userSettings.activeCompetitors}
+                />
+              </div>
             </TabsContent>
           </Tabs>
         </div>
