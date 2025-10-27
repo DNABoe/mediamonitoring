@@ -80,65 +80,77 @@ serve(async (req) => {
 
     let totalCollected = 0;
 
+    // Map country code to language for local search
+    const countryLanguageMap: Record<string, string> = {
+      'PT': 'Portuguese',
+      'ES': 'Spanish',
+      'FR': 'French',
+      'DE': 'German',
+      'IT': 'Italian',
+      'PL': 'Polish',
+      'SE': 'Swedish',
+      'FI': 'Finnish',
+      'NO': 'Norwegian'
+    };
+    const localLanguage = countryLanguageMap[country] || 'English';
+
     // Collect social media posts for each competitor
     for (const fighter of competitors) {
       console.log(`Searching social media for ${fighter}`);
       
-      // Search for social media posts (Reddit, Twitter mentions via Google)
-      const searchQuery = `${fighter} fighter aircraft site:reddit.com OR site:twitter.com`;
-      const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(searchQuery)}&num=10&dateRestrict=m6`;
+      // Search Reddit
+      const redditQuery = `${fighter} fighter aircraft ${country} site:reddit.com`;
+      const redditUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(redditQuery)}&num=10&dateRestrict=m6`;
       
-      const searchResponse = await fetch(searchUrl);
-      const searchData = await searchResponse.json();
+      const redditResponse = await fetch(redditUrl);
+      const redditData = await redditResponse.json();
 
-      if (searchData.items && searchData.items.length > 0) {
-        for (const item of searchData.items) {
-          try {
-            // Determine platform from URL
-            let platform = 'web';
-            if (item.link.includes('reddit.com')) platform = 'reddit';
-            else if (item.link.includes('twitter.com') || item.link.includes('x.com')) platform = 'twitter';
-            
-            // Extract post ID from URL
-            const postId = item.link.split('/').pop() || item.link;
-            
-            // Analyze sentiment using Lovable AI
-            const { data: aiData } = await supabaseClient.functions.invoke('analyze-sentiment', {
-              body: {
-                text: item.snippet || item.title,
-                fighters: competitors
-              }
-            });
+      if (redditData.items) {
+        for (const item of redditData.items) {
+          await processSocialPost(item, 'reddit', fighter, userId, country, competitors, supabaseClient);
+          totalCollected++;
+        }
+      }
 
-            const sentiment = aiData?.sentiment || 0;
-            const tags = aiData?.fighter_tags || [fighter];
+      // Search X (Twitter)
+      const xQuery = `${fighter} ${country} procurement site:x.com OR site:twitter.com`;
+      const xUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(xQuery)}&num=10&dateRestrict=m6`;
+      
+      const xResponse = await fetch(xUrl);
+      const xData = await xResponse.json();
 
-            // Insert social media post
-            const { error: insertError } = await supabaseClient
-              .from('social_media_posts')
-              .insert({
-                user_id: userId,
-                tracking_country: country,
-                platform: platform,
-                post_id: postId,
-                post_url: item.link,
-                author_name: item.displayLink,
-                content: item.snippet || item.title,
-                published_at: new Date().toISOString(), // Google doesn't provide exact date
-                fighter_tags: tags,
-                sentiment: sentiment,
-                engagement: { source: 'google_search' }
-              })
-              .select()
-              .single();
+      if (xData.items) {
+        for (const item of xData.items) {
+          await processSocialPost(item, 'x', fighter, userId, country, competitors, supabaseClient);
+          totalCollected++;
+        }
+      }
 
-            if (!insertError) {
-              totalCollected++;
-              console.log(`Stored social media post: ${item.title}`);
-            }
-          } catch (error) {
-            console.error('Error processing social media item:', error);
-          }
+      // Search Facebook (local language)
+      const fbQuery = `${fighter} ${country} defense ${localLanguage} site:facebook.com`;
+      const fbUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(fbQuery)}&num=10&dateRestrict=m6`;
+      
+      const fbResponse = await fetch(fbUrl);
+      const fbData = await fbResponse.json();
+
+      if (fbData.items) {
+        for (const item of fbData.items) {
+          await processSocialPost(item, 'facebook', fighter, userId, country, competitors, supabaseClient);
+          totalCollected++;
+        }
+      }
+
+      // Search LinkedIn
+      const linkedinQuery = `${fighter} ${country} procurement site:linkedin.com`;
+      const linkedinUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(linkedinQuery)}&num=10&dateRestrict=m6`;
+      
+      const linkedinResponse = await fetch(linkedinUrl);
+      const linkedinData = await linkedinResponse.json();
+
+      if (linkedinData.items) {
+        for (const item of linkedinData.items) {
+          await processSocialPost(item, 'linkedin', fighter, userId, country, competitors, supabaseClient);
+          totalCollected++;
         }
       }
     }
@@ -164,3 +176,67 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to process social media posts
+async function processSocialPost(
+  item: any, 
+  platform: string, 
+  fighter: string, 
+  userId: string, 
+  country: string, 
+  competitors: string[], 
+  supabaseClient: any
+) {
+  try {
+    const postId = item.link.split('/').pop() || item.link;
+    
+    // Analyze sentiment using Lovable AI
+    const { data: aiData } = await supabaseClient.functions.invoke('analyze-sentiment', {
+      body: {
+        text: item.snippet || item.title,
+        fighters: competitors
+      }
+    });
+
+    const sentiment = aiData?.sentiment || 0;
+    const tags = aiData?.fighter_tags || [fighter];
+
+    // Extract author info if available
+    let authorName = item.displayLink;
+    let authorUsername = null;
+    
+    // Try to extract username from URL for different platforms
+    if (platform === 'x' && item.link.includes('/status/')) {
+      const urlParts = item.link.split('/');
+      const statusIndex = urlParts.indexOf('status');
+      if (statusIndex > 0) {
+        authorUsername = urlParts[statusIndex - 1];
+      }
+    } else if (platform === 'reddit' && item.link.includes('/u/')) {
+      const match = item.link.match(/\/u\/([^\/]+)/);
+      if (match) authorUsername = match[1];
+    }
+
+    // Insert social media post
+    await supabaseClient
+      .from('social_media_posts')
+      .insert({
+        user_id: userId,
+        tracking_country: country,
+        platform: platform,
+        post_id: postId,
+        post_url: item.link,
+        author_name: authorName,
+        author_username: authorUsername,
+        content: item.snippet || item.title,
+        published_at: new Date().toISOString(),
+        fighter_tags: tags,
+        sentiment: sentiment,
+        engagement: { source: 'google_search' }
+      });
+
+    console.log(`Stored ${platform} post: ${item.title}`);
+  } catch (error) {
+    console.error(`Error processing ${platform} post:`, error);
+  }
+}

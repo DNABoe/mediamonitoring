@@ -17,7 +17,7 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
   const [posts, setPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCollecting, setIsCollecting] = useState(false);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['twitter', 'reddit', 'linkedin']);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['x', 'reddit', 'facebook', 'linkedin']);
   const [sentimentFilter, setSentimentFilter] = useState<'all' | 'positive' | 'neutral' | 'negative'>('all');
 
   useEffect(() => {
@@ -103,11 +103,13 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
 
   const getPlatformIcon = (platform: string) => {
     switch (platform.toLowerCase()) {
-      case 'twitter':
       case 'x':
+      case 'twitter':
         return <Twitter className="h-4 w-4" />;
       case 'reddit':
         return <MessageCircle className="h-4 w-4" />;
+      case 'facebook':
+        return <Share2 className="h-4 w-4" />;
       case 'linkedin':
         return <Share2 className="h-4 w-4" />;
       default:
@@ -117,13 +119,15 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
 
   const getPlatformColor = (platform: string) => {
     switch (platform.toLowerCase()) {
-      case 'twitter':
       case 'x':
-        return 'bg-blue-100 text-blue-800';
+      case 'twitter':
+        return 'bg-gray-900 text-white';
       case 'reddit':
         return 'bg-orange-100 text-orange-800';
-      case 'linkedin':
+      case 'facebook':
         return 'bg-blue-600 text-white';
+      case 'linkedin':
+        return 'bg-blue-700 text-white';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -163,7 +167,7 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
           <div>
             <h4 className="text-sm font-semibold mb-2">Platforms</h4>
             <div className="flex flex-wrap gap-4">
-              {['twitter', 'reddit', 'linkedin'].map(platform => (
+              {['x', 'reddit', 'facebook', 'linkedin'].map(platform => (
                 <div key={platform} className="flex items-center gap-2">
                   <Checkbox
                     checked={selectedPlatforms.includes(platform)}
@@ -175,7 +179,7 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
                       }
                     }}
                   />
-                  <label className="text-sm capitalize">{platform}</label>
+                  <label className="text-sm capitalize">{platform === 'x' ? 'X (Twitter)' : platform}</label>
                 </div>
               ))}
             </div>
@@ -212,10 +216,10 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
               {/* Header */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Badge className={getPlatformColor(post.platform)}>
-                    {getPlatformIcon(post.platform)}
-                    <span className="ml-1 capitalize">{post.platform}</span>
-                  </Badge>
+                <Badge className={getPlatformColor(post.platform)}>
+                  {getPlatformIcon(post.platform)}
+                  <span className="ml-1 capitalize">{post.platform === 'x' ? 'X' : post.platform}</span>
+                </Badge>
                   <span className="text-sm text-muted-foreground">
                     {format(new Date(post.published_at), 'PPp')}
                   </span>
