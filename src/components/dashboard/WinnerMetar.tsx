@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 interface WinnerMetarProps {
   activeCompetitors: string[];
@@ -217,60 +218,131 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     }
   };
 
+  // Prepare radar chart data
+  const radarData = dimensionOrder.map(dimension => {
+    const dataPoint: any = { dimension: dimension.charAt(0).toUpperCase() + dimension.slice(1) };
+    
+    // Add Gripen
+    dataPoint['Gripen'] = dimensionScores?.gripen?.[dimension] || 0;
+    
+    // Add all competitors
+    allCompetitors.forEach(comp => {
+      const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      dataPoint[comp] = dimensionScores?.[key]?.[dimension] || 0;
+    });
+    
+    return dataPoint;
+  });
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold">Weighted Score Comparison</h3>
+        <h3 className="text-xl font-bold">Multi-Competitor Analysis</h3>
         <div className="flex items-center gap-2 px-3 py-1 bg-accent/20 rounded-full">
           <TrendingUp className="h-4 w-4 text-accent" />
           <span className="text-sm font-semibold">Leader: {leader}</span>
         </div>
       </div>
 
-      {/* Score bars for all competitors */}
-      <div className="space-y-3 mb-6">
+      {/* Radar Chart */}
+      {hasScores && (
+        <div className="mb-6">
+          <div className="h-[400px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarAngleAxis 
+                  dataKey="dimension" 
+                  tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
+                />
+                <PolarRadiusAxis 
+                  angle={90} 
+                  domain={[0, 10]} 
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                />
+                <Radar
+                  name="Gripen"
+                  dataKey="Gripen"
+                  stroke={FIGHTER_COLORS['Gripen']}
+                  fill={FIGHTER_COLORS['Gripen']}
+                  fillOpacity={0.3}
+                  strokeWidth={2}
+                />
+                {allCompetitors.map(comp => (
+                  <Radar
+                    key={comp}
+                    name={comp}
+                    dataKey={comp}
+                    stroke={FIGHTER_COLORS[comp] || '#6b7280'}
+                    fill={FIGHTER_COLORS[comp] || '#6b7280'}
+                    fillOpacity={0.2}
+                    strokeWidth={2}
+                  />
+                ))}
+                <Legend 
+                  wrapperStyle={{ fontSize: '12px' }}
+                  iconType="circle"
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-xs text-center text-muted-foreground mt-2">
+            Performance across all analysis dimensions (0-10 scale)
+          </p>
+        </div>
+      )}
+
+      {/* Weighted Score Bars */}
+      <div className="space-y-3 mb-6 pb-6 border-b">
+        <h4 className="text-sm font-semibold text-muted-foreground">Weighted Total Scores</h4>
         <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen</span>
-                        <span className="text-sm font-bold">{gripenScore.toFixed(1)}</span>
-                      </div>
-                      <div className="relative h-8 rounded-full overflow-hidden bg-muted">
-                        <div 
-                          className="absolute top-0 left-0 h-full transition-all duration-500"
-                          style={{ 
-                            width: `${Math.min(100, (gripenScore / 10) * 100)}%`,
-                            background: `linear-gradient(to right, ${FIGHTER_COLORS['Gripen']}, ${FIGHTER_COLORS['Gripen']}cc)`
-                          }}
-                        />
-                      </div>
-                    </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen</span>
+            <span className="text-sm font-bold">{gripenScore.toFixed(1)}</span>
+          </div>
+          <div className="relative h-8 rounded-full overflow-hidden bg-muted">
+            <div 
+              className="absolute top-0 left-0 h-full transition-all duration-500"
+              style={{ 
+                width: `${Math.min(100, (gripenScore / 10) * 100)}%`,
+                background: `linear-gradient(to right, ${FIGHTER_COLORS['Gripen']}, ${FIGHTER_COLORS['Gripen']}cc)`
+              }}
+            />
+          </div>
+        </div>
 
-                    {allCompetitors.map(comp => {
-                      const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                      const score = competitorScores[key] || 0;
-                      const color = FIGHTER_COLORS[comp] || '#6b7280';
-                      return (
-                        <div key={comp} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold" style={{ color }}>{comp}</span>
-                            <span className="text-sm font-bold">{score.toFixed(1)}</span>
-                          </div>
-                          <div className="relative h-8 rounded-full overflow-hidden bg-muted">
-                            <div 
-                              className="absolute top-0 left-0 h-full transition-all duration-500"
-                              style={{ 
-                                width: `${Math.min(100, (score / 10) * 100)}%`,
-                                background: `linear-gradient(to right, ${color}, ${color}cc)`
-                              }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-      </div>
-
-      <div className="text-center text-sm text-muted-foreground mb-6 pb-6 border-b">
-        Scores based on weighted analysis (0-10 scale)
+        {allCompetitors.map(comp => {
+          const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const score = competitorScores[key] || 0;
+          const color = FIGHTER_COLORS[comp] || '#6b7280';
+          return (
+            <div key={comp} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-semibold" style={{ color }}>{comp}</span>
+                <span className="text-sm font-bold">{score.toFixed(1)}</span>
+              </div>
+              <div className="relative h-8 rounded-full overflow-hidden bg-muted">
+                <div 
+                  className="absolute top-0 left-0 h-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.min(100, (score / 10) * 100)}%`,
+                    background: `linear-gradient(to right, ${color}, ${color}cc)`
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+        <p className="text-xs text-muted-foreground mt-3">
+          Total scores based on weighted analysis across all dimensions
+        </p>
       </div>
 
       <div className="space-y-3">
