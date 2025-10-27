@@ -106,7 +106,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         return;
       }
 
-      // Use filter dates if set, otherwise default to 60 days ago to today
+      // Use filter dates if set, otherwise default to 1 year ago to today
       let startDate: Date;
       let endDate: Date;
       
@@ -121,11 +121,11 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       } else {
         endDate = new Date();
         startDate = new Date();
-        startDate.setDate(startDate.getDate() - 60);
-        console.log('Using default 60-day range');
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        console.log('Using default 1-year range');
         toast({
           title: "Collecting articles...",
-          description: "Using default 60-day range. Set date filters to customize. This may take a few minutes.",
+          description: "Using default 1-year range. Set date filters to customize. This may take a few minutes.",
         });
       }
 
@@ -441,7 +441,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                 <p className="text-sm">
                   <strong>Collection Date Range Set:</strong> When you click "Collect Articles", 
                   it will fetch articles from <strong>{format(filters.dateFrom, 'MMM d, yyyy')}</strong> to <strong>{format(filters.dateTo, 'MMM d, yyyy')}</strong>. 
-                  Clear the date filter to use the default 60-day range.
+                  Clear the date filter to use the default 1-year range.
                 </p>
               </div>
             )}
