@@ -53,9 +53,10 @@ export const SocialMediaAnalysis = ({ activeCountry, activeCompetitors }: Social
 
       if (error) throw error;
 
-      // Filter by active competitors
+      // Filter by active competitors + Gripen
+      const allCompetitors = ['Gripen', ...activeCompetitors];
       const filteredPosts = posts?.filter(post => 
-        activeCompetitors.some(comp => post.fighter_tags?.includes(comp))
+        allCompetitors.some(comp => post.fighter_tags?.includes(comp))
       ) || [];
 
       // Calculate statistics
@@ -89,7 +90,7 @@ export const SocialMediaAnalysis = ({ activeCountry, activeCompetitors }: Social
       const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-social-discussion', {
         body: {
           country: activeCountry,
-          competitors: activeCompetitors,
+          competitors: ['Gripen', ...activeCompetitors],
           posts: filteredPosts.slice(0, 100) // Send top 100 posts
         }
       });

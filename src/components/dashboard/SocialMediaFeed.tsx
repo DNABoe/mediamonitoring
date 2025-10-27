@@ -38,9 +38,10 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
       .limit(50);
 
     if (!error && data) {
-      // Filter by active competitors
+      // Filter by active competitors + Gripen
+      const allCompetitors = ['Gripen', ...activeCompetitors];
       const filtered = data.filter(post => 
-        activeCompetitors.some(comp => post.fighter_tags?.includes(comp))
+        allCompetitors.some(comp => post.fighter_tags?.includes(comp))
       );
       setPosts(filtered);
     }
