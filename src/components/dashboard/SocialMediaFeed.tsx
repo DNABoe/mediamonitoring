@@ -4,8 +4,9 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ExternalLink, Twitter, MessageCircle, ThumbsUp, Share2 } from 'lucide-react';
+import { ExternalLink, Twitter, MessageCircle, ThumbsUp, Share2, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface SocialMediaFeedProps {
   activeCountry: string;
@@ -15,6 +16,7 @@ interface SocialMediaFeedProps {
 export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMediaFeedProps) => {
   const [posts, setPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCollecting, setIsCollecting] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['twitter', 'reddit', 'linkedin']);
   const [sentimentFilter, setSentimentFilter] = useState<'all' | 'positive' | 'neutral' | 'negative'>('all');
 
@@ -43,6 +45,44 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
       setPosts(filtered);
     }
     setIsLoading(false);
+  };
+
+  const collectSocialMedia = async () => {
+    setIsCollecting(true);
+    toast.info('Collecting social media posts...', {
+      description: 'This may take a minute. You will be notified when complete.'
+    });
+
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 6); // Last 6 months
+
+      const { data, error } = await supabase.functions.invoke('collect-social-media', {
+        body: {
+          country: activeCountry,
+          competitors: ['Gripen', ...activeCompetitors],
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success('Social media collection complete!', {
+        description: `Collected ${data.postsCollected} posts`
+      });
+
+      // Refresh the posts
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error collecting social media:', error);
+      toast.error('Failed to collect social media posts', {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsCollecting(false);
+    }
   };
 
   const filteredPosts = posts.filter(post => {
@@ -96,6 +136,26 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
 
   return (
     <div className="space-y-4">
+      {/* Collection Button */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-semibold">Social Media Collection</h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Collect recent social media posts about {activeCountry} fighter procurement
+            </p>
+          </div>
+          <Button 
+            onClick={collectSocialMedia} 
+            disabled={isCollecting}
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isCollecting ? 'animate-spin' : ''}`} />
+            {isCollecting ? 'Collecting...' : 'Collect Posts'}
+          </Button>
+        </div>
+      </Card>
+
       {/* Filters */}
       <Card className="p-4">
         <div className="space-y-4">
