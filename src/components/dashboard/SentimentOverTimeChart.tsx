@@ -60,12 +60,16 @@ export const SentimentOverTimeChart = ({ activeCompetitors, data }: SentimentOve
               <XAxis
                 dataKey="date"
                 tickFormatter={(value) => format(new Date(value), 'MMM d')}
+                stroke="hsl(var(--foreground))"
+                tick={{ fill: 'hsl(var(--foreground))' }}
                 className="text-xs"
               />
               <YAxis
                 tickFormatter={formatYAxis}
                 domain={[-1, 1]}
                 ticks={[-1, -0.5, 0, 0.5, 1]}
+                stroke="hsl(var(--foreground))"
+                tick={{ fill: 'hsl(var(--foreground))' }}
                 className="text-xs"
               />
               <Tooltip
