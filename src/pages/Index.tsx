@@ -40,13 +40,14 @@ const Index = () => {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [startTrackingDate, setStartTrackingDate] = useState<Date | undefined>(undefined);
   const { settings: userSettings, loading: settingsLoading } = useUserSettings();
   const { 
     sentimentOverTime, 
     publicationTimeline, 
     sentimentDistribution, 
     loading: sentimentLoading 
-  } = useSentimentData(userSettings.activeCountry, userSettings.activeCompetitors);
+  } = useSentimentData(userSettings.activeCountry, userSettings.activeCompetitors, startTrackingDate);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -71,6 +72,7 @@ const Index = () => {
         setLastUpdate(new Date(report.created_at));
       }
     };
+    
     const fetchBaseline = async () => {
       // Only fetch start_date, not internal fields like created_by
       const {
@@ -82,8 +84,27 @@ const Index = () => {
         setBaselineDate(data.start_date);
       }
     };
+    
+    const fetchStartTrackingDate = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get the agent's created_at date as the start tracking date
+      const { data: agent } = await supabase
+        .from('agent_status')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .eq('active_country', userSettings.activeCountry)
+        .maybeSingle();
+      
+      if (agent?.created_at) {
+        setStartTrackingDate(new Date(agent.created_at));
+      }
+    };
+    
     fetchLastUpdate();
     fetchBaseline();
+    fetchStartTrackingDate();
 
     const reportsChannel = supabase.channel('reports-changes').on('postgres_changes', {
       event: '*',
@@ -99,7 +120,7 @@ const Index = () => {
       supabase.removeChannel(reportsChannel);
       supabase.removeChannel(baselinesChannel);
     };
-  }, []);
+  }, [userSettings.activeCountry]);
   if (authLoading || !user) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>

@@ -29,7 +29,7 @@ interface SentimentCounts {
   negative: number;
 }
 
-export const useSentimentData = (activeCountry: string, activeCompetitors: string[]) => {
+export const useSentimentData = (activeCountry: string, activeCompetitors: string[], startTrackingDate?: Date) => {
   const [sentimentOverTime, setSentimentOverTime] = useState<SentimentDataPoint[]>([]);
   const [publicationTimeline, setPublicationTimeline] = useState<PublicationDataPoint[]>([]);
   const [sentimentDistribution, setSentimentDistribution] = useState<Record<string, SentimentCounts>>({});
@@ -37,7 +37,7 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
 
   useEffect(() => {
     fetchSentimentData();
-  }, [activeCountry, activeCompetitors]);
+  }, [activeCountry, activeCompetitors, startTrackingDate]);
 
   const fetchSentimentData = async () => {
     try {
@@ -45,9 +45,14 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch articles from the last 6 months
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      // Use start tracking date if provided, otherwise default to 6 months ago
+      let cutoffDate: Date;
+      if (startTrackingDate) {
+        cutoffDate = startTrackingDate;
+      } else {
+        cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - 6);
+      }
 
       const { data: articles, error } = await supabase
         .from('items')
@@ -59,7 +64,7 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
         `)
         .eq('user_id', user.id)
         .eq('tracking_country', activeCountry)
-        .gte('published_at', sixMonthsAgo.toISOString())
+        .gte('published_at', cutoffDate.toISOString())
         .order('published_at', { ascending: true });
 
       if (error) throw error;
