@@ -52,10 +52,14 @@ export const PublicationTimelineChart = ({
               <XAxis
                 dataKey="date"
                 tickFormatter={(value) => format(new Date(value), 'MMM d')}
+                stroke="hsl(var(--foreground))"
+                tick={{ fill: 'hsl(var(--foreground))' }}
                 className="text-xs"
               />
               <YAxis
-                label={{ value: 'Articles', angle: -90, position: 'insideLeft' }}
+                label={{ value: 'Articles', angle: -90, position: 'insideLeft', fill: 'hsl(var(--foreground))' }}
+                stroke="hsl(var(--foreground))"
+                tick={{ fill: 'hsl(var(--foreground))' }}
                 className="text-xs"
               />
               <Tooltip
