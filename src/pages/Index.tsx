@@ -255,6 +255,7 @@ const Index = () => {
                 activeCountry={userSettings.activeCountry}
                 activeCompetitors={userSettings.activeCompetitors}
                 prioritizedOutlets={userSettings.prioritizedOutlets}
+                startTrackingDate={startTrackingDate}
               />
             </TabsContent>
             <TabsContent value="social">

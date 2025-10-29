@@ -29,9 +29,10 @@ interface MediaArticlesListProps {
   activeCountry: string;
   activeCompetitors: string[];
   prioritizedOutlets?: Array<{ name: string; active: boolean }>;
+  startTrackingDate?: Date;
 }
 
-export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritizedOutlets = [] }: MediaArticlesListProps) => {
+export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritizedOutlets = [], startTrackingDate }: MediaArticlesListProps) => {
   const [mediaArticles, setMediaArticles] = useState<MediaArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
@@ -420,7 +421,8 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
           </div>
           
           <p className="text-sm text-muted-foreground">
-            Monitoring media coverage of Gripen vs {activeCompetitors.join(', ')} in {activeCountry} fighter procurement (Last 6 months)
+            Monitoring media coverage of Gripen vs {activeCompetitors.join(', ')} in {activeCountry} fighter procurement
+            {startTrackingDate && ` (Tracking from ${format(startTrackingDate, 'MMM d, yyyy')})`}
           </p>
 
           <div className="space-y-3">
