@@ -107,7 +107,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         return;
       }
 
-      // Use filter dates if set, otherwise default to 1 year ago to today
+      // Use filter dates if set, otherwise use start tracking date to today
       let startDate: Date;
       let endDate: Date;
       
@@ -118,6 +118,14 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         toast({
           title: "Collecting articles...",
           description: `Collecting from ${format(startDate, 'MMM d, yyyy')} to ${format(endDate, 'MMM d, yyyy')}. This may take a few minutes.`,
+        });
+      } else if (startTrackingDate) {
+        endDate = new Date();
+        startDate = startTrackingDate;
+        console.log('Using start tracking date:', startTrackingDate);
+        toast({
+          title: "Collecting articles...",
+          description: `Collecting from ${format(startDate, 'MMM d, yyyy')} to today. This may take a few minutes.`,
         });
       } else {
         endDate = new Date();
@@ -214,18 +222,25 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         return;
       }
 
-      // Calculate date 6 months ago
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const startDate = sixMonthsAgo.toISOString();
+      // Use start tracking date if available, otherwise fallback to 6 months ago
+      let queryStartDate: string;
+      if (startTrackingDate) {
+        queryStartDate = startTrackingDate.toISOString();
+        console.log('Using start tracking date for fetch:', startTrackingDate);
+      } else {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        queryStartDate = sixMonthsAgo.toISOString();
+        console.log('Using fallback 6 months ago');
+      }
 
-      // Fetch articles from database (last 6 months) for this user and country
+      // Fetch articles from database from start tracking date for this user and country
       const { data: items, error } = await supabase
         .from('items')
         .select('*')
         .eq('user_id', user.id)
         .eq('tracking_country', activeCountry)
-        .gte('published_at', startDate)
+        .gte('published_at', queryStartDate)
         .order('published_at', { ascending: false });
 
       if (error) throw error;
