@@ -145,7 +145,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         endDate: endDate.toISOString().split('T')[0]
       };
       
-      console.log('Invoking collect-articles-for-tracking with:', requestBody);
+      console.log('Request body being sent:', JSON.stringify(requestBody, null, 2));
       console.log('Function URL:', `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/collect-articles-for-tracking`);
 
       const { data, error } = await supabase.functions.invoke('collect-articles-for-tracking', {

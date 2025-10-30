@@ -63,9 +63,13 @@ serve(async (req) => {
     // Validate input parameters
     const { country, competitors, startDate, endDate } = body;
     
+    console.log('Received parameters:', { country, competitors, startDate, endDate });
+    
     if (!country || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) {
+      console.error('Invalid country:', country);
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters'
+        error: 'Invalid request parameters',
+        details: 'Country must be a 2-letter uppercase code'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -73,8 +77,10 @@ serve(async (req) => {
     }
     
     if (!Array.isArray(competitors) || competitors.length === 0 || competitors.length > 10) {
+      console.error('Invalid competitors array:', competitors);
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters'
+        error: 'Invalid request parameters',
+        details: 'Competitors must be an array with 1-10 items'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -83,8 +89,10 @@ serve(async (req) => {
     
     for (const competitor of competitors) {
       if (typeof competitor !== 'string' || competitor.length > 50) {
+        console.error('Invalid competitor:', competitor);
         return new Response(JSON.stringify({ 
-          error: 'Invalid request parameters'
+          error: 'Invalid request parameters',
+          details: 'Each competitor must be a string ≤ 50 characters'
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -93,8 +101,10 @@ serve(async (req) => {
     }
     
     if (!startDate || !endDate) {
+      console.error('Missing dates - startDate:', startDate, 'endDate:', endDate);
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters'
+        error: 'Invalid request parameters',
+        details: 'Both startDate and endDate are required'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -105,8 +115,10 @@ serve(async (req) => {
     const endDateObj = new Date(endDate);
     
     if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+      console.error('Invalid date format - startDate:', startDate, 'endDate:', endDate);
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters'
+        error: 'Invalid request parameters',
+        details: 'Dates must be in valid YYYY-MM-DD format'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -114,8 +126,10 @@ serve(async (req) => {
     }
     
     if (endDateObj <= startDateObj) {
+      console.error('End date must be after start date - start:', startDate, 'end:', endDate);
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters'
+        error: 'Invalid request parameters',
+        details: 'End date must be after start date'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
