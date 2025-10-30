@@ -89,16 +89,19 @@ const Index = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get the agent's created_at date as the start tracking date
-      const { data: agent } = await supabase
-        .from('agent_status')
-        .select('created_at')
-        .eq('user_id', user.id)
-        .eq('active_country', userSettings.activeCountry)
+      // Get the baseline's start_date as the start tracking date (same as shown in top row)
+      const { data: baseline } = await supabase
+        .from('baselines')
+        .select('start_date')
+        .eq('created_by', user.id)
+        .eq('tracking_country', userSettings.activeCountry)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       
-      if (agent?.created_at) {
-        setStartTrackingDate(new Date(agent.created_at));
+      if (baseline?.start_date) {
+        setStartTrackingDate(new Date(baseline.start_date));
       }
     };
     
