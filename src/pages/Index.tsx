@@ -278,6 +278,7 @@ const Index = () => {
                 <SocialSentimentTimeline 
                   activeCountry={userSettings.activeCountry}
                   activeCompetitors={userSettings.activeCompetitors}
+                  startTrackingDate={startTrackingDate}
                 />
                 <SocialPlatformComparison 
                   activeCountry={userSettings.activeCountry}

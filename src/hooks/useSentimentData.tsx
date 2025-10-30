@@ -45,13 +45,13 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Use start tracking date if provided, otherwise default to 6 months ago
+      // Use start tracking date if provided, otherwise default to 1 year ago
       let cutoffDate: Date;
       if (startTrackingDate) {
         cutoffDate = startTrackingDate;
       } else {
         cutoffDate = new Date();
-        cutoffDate.setMonth(cutoffDate.getMonth() - 6);
+        cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
       }
 
       const { data: articles, error } = await supabase

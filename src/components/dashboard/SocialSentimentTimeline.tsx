@@ -7,15 +7,16 @@ import { format, subDays, eachDayOfInterval } from 'date-fns';
 interface SocialSentimentTimelineProps {
   activeCountry: string;
   activeCompetitors: string[];
+  startTrackingDate?: Date;
 }
 
-export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors }: SocialSentimentTimelineProps) => {
+export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors, startTrackingDate }: SocialSentimentTimelineProps) => {
   const [timelineData, setTimelineData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadTimelineData();
-  }, [activeCountry, activeCompetitors]);
+  }, [activeCountry, activeCompetitors, startTrackingDate]);
 
   const loadTimelineData = async () => {
     setIsLoading(true);
@@ -24,14 +25,15 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors }: So
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const thirtyDaysAgo = subDays(new Date(), 30);
+      // Use start tracking date if provided, otherwise default to 30 days ago
+      const cutoffDate = startTrackingDate || subDays(new Date(), 30);
 
       const { data: posts, error } = await supabase
         .from('social_media_posts')
         .select('*')
         .eq('user_id', user.id)
         .eq('tracking_country', activeCountry)
-        .gte('published_at', thirtyDaysAgo.toISOString())
+        .gte('published_at', cutoffDate.toISOString())
         .order('published_at', { ascending: true });
 
       if (error) throw error;
@@ -43,7 +45,7 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors }: So
 
       // Create daily buckets
       const days = eachDayOfInterval({
-        start: thirtyDaysAgo,
+        start: cutoffDate,
         end: new Date()
       });
 
@@ -85,7 +87,7 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors }: So
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">Social Media Sentiment Timeline (30 Days)</h3>
+      <h3 className="text-lg font-semibold mb-4">Social Media Sentiment Timeline</h3>
       
       {isLoading ? (
         <div className="h-64 flex items-center justify-center text-muted-foreground">
