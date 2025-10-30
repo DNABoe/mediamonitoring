@@ -86,6 +86,17 @@ export const ResearchControls = () => {
   };
 
   const handleGenerateResearch = async () => {
+    // Verify user is authenticated before proceeding
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in again to generate research.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check if baseline exists
     if (!hasBaseline) {
       setShowDatePicker(true);
@@ -97,6 +108,18 @@ export const ResearchControls = () => {
 
   const handleDateConfirm = async () => {
     if (!selectedDate) return;
+
+    // Verify user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in again to continue.",
+        variant: "destructive",
+      });
+      setShowDatePicker(false);
+      return;
+    }
 
     setIsGenerating(true);
     setShowDatePicker(false);
@@ -156,6 +179,17 @@ export const ResearchControls = () => {
   };
 
   const generateResearch = async () => {
+    // Verify user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in again to generate research.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
