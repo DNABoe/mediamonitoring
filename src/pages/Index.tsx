@@ -89,6 +89,13 @@ const Index = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      if (!userSettings.activeCountry) {
+        console.log('No active country set yet, skipping start tracking date fetch');
+        return;
+      }
+
+      console.log('Fetching start tracking date for country:', userSettings.activeCountry);
+
       // Get the baseline's start_date as the start tracking date (same as shown in top row)
       const { data: baseline } = await supabase
         .from('baselines')
@@ -101,7 +108,10 @@ const Index = () => {
         .maybeSingle();
       
       if (baseline?.start_date) {
+        console.log('Setting start tracking date to:', baseline.start_date);
         setStartTrackingDate(new Date(baseline.start_date));
+      } else {
+        console.log('No baseline found for this country');
       }
     };
     

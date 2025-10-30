@@ -49,10 +49,14 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
       let cutoffDate: Date;
       if (startTrackingDate) {
         cutoffDate = startTrackingDate;
+        console.log('Using baseline start tracking date:', cutoffDate.toISOString());
       } else {
         cutoffDate = new Date();
         cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
+        console.log('Using default 1 year cutoff date:', cutoffDate.toISOString());
       }
+
+      console.log(`Fetching sentiment data from ${cutoffDate.toISOString()} for country ${activeCountry}`);
 
       const { data: articles, error } = await supabase
         .from('items')
@@ -68,6 +72,8 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
         .order('published_at', { ascending: true });
 
       if (error) throw error;
+
+      console.log(`Fetched ${articles?.length || 0} articles for sentiment analysis`);
 
       if (!articles || articles.length === 0) {
         setSentimentOverTime([]);
