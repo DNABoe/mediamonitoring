@@ -136,12 +136,17 @@ serve(async (req) => {
       });
     }
     
-    // Limit date range to maximum 1 year to prevent resource exhaustion
-    const maxDays = 365;
+    // Limit date range to maximum 2 years to prevent resource exhaustion
+    // (increased to accommodate tracking from baseline date)
+    const maxDays = 730;
     const daysDiff = Math.floor((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
+    console.log(`Date range: ${daysDiff} days (max allowed: ${maxDays})`);
+    
     if (daysDiff > maxDays) {
+      console.error(`Date range too large: ${daysDiff} days exceeds maximum of ${maxDays} days`);
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters'
+        error: 'Invalid request parameters',
+        details: `Date range too large: ${daysDiff} days exceeds maximum of ${maxDays} days. Please select a shorter time period.`
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
