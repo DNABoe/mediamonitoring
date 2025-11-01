@@ -44,18 +44,44 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // Authenticate the user from JWT token
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    let userId: string;
     
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    // Check if this is a service role call (from agent) or user call (from UI)
+    if (token === SUPABASE_SERVICE_ROLE_KEY) {
+      // Service role call - userId must be in the request body
+      console.log('Service role authentication detected');
+      const body = await req.json();
+      userId = body.userId;
+      
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'userId required for service role calls' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      console.log('Step 1 SUCCESS: Service role authenticated for user:', userId);
+      
+      // Re-parse the body for later use
+      req = new Request(req.url, {
+        method: req.method,
+        headers: req.headers,
+        body: JSON.stringify(body)
       });
+    } else {
+      // User authentication
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+      
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      userId = user.id;
+      console.log('Step 1 SUCCESS: User authenticated:', userId);
     }
-
-    const userId = user.id;
-    console.log('Step 1 SUCCESS: User authenticated:', userId);
 
     console.log('Step 2: Parsing and validating request body...');
     const body = await req.json();
