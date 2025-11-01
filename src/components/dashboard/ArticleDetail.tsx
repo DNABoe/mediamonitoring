@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ExternalLink, Loader2, MessageSquare, TrendingUp, Award } from 'lucide-react';
+import { ExternalLink, Loader2, MessageSquare, TrendingUp, Award, Languages } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 
@@ -104,15 +104,25 @@ export const ArticleDetail = ({ article, isOpen, onClose, competitors }: Article
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
-          {/* Read Original Button */}
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => window.open(article?.url, '_blank')}
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Read Original Article
-          </Button>
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => window.open(article?.url, '_blank')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Read Original Article
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => window.open(`https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(article?.url)}`, '_blank')}
+            >
+              <Languages className="h-4 w-4 mr-2" />
+              Translate to English
+            </Button>
+          </div>
 
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
