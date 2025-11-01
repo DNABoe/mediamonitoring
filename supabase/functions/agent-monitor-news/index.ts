@@ -85,7 +85,33 @@ serve(async (req) => {
           continue;
         }
 
-        // Collect articles - first run gets 6 months of data, subsequent runs get new articles
+        // Determine start date for collection
+        let collectionStartDate: string;
+        if (agent.last_run_at) {
+          // Incremental update: get articles since last run
+          collectionStartDate = agent.last_run_at;
+        } else if (isFirstRun) {
+          // First run: get baseline start date or default to 6 months
+          const { data: baseline } = await supabaseClient
+            .from('baselines')
+            .select('start_date')
+            .eq('created_by', agent.user_id)
+            .eq('tracking_country', agent.active_country)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          collectionStartDate = baseline?.start_date 
+            ? new Date(baseline.start_date).toISOString()
+            : new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString();
+          
+          console.log(`First run: using ${baseline?.start_date ? 'baseline' : 'default 6-month'} start date: ${collectionStartDate}`);
+        } else {
+          // Fallback: 1 day
+          collectionStartDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        }
+
+        // Collect articles
         const { data: collectionResult, error: collectionError } = await supabaseClient.functions.invoke(
           'collect-articles-for-tracking',
           {
@@ -93,8 +119,8 @@ serve(async (req) => {
               userId: agent.user_id,
               country: agent.active_country,
               competitors: agent.active_competitors,
-              outlets: outlets, // Use all configured outlets
-              startDate: agent.last_run_at || new Date(Date.now() - (isFirstRun ? 180 : 1) * 24 * 60 * 60 * 1000).toISOString(), // 180 days (6 months) for first run, 1 day for updates
+              outlets: outlets,
+              startDate: collectionStartDate,
               endDate: new Date().toISOString(),
             },
             headers: {
@@ -131,7 +157,7 @@ serve(async (req) => {
                 userId: agent.user_id,
                 country: agent.active_country,
                 competitors: agent.active_competitors,
-                startDate: agent.last_run_at || new Date(Date.now() - (isFirstRun ? 180 : 1) * 24 * 60 * 60 * 1000).toISOString(),
+                startDate: collectionStartDate,
                 endDate: new Date().toISOString(),
               },
               headers: {
@@ -214,7 +240,7 @@ serve(async (req) => {
           success: true,
         });
 
-        console.log(`Completed media monitoring: ${articlesCollected} articles collected${isFirstRun ? ' (initial 6-month collection)' : ''}`);
+        console.log(`Completed media monitoring: ${articlesCollected} articles collected${isFirstRun ? ' (initial collection from baseline)' : ''}`);
 
       } catch (agentError) {
         console.error(`Error processing agent ${agent.id}:`, agentError);
