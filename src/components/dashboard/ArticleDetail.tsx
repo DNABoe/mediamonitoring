@@ -117,10 +117,17 @@ export const ArticleDetail = ({ article, isOpen, onClose, competitors }: Article
             <Button
               variant="outline"
               className="flex-1"
-              onClick={() => window.open(`https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(article?.url)}`, '_blank')}
+              onClick={() => {
+                const translatedUrl = `https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(article?.url)}`;
+                navigator.clipboard.writeText(translatedUrl);
+                toast({
+                  title: "Translation Link Copied",
+                  description: "Paste the link in a new browser tab to view the translated article",
+                });
+              }}
             >
               <Languages className="h-4 w-4 mr-2" />
-              Translate to English
+              Copy Translation Link
             </Button>
           </div>
 
