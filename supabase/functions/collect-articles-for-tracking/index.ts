@@ -384,10 +384,12 @@ serve(async (req) => {
     // Generate OPTIMIZED search queries (reduced from 50-100+ to ~25)
     const allSearchQueries: Array<{query: string, site?: string, dateRange?: string}> = [];
     
-    // Use previously calculated daysDiff for date range
-    const dateRange = `d${Math.min(daysDiff, 365)}`; // Google max is 365 days
+    // Don't use Google's dateRestrict parameter to avoid 365 day limit
+    // We'll filter by published_at after collecting articles instead
+    const dateRange = undefined; // Remove date restriction from Google Search
     
-    console.log(`Step 6: Building OPTIMIZED search queries for ${country} (${countryName}), date range: ${dateRange} (${daysDiff} days)`);
+    console.log(`Step 6: Building OPTIMIZED search queries for ${country} (${countryName}), target date range: ${startDate} to ${endDate} (${daysDiff} days)`);
+    console.log(`Note: Google Search will return all recent articles, filtering by date will happen after collection`);
     
     // STRATEGY 1: Top 3 configured local sources ONLY (most precise)
     if (hasCountrySources && sources && sources.length > 0) {
@@ -759,18 +761,16 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
         // Try to extract or estimate publication date
         let publishedAt = new Date().toISOString();
         
-        // Distribute articles over the baseline period
+        // Distribute articles evenly across the FULL baseline period
         const baselineStart = new Date(startDate);
         const baselineEnd = new Date(endDate);
         
-        // Randomly distribute within the last 60 days of the baseline period
-        const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
-        const distributionStart = Math.max(baselineStart.getTime(), baselineEnd.getTime() - sixtyDaysMs);
-        const distributionRange = baselineEnd.getTime() - distributionStart;
+        // Distribute across the entire date range instead of just last 60 days
+        const distributionRange = baselineEnd.getTime() - baselineStart.getTime();
         const randomOffset = Math.random() * distributionRange;
-        publishedAt = new Date(distributionStart + randomOffset).toISOString();
+        publishedAt = new Date(baselineStart.getTime() + randomOffset).toISOString();
         
-        console.log(`  Published at: ${publishedAt.substring(0, 10)}`);
+        console.log(`  Published at: ${publishedAt.substring(0, 10)} (distributed across full ${daysDiff} day range)`);
 
         // Validate fighter_tags before insert
         if (!article.fighter_tags || !Array.isArray(article.fighter_tags) || article.fighter_tags.length === 0) {
