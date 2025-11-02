@@ -157,21 +157,39 @@ export const ArticleDetail = ({ article, isOpen, onClose, competitors }: Article
                   <TrendingUp className="h-5 w-5" />
                   Sentiment Analysis
                 </h3>
-                <div className="space-y-3">
-                  {Object.entries(analysis.main_sentiment || {}).map(([fighter, score]: [string, any]) => (
-                    <div key={fighter} className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{fighter}</span>
-                        <span className={`text-sm font-semibold ${getSentimentColor(score)}`}>
-                          {getSentimentLabel(score)} ({(score * 100).toFixed(0)}%)
-                        </span>
+                <div className="space-y-4">
+                  {Object.entries(analysis.main_sentiment || {}).map(([fighter, score]: [string, any]) => {
+                    const detail = analysis.sentiment_details?.[fighter];
+                    const isNotMentioned = score === null || score === undefined;
+                    
+                    return (
+                      <div key={fighter} className="space-y-2 p-3 bg-muted/30 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">{fighter}</span>
+                          {isNotMentioned ? (
+                            <span className="text-sm text-muted-foreground italic">
+                              Not mentioned
+                            </span>
+                          ) : (
+                            <span className={`text-sm font-semibold ${getSentimentColor(score)}`}>
+                              {getSentimentLabel(score)} ({(score * 100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                        {!isNotMentioned && (
+                          <Progress 
+                            value={((score + 1) / 2) * 100} 
+                            className="h-2"
+                          />
+                        )}
+                        {detail && (
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            {detail}
+                          </p>
+                        )}
                       </div>
-                      <Progress 
-                        value={((score + 1) / 2) * 100} 
-                        className="h-2"
-                      />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

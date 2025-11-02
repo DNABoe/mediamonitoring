@@ -160,6 +160,7 @@ export type Database = {
           key_points: string[] | null
           main_sentiment: Json | null
           narrative_themes: string[] | null
+          sentiment_details: Json | null
           updated_at: string | null
           user_id: string
         }
@@ -173,6 +174,7 @@ export type Database = {
           key_points?: string[] | null
           main_sentiment?: Json | null
           narrative_themes?: string[] | null
+          sentiment_details?: Json | null
           updated_at?: string | null
           user_id: string
         }
@@ -186,6 +188,7 @@ export type Database = {
           key_points?: string[] | null
           main_sentiment?: Json | null
           narrative_themes?: string[] | null
+          sentiment_details?: Json | null
           updated_at?: string | null
           user_id?: string
         }

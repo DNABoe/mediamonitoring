@@ -75,34 +75,48 @@ serve(async (req) => {
     const title = article.title_en || article.title_pt || '';
 
     // Create AI analysis prompt
-    const systemPrompt = `You are an expert defense industry analyst. Analyze the given article about fighter aircraft procurement and provide structured insights.`;
+    const systemPrompt = `You are an expert defense industry analyst specializing in fighter aircraft procurement analysis. Provide detailed, nuanced insights based on the article content.`;
 
-    const userPrompt = `Analyze this article about fighter aircraft procurement:
+    const userPrompt = `Analyze this article about fighter aircraft procurement in detail:
 
 Title: ${title}
 Content: ${content}
 
-Competitors being compared: ${competitors.join(', ')}
+Competitors to analyze: ${competitors.join(', ')} (Always include Gripen in the analysis)
 
-Provide analysis in the following JSON structure:
+Provide a comprehensive analysis in the following JSON structure:
 {
   "main_sentiment": {
-    "Gripen": <number between -1 and 1>,
-    "F-35": <number between -1 and 1>,
-    ... for each competitor
+    "Gripen": <number between -1 and 1, or null if not mentioned>,
+    "F-35": <number between -1 and 1, or null if not mentioned>,
+    ... include all competitors from the list above
+  },
+  "sentiment_details": {
+    "Gripen": "<detailed explanation of sentiment reasoning, or 'No mentions found in article' if not discussed>",
+    "F-35": "<detailed explanation of sentiment reasoning, or 'No mentions found in article' if not discussed>",
+    ... include all competitors
   },
   "key_points": [
-    "First key point about the procurement or aircraft",
-    "Second key point",
-    "Third key point"
+    "<detailed point about procurement decisions, capabilities, or implications>",
+    "<detailed point about technical aspects or comparisons>",
+    "<detailed point about political or economic factors>",
+    "<detailed point about strategic considerations>",
+    ... provide 4-6 comprehensive points
   ],
   "article_tone": "<one of: factual, opinion, promotional, critical>",
-  "influence_score": <number 1-10 based on source credibility>,
+  "influence_score": <number 1-10 based on source credibility and reach>,
   "extracted_quotes": [
-    {"quote": "meaningful quote from article", "context": "who said it or context"}
+    {"quote": "meaningful quote from article", "context": "who said it and why it matters"},
+    ... include 2-4 most significant quotes
   ],
-  "narrative_themes": ["cost", "capability", "politics", "industrial cooperation", etc.]
-}`;
+  "narrative_themes": ["cost-effectiveness", "technical-capability", "political-influence", "industrial-cooperation", "operational-requirements", etc.]
+}
+
+IMPORTANT: 
+- For sentiment, be precise: positive mentions = 0.3 to 1.0, neutral = -0.3 to 0.3, negative = -1.0 to -0.3
+- If a competitor is not mentioned at all, set sentiment to null
+- Provide detailed sentiment explanations that cite specific claims from the article
+- Extract only the most impactful quotes that reveal bias, key claims, or authoritative statements`;
 
     // Call Lovable AI
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -129,13 +143,14 @@ Provide analysis in the following JSON structure:
     const analysisText = aiData.choices[0].message.content;
     const analysis = JSON.parse(analysisText);
 
-    // Store analysis in database
+    // Store analysis in database with sentiment details
     const { data: savedAnalysis, error: saveError } = await supabase
       .from('article_analyses')
       .upsert({
         article_id: articleId,
         user_id: user.id,
         main_sentiment: analysis.main_sentiment || {},
+        sentiment_details: analysis.sentiment_details || {},
         key_points: analysis.key_points || [],
         article_tone: analysis.article_tone || 'factual',
         influence_score: analysis.influence_score || 5,
