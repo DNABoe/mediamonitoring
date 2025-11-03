@@ -78,6 +78,39 @@ serve(async (req) => {
       throw new Error('Google Search API credentials not configured');
     }
 
+    console.log('Checking for existing social media posts to enable smart incremental updates...');
+    
+    // Check if we already have posts collected
+    const { data: existingPosts, error: existingError } = await supabaseClient
+      .from('social_media_posts')
+      .select('fetched_at')
+      .eq('user_id', userId)
+      .eq('tracking_country', country)
+      .order('fetched_at', { ascending: false })
+      .limit(1);
+    
+    const hasExistingCollection = existingPosts && existingPosts.length > 0;
+    const lastCollectionDate = hasExistingCollection ? new Date(existingPosts[0].fetched_at) : null;
+    
+    let isIncrementalUpdate = false;
+    let incrementalDays = 3; // Social media: search last 3 days for incremental
+    
+    if (hasExistingCollection && lastCollectionDate) {
+      const hoursSinceLastCollection = (Date.now() - lastCollectionDate.getTime()) / (1000 * 60 * 60);
+      
+      // If last collection was within the last 7 days, do incremental update
+      if (hoursSinceLastCollection < 168) { // 7 days
+        isIncrementalUpdate = true;
+        incrementalDays = Math.max(2, Math.ceil(hoursSinceLastCollection / 24)); // At least 2 days
+        console.log(`✓ INCREMENTAL UPDATE MODE: Last collection was ${Math.round(hoursSinceLastCollection)} hours ago`);
+        console.log(`  Will search for posts from last ${incrementalDays} days only (drastically reduces API calls)`);
+      } else {
+        console.log(`Last collection was ${Math.round(hoursSinceLastCollection / 24)} days ago - doing full collection`);
+      }
+    } else {
+      console.log('No existing collection found - doing initial full collection');
+    }
+
     let totalCollected = 0;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
@@ -100,94 +133,131 @@ serve(async (req) => {
     const endDateObj = new Date(endDate || new Date());
     const daysDiff = Math.floor((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
 
-    console.log(`Collecting social media for ${daysDiff} days period`);
+    console.log(`Collecting social media for ${daysDiff} days period (${isIncrementalUpdate ? 'INCREMENTAL' : 'FULL'} mode)`);
 
-    // Comprehensive search queries with multiple date ranges
+    // Comprehensive search queries - reduced for incremental mode
     const searchQueries: Array<{platform: string, query: string, dateRange: string}> = [];
 
-    // Collect social media posts for each competitor with expanded coverage
+    // Collect social media posts with smart incremental strategy
     for (const fighter of [...competitors, 'Gripen']) {
-      console.log(`Building queries for ${fighter}`);
+      console.log(`Building queries for ${fighter} (${isIncrementalUpdate ? 'incremental' : 'full'} mode)`);
       
-      // REDDIT - Multiple search strategies
-      // Recent discussions (last 7 days) - MOST IMPORTANT for temperature
-      searchQueries.push({
-        platform: 'reddit',
-        query: `${fighter} ${country} fighter jet site:reddit.com`,
-        dateRange: 'd7'
-      });
+      if (isIncrementalUpdate) {
+        // ============ INCREMENTAL MODE: Only newest posts ============
+        const recentRange = `d${incrementalDays}`;
+        
+        // REDDIT - Recent only, date-sorted
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} ${country} site:reddit.com`,
+          dateRange: recentRange
+        });
+        
+        // X (TWITTER) - Very recent for real-time temperature
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} ${country} site:x.com OR site:twitter.com`,
+          dateRange: recentRange
+        });
+        
+        // FACEBOOK - Recent local language
+        searchQueries.push({
+          platform: 'facebook',
+          query: `${fighter} ${localLanguage} site:facebook.com`,
+          dateRange: recentRange
+        });
+        
+        // LINKEDIN - Recent professional discourse
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} site:linkedin.com`,
+          dateRange: recentRange
+        });
+        
+      } else {
+        // ============ FULL MODE: Comprehensive coverage ============
       
-      // Recent broader search
-      searchQueries.push({
-        platform: 'reddit',
-        query: `${fighter} military aviation site:reddit.com`,
-        dateRange: 'd30'
-      });
-      
-      // Specific subreddits if country-specific
-      searchQueries.push({
-        platform: 'reddit',
-        query: `${fighter} site:reddit.com/r/${country.toLowerCase()}`,
-        dateRange: 'd30'
-      });
-      
-      // X (TWITTER) - Multiple angles
-      // Very recent (last 3 days for real-time temperature)
-      searchQueries.push({
-        platform: 'x',
-        query: `${fighter} ${country} site:x.com OR site:twitter.com`,
-        dateRange: 'd3'
-      });
-      
-      searchQueries.push({
-        platform: 'x',
-        query: `${fighter} procurement ${localLanguage} site:x.com OR site:twitter.com`,
-        dateRange: 'd7'
-      });
-      
-      searchQueries.push({
-        platform: 'x',
-        query: `${fighter} military site:x.com OR site:twitter.com`,
-        dateRange: 'd30'
-      });
+        // REDDIT - Multiple search strategies
+        // Recent discussions (last 7 days) - MOST IMPORTANT for temperature
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} ${country} fighter jet site:reddit.com`,
+          dateRange: 'd7'
+        });
+        
+        // Recent broader search
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} military aviation site:reddit.com`,
+          dateRange: 'd30'
+        });
+        
+        // Specific subreddits if country-specific
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} site:reddit.com/r/${country.toLowerCase()}`,
+          dateRange: 'd30'
+        });
+        
+        // X (TWITTER) - Multiple angles
+        // Very recent (last 3 days for real-time temperature)
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} ${country} site:x.com OR site:twitter.com`,
+          dateRange: 'd3'
+        });
+        
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} procurement ${localLanguage} site:x.com OR site:twitter.com`,
+          dateRange: 'd7'
+        });
+        
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} military site:x.com OR site:twitter.com`,
+          dateRange: 'd30'
+        });
 
-      // FACEBOOK - Local language focus
-      searchQueries.push({
-        platform: 'facebook',
-        query: `${fighter} ${country} ${localLanguage} site:facebook.com`,
-        dateRange: 'd7'
-      });
-      
-      searchQueries.push({
-        platform: 'facebook',
-        query: `${fighter} defense ${localLanguage} site:facebook.com`,
-        dateRange: 'd30'
-      });
+        // FACEBOOK - Local language focus
+        searchQueries.push({
+          platform: 'facebook',
+          query: `${fighter} ${country} ${localLanguage} site:facebook.com`,
+          dateRange: 'd7'
+        });
+        
+        searchQueries.push({
+          platform: 'facebook',
+          query: `${fighter} defense ${localLanguage} site:facebook.com`,
+          dateRange: 'd30'
+        });
 
-      // LINKEDIN - Professional discourse
-      searchQueries.push({
-        platform: 'linkedin',
-        query: `${fighter} ${country} aerospace site:linkedin.com`,
-        dateRange: 'd7'
-      });
-      
-      searchQueries.push({
-        platform: 'linkedin',
-        query: `${fighter} procurement site:linkedin.com`,
-        dateRange: 'd30'
-      });
+        // LINKEDIN - Professional discourse
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} ${country} aerospace site:linkedin.com`,
+          dateRange: 'd7'
+        });
+        
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} procurement site:linkedin.com`,
+          dateRange: 'd30'
+        });
+      }
     }
 
-    console.log(`Executing ${searchQueries.length} social media searches...`);
+    const totalQueries = searchQueries.length;
+    console.log(`Executing ${totalQueries} social media searches (${isIncrementalUpdate ? 'INCREMENTAL - saves API quota!' : 'FULL collection'})...`);
     
     // Execute all searches with rate limiting
-    for (let i = 0; i < searchQueries.length; i++) {
+    for (let i = 0; i < totalQueries; i++) {
       const search = searchQueries[i];
       
       try {
         const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(search.query)}&num=10&dateRestrict=${search.dateRange}&sort=date`;
         
-        console.log(`[${i + 1}/${searchQueries.length}] ${search.platform}: ${search.query.substring(0, 60)}...`);
+        console.log(`[${i + 1}/${totalQueries}] ${search.platform}: ${search.query.substring(0, 60)}...`);
         
         const response = await fetch(searchUrl);
         const data = await response.json();
@@ -203,7 +273,7 @@ serve(async (req) => {
         }
         
         // Rate limiting
-        if (i < searchQueries.length - 1) {
+        if (i < totalQueries - 1) {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
       } catch (error) {

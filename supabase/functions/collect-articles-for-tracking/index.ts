@@ -198,7 +198,40 @@ serve(async (req) => {
     }
     console.log('Step 4 SUCCESS: All API keys present');
 
-    console.log('Step 5: Fetching enabled media sources...');
+    console.log('Step 5: Checking for existing collection to enable smart incremental updates...');
+    
+    // Check if we already have articles collected for this tracking period
+    const { data: existingArticles, error: existingError } = await supabaseClient
+      .from('items')
+      .select('fetched_at')
+      .eq('user_id', userId)
+      .eq('tracking_country', country)
+      .order('fetched_at', { ascending: false })
+      .limit(1);
+    
+    const hasExistingCollection = existingArticles && existingArticles.length > 0;
+    const lastCollectionDate = hasExistingCollection ? new Date(existingArticles[0].fetched_at) : null;
+    
+    let isIncrementalUpdate = false;
+    let incrementalDays = 7; // Default: search last 7 days for incremental updates
+    
+    if (hasExistingCollection && lastCollectionDate) {
+      const hoursSinceLastCollection = (Date.now() - lastCollectionDate.getTime()) / (1000 * 60 * 60);
+      
+      // If last collection was within the last 7 days, do incremental update
+      if (hoursSinceLastCollection < 168) { // 7 days = 168 hours
+        isIncrementalUpdate = true;
+        incrementalDays = Math.max(3, Math.ceil(hoursSinceLastCollection / 24)); // At least 3 days
+        console.log(`✓ INCREMENTAL UPDATE MODE: Last collection was ${Math.round(hoursSinceLastCollection)} hours ago`);
+        console.log(`  Will search for articles from last ${incrementalDays} days only (drastically reduces API calls)`);
+      } else {
+        console.log(`Last collection was ${Math.round(hoursSinceLastCollection / 24)} days ago - doing full collection`);
+      }
+    } else {
+      console.log('No existing collection found - doing initial full collection');
+    }
+
+    console.log('Step 6: Fetching enabled media sources...');
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('sources')
       .select('*')
@@ -206,10 +239,10 @@ serve(async (req) => {
       .eq('enabled', true);
 
     if (sourcesError) {
-      console.error('Step 5 FAILED: Error fetching sources:', sourcesError);
+      console.error('Step 6 FAILED: Error fetching sources:', sourcesError);
       throw sourcesError;
     }
-    console.log(`Step 5 SUCCESS: Found ${sources?.length || 0} enabled sources for ${country}`);
+    console.log(`Step 6 SUCCESS: Found ${sources?.length || 0} enabled sources for ${country}`);
     
     // If no country-specific sources, use general domain search
     const hasCountrySources = sources && sources.length > 0;
@@ -390,138 +423,187 @@ serve(async (req) => {
       return { results, quotaExceeded, successCount, failCount };
     }
 
-    // Generate COMPREHENSIVE search queries with multiple date ranges and sorting strategies
+    // Generate SMART search queries - full or incremental based on existing collection
     const allSearchQueries: Array<{query: string, site?: string, dateRange?: string, sortByDate?: boolean}> = [];
     
-    console.log(`Step 6: Building COMPREHENSIVE search queries for ${country} (${countryName}), target date range: ${startDate} to ${endDate} (${daysDiff} days)`);
-    console.log(`Strategy: Multiple date ranges (recent + historical) + date-sorted searches for newest content`);
-    
-    // STRATEGY 1: NEWEST articles first (CRITICAL - sorted by date for real-time monitoring)
-    console.log(`Building DATE-SORTED queries for NEWEST articles (last 7 days)`);
-    const recentDateRange = 'd7'; // Last 7 days
-    
-    // All competitors + Gripen, sorted by date
-    for (const fighter of [...competitors, 'Gripen']) {
-      allSearchQueries.push({
-        query: `${fighter} ${countryName}`,
-        dateRange: recentDateRange,
-        sortByDate: true // SORT BY DATE to get newest first
-      });
+    if (isIncrementalUpdate) {
+      console.log(`Step 7: Building INCREMENTAL search queries (last ${incrementalDays} days ONLY) - drastically reduced API calls`);
+      console.log(`Strategy: Only newest articles with date sorting to minimize searches`);
+    } else {
+      console.log(`Step 7: Building COMPREHENSIVE search queries for initial collection: ${startDate} to ${endDate} (${daysDiff} days)`);
+      console.log(`Strategy: Multiple date ranges (recent + historical) for complete coverage`);
     }
     
-    // Country domain, date-sorted
-    for (const fighter of [...competitors, 'Gripen']) {
-      allSearchQueries.push({
-        query: `${fighter} site:${domainSuffix}`,
-        dateRange: recentDateRange,
-        sortByDate: true
-      });
-    }
-    
-    // STRATEGY 2: Configured local sources with multiple date ranges
-    if (hasCountrySources && sources && sources.length > 0) {
-      const topSources = sources.slice(0, 5); // Increase to 5 sources
-      console.log(`Building queries for TOP ${topSources.length} configured local sources`);
+    if (isIncrementalUpdate) {
+      // ============ INCREMENTAL MODE: Minimal searches for newest content only ============
+      const recentDateRange = `d${incrementalDays}`;
       
-      for (const source of topSources) {
-        const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
-        
-        // All fighters on each source with recent + historical ranges
-        for (const fighter of [...competitors, 'Gripen']) {
-          // Recent (last 30 days) - sorted by date
-          allSearchQueries.push({
-            query: fighter,
-            site: domain,
-            dateRange: 'd30',
-            sortByDate: true
-          });
-          
-          // Historical (no date restriction for older articles)
-          allSearchQueries.push({
-            query: fighter,
-            site: domain,
-            dateRange: undefined // No restriction to get older articles
-          });
+      console.log(`INCREMENTAL: Searching last ${incrementalDays} days with date sorting`);
+      
+      // Strategy 1: All fighters, date-sorted, recent only
+      for (const fighter of [...competitors, 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} ${countryName}`,
+          dateRange: recentDateRange,
+          sortByDate: true
+        });
+      }
+      
+      // Strategy 2: Top 2 configured sources only
+      if (hasCountrySources && sources && sources.length > 0) {
+        const topSources = sources.slice(0, 2);
+        for (const source of topSources) {
+          const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
+          for (const fighter of [...competitors, 'Gripen']) {
+            allSearchQueries.push({
+              query: fighter,
+              site: domain,
+              dateRange: recentDateRange,
+              sortByDate: true
+            });
+          }
         }
       }
-    }
+      
+      // Strategy 3: Country domain, top fighters only
+      for (const fighter of [...competitors.slice(0, 1), 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} site:${domainSuffix}`,
+          dateRange: recentDateRange,
+          sortByDate: true
+        });
+      }
+      
+      console.log(`INCREMENTAL MODE: Only ${allSearchQueries.length} searches (vs ~85 in full mode) - saves API quota!`);
+      
+    } else {
+      // ============ FULL MODE: Comprehensive searches for initial collection ============
+      
+      // STRATEGY 1: NEWEST articles first (CRITICAL - sorted by date for real-time monitoring)
+      console.log(`Building DATE-SORTED queries for NEWEST articles (last 7 days)`);
+      const recentDateRange = 'd7';
+      
+      // All competitors + Gripen, sorted by date
+      for (const fighter of [...competitors, 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} ${countryName}`,
+          dateRange: recentDateRange,
+          sortByDate: true
+        });
+      }
+      
+      // Country domain, date-sorted
+      for (const fighter of [...competitors, 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} site:${domainSuffix}`,
+          dateRange: recentDateRange,
+          sortByDate: true
+        });
+      }
+      
+      // STRATEGY 2: Configured local sources with multiple date ranges
+      if (hasCountrySources && sources && sources.length > 0) {
+        const topSources = sources.slice(0, 5);
+        console.log(`Building queries for TOP ${topSources.length} configured local sources`);
+        
+        for (const source of topSources) {
+          const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
+          
+          for (const fighter of [...competitors, 'Gripen']) {
+            // Recent (last 30 days) - sorted by date
+            allSearchQueries.push({
+              query: fighter,
+              site: domain,
+              dateRange: 'd30',
+              sortByDate: true
+            });
+            
+            // Historical (no date restriction for older articles)
+            allSearchQueries.push({
+              query: fighter,
+              site: domain,
+              dateRange: undefined
+            });
+          }
+        }
+      }
 
-    // STRATEGY 3: Country domain searches with better coverage
-    console.log(`Building comprehensive ${domainSuffix} domain searches`);
-    
-    // All fighters on country TLD
-    for (const fighter of [...competitors, 'Gripen']) {
-      // Recent
-      allSearchQueries.push({
-        query: `${fighter} site:${domainSuffix}`,
-        dateRange: 'd30',
-        sortByDate: true
-      });
-      // Historical
-      allSearchQueries.push({
-        query: `${fighter} site:${domainSuffix}`,
-        dateRange: undefined
-      });
-    }
-    
-    // Native search terms
-    for (const term of localSearchTerms.slice(0, 3)) {
-      allSearchQueries.push({
-        query: `${term} site:${domainSuffix}`,
-        dateRange: 'd30',
-        sortByDate: true
-      });
-    }
-    
-    // Broad procurement terms
-    for (const fighter of [...competitors, 'Gripen']) {
-      allSearchQueries.push({
-        query: `${fighter} ${countryName} procurement`,
-        dateRange: 'd30',
-        sortByDate: true
-      });
-      allSearchQueries.push({
-        query: `${fighter} ${countryName} acquisition`,
-        dateRange: undefined // Historical
-      });
-    }
-
-    // STRATEGY 4: International defense media with comprehensive coverage
-    console.log(`Building international media searches`);
-    
-    const topInternationalOutlets = [
-      'defensenews.com',
-      'janes.com',
-      'flightglobal.com',
-      'airforce-technology.com',
-      'defenseworld.net'
-    ]; // Increased coverage
-    
-    for (const domain of topInternationalOutlets) {
+      // STRATEGY 3: Country domain searches with better coverage
+      console.log(`Building comprehensive ${domainSuffix} domain searches`);
+      
       for (const fighter of [...competitors, 'Gripen']) {
         // Recent
         allSearchQueries.push({
-          query: `${fighter} ${countryName}`,
-          site: domain,
+          query: `${fighter} site:${domainSuffix}`,
           dateRange: 'd30',
           sortByDate: true
         });
         // Historical
         allSearchQueries.push({
-          query: `${fighter} ${countryName}`,
-          site: domain,
+          query: `${fighter} site:${domainSuffix}`,
           dateRange: undefined
         });
       }
-    }
+      
+      // Native search terms
+      for (const term of localSearchTerms.slice(0, 3)) {
+        allSearchQueries.push({
+          query: `${term} site:${domainSuffix}`,
+          dateRange: 'd30',
+          sortByDate: true
+        });
+      }
+      
+      // Broad procurement terms
+      for (const fighter of [...competitors, 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} ${countryName} procurement`,
+          dateRange: 'd30',
+          sortByDate: true
+        });
+        allSearchQueries.push({
+          query: `${fighter} ${countryName} acquisition`,
+          dateRange: undefined
+        });
+      }
 
-    // STRATEGY 5: General defense procurement terms
-    allSearchQueries.push(
-      { query: `fighter aircraft procurement ${countryName}`, dateRange: 'd30', sortByDate: true },
-      { query: `air force modernization ${countryName}`, dateRange: 'd30', sortByDate: true },
-      { query: `combat aircraft ${countryName}`, dateRange: undefined },
-      { query: `military aviation ${countryName}`, dateRange: undefined }
-    );
+      // STRATEGY 4: International defense media with comprehensive coverage
+      console.log(`Building international media searches`);
+      
+      const topInternationalOutlets = [
+        'defensenews.com',
+        'janes.com',
+        'flightglobal.com',
+        'airforce-technology.com',
+        'defenseworld.net'
+      ];
+      
+      for (const domain of topInternationalOutlets) {
+        for (const fighter of [...competitors, 'Gripen']) {
+          // Recent
+          allSearchQueries.push({
+            query: `${fighter} ${countryName}`,
+            site: domain,
+            dateRange: 'd30',
+            sortByDate: true
+          });
+          // Historical
+          allSearchQueries.push({
+            query: `${fighter} ${countryName}`,
+            site: domain,
+            dateRange: undefined
+          });
+        }
+      }
+
+      // STRATEGY 5: General defense procurement terms
+      allSearchQueries.push(
+        { query: `fighter aircraft procurement ${countryName}`, dateRange: 'd30', sortByDate: true },
+        { query: `air force modernization ${countryName}`, dateRange: 'd30', sortByDate: true },
+        { query: `combat aircraft ${countryName}`, dateRange: undefined },
+        { query: `military aviation ${countryName}`, dateRange: undefined }
+      );
+    }
 
     console.log(`Step 7: Total of ${allSearchQueries.length} Google search queries prepared`);
     console.log(`Sample queries:`, allSearchQueries.slice(0, 5).map(q => `"${q.query}"${q.site ? ` site:${q.site}` : ''}`));
