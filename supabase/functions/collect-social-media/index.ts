@@ -79,6 +79,7 @@ serve(async (req) => {
     }
 
     let totalCollected = 0;
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     // Map country code to language for local search
     const countryLanguageMap: Record<string, string> = {
@@ -94,64 +95,119 @@ serve(async (req) => {
     };
     const localLanguage = countryLanguageMap[country] || 'English';
 
-    // Collect social media posts for each competitor
-    for (const fighter of competitors) {
-      console.log(`Searching social media for ${fighter}`);
-      
-      // Search Reddit
-      const redditQuery = `${fighter} fighter aircraft ${country} site:reddit.com`;
-      const redditUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(redditQuery)}&num=10&dateRestrict=m6`;
-      
-      const redditResponse = await fetch(redditUrl);
-      const redditData = await redditResponse.json();
+    // Calculate date range in days
+    const startDateObj = new Date(startDate || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
+    const endDateObj = new Date(endDate || new Date());
+    const daysDiff = Math.floor((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
 
-      if (redditData.items) {
-        for (const item of redditData.items) {
-          await processSocialPost(item, 'reddit', fighter, userId, country, competitors, supabaseClient);
-          totalCollected++;
+    console.log(`Collecting social media for ${daysDiff} days period`);
+
+    // Comprehensive search queries with multiple date ranges
+    const searchQueries: Array<{platform: string, query: string, dateRange: string}> = [];
+
+    // Collect social media posts for each competitor with expanded coverage
+    for (const fighter of [...competitors, 'Gripen']) {
+      console.log(`Building queries for ${fighter}`);
+      
+      // REDDIT - Multiple search strategies
+      // Recent discussions (last 7 days) - MOST IMPORTANT for temperature
+      searchQueries.push({
+        platform: 'reddit',
+        query: `${fighter} ${country} fighter jet site:reddit.com`,
+        dateRange: 'd7'
+      });
+      
+      // Recent broader search
+      searchQueries.push({
+        platform: 'reddit',
+        query: `${fighter} military aviation site:reddit.com`,
+        dateRange: 'd30'
+      });
+      
+      // Specific subreddits if country-specific
+      searchQueries.push({
+        platform: 'reddit',
+        query: `${fighter} site:reddit.com/r/${country.toLowerCase()}`,
+        dateRange: 'd30'
+      });
+      
+      // X (TWITTER) - Multiple angles
+      // Very recent (last 3 days for real-time temperature)
+      searchQueries.push({
+        platform: 'x',
+        query: `${fighter} ${country} site:x.com OR site:twitter.com`,
+        dateRange: 'd3'
+      });
+      
+      searchQueries.push({
+        platform: 'x',
+        query: `${fighter} procurement ${localLanguage} site:x.com OR site:twitter.com`,
+        dateRange: 'd7'
+      });
+      
+      searchQueries.push({
+        platform: 'x',
+        query: `${fighter} military site:x.com OR site:twitter.com`,
+        dateRange: 'd30'
+      });
+
+      // FACEBOOK - Local language focus
+      searchQueries.push({
+        platform: 'facebook',
+        query: `${fighter} ${country} ${localLanguage} site:facebook.com`,
+        dateRange: 'd7'
+      });
+      
+      searchQueries.push({
+        platform: 'facebook',
+        query: `${fighter} defense ${localLanguage} site:facebook.com`,
+        dateRange: 'd30'
+      });
+
+      // LINKEDIN - Professional discourse
+      searchQueries.push({
+        platform: 'linkedin',
+        query: `${fighter} ${country} aerospace site:linkedin.com`,
+        dateRange: 'd7'
+      });
+      
+      searchQueries.push({
+        platform: 'linkedin',
+        query: `${fighter} procurement site:linkedin.com`,
+        dateRange: 'd30'
+      });
+    }
+
+    console.log(`Executing ${searchQueries.length} social media searches...`);
+    
+    // Execute all searches with rate limiting
+    for (let i = 0; i < searchQueries.length; i++) {
+      const search = searchQueries[i];
+      
+      try {
+        const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(search.query)}&num=10&dateRestrict=${search.dateRange}&sort=date`;
+        
+        console.log(`[${i + 1}/${searchQueries.length}] ${search.platform}: ${search.query.substring(0, 60)}...`);
+        
+        const response = await fetch(searchUrl);
+        const data = await response.json();
+
+        if (data.items) {
+          console.log(`  ✓ Found ${data.items.length} posts`);
+          for (const item of data.items) {
+            await processSocialPost(item, search.platform, userId, country, competitors, supabaseClient, LOVABLE_API_KEY);
+            totalCollected++;
+          }
+        } else {
+          console.log(`  No results`);
         }
-      }
-
-      // Search X (Twitter)
-      const xQuery = `${fighter} ${country} procurement site:x.com OR site:twitter.com`;
-      const xUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(xQuery)}&num=10&dateRestrict=m6`;
-      
-      const xResponse = await fetch(xUrl);
-      const xData = await xResponse.json();
-
-      if (xData.items) {
-        for (const item of xData.items) {
-          await processSocialPost(item, 'x', fighter, userId, country, competitors, supabaseClient);
-          totalCollected++;
+        
+        // Rate limiting
+        if (i < searchQueries.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
-      }
-
-      // Search Facebook (local language)
-      const fbQuery = `${fighter} ${country} defense ${localLanguage} site:facebook.com`;
-      const fbUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(fbQuery)}&num=10&dateRestrict=m6`;
-      
-      const fbResponse = await fetch(fbUrl);
-      const fbData = await fbResponse.json();
-
-      if (fbData.items) {
-        for (const item of fbData.items) {
-          await processSocialPost(item, 'facebook', fighter, userId, country, competitors, supabaseClient);
-          totalCollected++;
-        }
-      }
-
-      // Search LinkedIn
-      const linkedinQuery = `${fighter} ${country} procurement site:linkedin.com`;
-      const linkedinUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleSearchEngineId}&q=${encodeURIComponent(linkedinQuery)}&num=10&dateRestrict=m6`;
-      
-      const linkedinResponse = await fetch(linkedinUrl);
-      const linkedinData = await linkedinResponse.json();
-
-      if (linkedinData.items) {
-        for (const item of linkedinData.items) {
-          await processSocialPost(item, 'linkedin', fighter, userId, country, competitors, supabaseClient);
-          totalCollected++;
-        }
+      } catch (error) {
+        console.error(`Error searching ${search.platform}:`, error);
       }
     }
 
@@ -177,29 +233,90 @@ serve(async (req) => {
   }
 });
 
-// Helper function to process social media posts
+// Enhanced helper function to process social media posts with deep analysis
 async function processSocialPost(
   item: any, 
   platform: string, 
-  fighter: string, 
   userId: string, 
   country: string, 
   competitors: string[], 
-  supabaseClient: any
+  supabaseClient: any,
+  lovableApiKey: string | undefined
 ) {
   try {
     const postId = item.link.split('/').pop() || item.link;
+    const content = item.snippet || item.title;
     
-    // Analyze sentiment using Lovable AI
-    const { data: aiData } = await supabaseClient.functions.invoke('analyze-sentiment', {
-      body: {
-        text: item.snippet || item.title,
-        fighters: competitors
-      }
-    });
+    // Deep sentiment analysis using Lovable AI with enhanced prompt
+    let sentiment = 0;
+    let tags: string[] = [];
+    
+    if (lovableApiKey) {
+      try {
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{
+              role: 'user',
+              content: `Analyze this social media post about fighter jets for ${country}.
 
-    const sentiment = aiData?.sentiment || 0;
-    const tags = aiData?.fighter_tags || [fighter];
+Post: "${content}"
+
+Provide:
+1. Overall sentiment (-1.0 to 1.0): Consider tone, language intensity, and opinion strength
+2. Which fighters are mentioned: ${[...competitors, 'Gripen'].join(', ')}
+3. Discussion temperature: Is this heated/passionate or calm/factual?
+
+Return JSON with: {
+  "sentiment": number,
+  "fighter_tags": string[],
+  "temperature": "hot" | "warm" | "cool",
+  "key_themes": string[]
+}`
+            }],
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          const responseText = aiData.choices?.[0]?.message?.content || '';
+          
+          try {
+            const parsed = JSON.parse(responseText);
+            sentiment = parsed.sentiment || 0;
+            tags = parsed.fighter_tags || [];
+            
+            console.log(`  AI Analysis: sentiment=${sentiment}, temp=${parsed.temperature}, themes=${parsed.key_themes?.join(', ')}`);
+          } catch {
+            // Fallback: extract from text response
+            const sentimentMatch = responseText.match(/sentiment["\s:]+(-?\d+\.?\d*)/i);
+            if (sentimentMatch) sentiment = parseFloat(sentimentMatch[1]);
+            
+            for (const fighter of [...competitors, 'Gripen']) {
+              if (content.toLowerCase().includes(fighter.toLowerCase())) {
+                tags.push(fighter);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('AI analysis failed:', error);
+      }
+    }
+    
+    // Fallback if AI didn't detect fighters
+    if (tags.length === 0) {
+      for (const fighter of [...competitors, 'Gripen']) {
+        if (content.toLowerCase().includes(fighter.toLowerCase())) {
+          tags.push(fighter);
+        }
+      }
+    }
 
     // Extract author info if available
     let authorName = item.displayLink;
@@ -212,15 +329,26 @@ async function processSocialPost(
       if (statusIndex > 0) {
         authorUsername = urlParts[statusIndex - 1];
       }
-    } else if (platform === 'reddit' && item.link.includes('/u/')) {
-      const match = item.link.match(/\/u\/([^\/]+)/);
-      if (match) authorUsername = match[1];
+    } else if (platform === 'reddit') {
+      if (item.link.includes('/u/')) {
+        const match = item.link.match(/\/u\/([^\/]+)/);
+        if (match) authorUsername = match[1];
+      } else if (item.link.includes('/user/')) {
+        const match = item.link.match(/\/user\/([^\/]+)/);
+        if (match) authorUsername = match[1];
+      }
     }
 
-    // Insert social media post
-    await supabaseClient
+    // Try to extract published date from metadata
+    let publishedAt = new Date().toISOString();
+    if (item.pagemap?.metatags?.[0]?.['article:published_time']) {
+      publishedAt = new Date(item.pagemap.metatags[0]['article:published_time']).toISOString();
+    }
+
+    // Insert social media post with upsert to avoid duplicates
+    const { error: insertError } = await supabaseClient
       .from('social_media_posts')
-      .insert({
+      .upsert({
         user_id: userId,
         tracking_country: country,
         platform: platform,
@@ -228,14 +356,20 @@ async function processSocialPost(
         post_url: item.link,
         author_name: authorName,
         author_username: authorUsername,
-        content: item.snippet || item.title,
-        published_at: new Date().toISOString(),
+        content: content,
+        published_at: publishedAt,
         fighter_tags: tags,
         sentiment: sentiment,
-        engagement: { source: 'google_search' }
+        engagement: { source: 'google_search', search_date: new Date().toISOString() }
+      }, {
+        onConflict: 'post_url'
       });
 
-    console.log(`Stored ${platform} post: ${item.title}`);
+    if (insertError) {
+      console.error(`  ✗ Error storing post:`, insertError);
+    } else {
+      console.log(`  ✓ Stored ${platform} post (sentiment: ${sentiment.toFixed(2)})`);
+    }
   } catch (error) {
     console.error(`Error processing ${platform} post:`, error);
   }

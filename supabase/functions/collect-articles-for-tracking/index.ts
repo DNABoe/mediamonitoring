@@ -294,8 +294,8 @@ serve(async (req) => {
     // Determine domain suffix from country code
     const domainSuffix = `.${country.toLowerCase()}`;
 
-    // Helper: Google Custom Search with better error handling and logging
-    async function googleSearch(query: string, siteRestrict?: string, dateRange?: string): Promise<any[]> {
+    // Helper: Google Custom Search with better error handling, sorting, and date filtering
+    async function googleSearch(query: string, siteRestrict?: string, dateRange?: string, sortByDate = false): Promise<any[]> {
       try {
         let searchUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=10`;
         
@@ -307,7 +307,12 @@ serve(async (req) => {
           searchUrl += `&dateRestrict=${dateRange}`;
         }
         
-        console.log(`  Google search: "${query.substring(0, 80)}"${siteRestrict ? ` (site: ${siteRestrict})` : ''}`);
+        // Sort by date to get newest articles (critical for real-time monitoring)
+        if (sortByDate) {
+          searchUrl += `&sort=date`;
+        }
+        
+        console.log(`  Google search: "${query.substring(0, 80)}"${siteRestrict ? ` (site: ${siteRestrict})` : ''}${sortByDate ? ' [SORTED BY DATE]' : ''}`);
         
         const response = await fetch(searchUrl);
         
@@ -329,7 +334,11 @@ serve(async (req) => {
         return data.items.map((item: any) => ({
           title: item.title,
           url: item.link,
-          snippet: item.snippet || item.htmlSnippet || ''
+          snippet: item.snippet || item.htmlSnippet || '',
+          // Try to extract date from pagemap metadata if available
+          publishedDate: item.pagemap?.metatags?.[0]?.['article:published_time'] || 
+                        item.pagemap?.metatags?.[0]?.['datePublished'] ||
+                        null
         }));
       } catch (e) {
         console.error(`  Google search error for "${query.substring(0, 60)}":`, e);
@@ -337,8 +346,8 @@ serve(async (req) => {
       }
     }
 
-    // Batch searches with rate limiting, progress tracking, and quota detection
-    async function batchGoogleSearch(searches: Array<{query: string, site?: string, dateRange?: string}>, delayMs = 200) {
+    // Batch searches with rate limiting, progress tracking, quota detection, and date sorting
+    async function batchGoogleSearch(searches: Array<{query: string, site?: string, dateRange?: string, sortByDate?: boolean}>, delayMs = 200) {
       const results = [];
       let successCount = 0;
       let failCount = 0;
@@ -348,7 +357,7 @@ serve(async (req) => {
       
       for (let i = 0; i < searches.length; i++) {
         const search = searches[i];
-        const items = await googleSearch(search.query, search.site, search.dateRange);
+        const items = await googleSearch(search.query, search.site, search.dateRange, search.sortByDate || false);
         
         // Check for quota exceeded (empty results after successful ones might indicate quota)
         if (items.length === 0 && successCount > 0 && i > 10) {
@@ -381,89 +390,137 @@ serve(async (req) => {
       return { results, quotaExceeded, successCount, failCount };
     }
 
-    // Generate OPTIMIZED search queries (reduced from 50-100+ to ~25)
-    const allSearchQueries: Array<{query: string, site?: string, dateRange?: string}> = [];
+    // Generate COMPREHENSIVE search queries with multiple date ranges and sorting strategies
+    const allSearchQueries: Array<{query: string, site?: string, dateRange?: string, sortByDate?: boolean}> = [];
     
-    // Don't use Google's dateRestrict parameter to avoid 365 day limit
-    // We'll filter by published_at after collecting articles instead
-    const dateRange = undefined; // Remove date restriction from Google Search
+    console.log(`Step 6: Building COMPREHENSIVE search queries for ${country} (${countryName}), target date range: ${startDate} to ${endDate} (${daysDiff} days)`);
+    console.log(`Strategy: Multiple date ranges (recent + historical) + date-sorted searches for newest content`);
     
-    console.log(`Step 6: Building OPTIMIZED search queries for ${country} (${countryName}), target date range: ${startDate} to ${endDate} (${daysDiff} days)`);
-    console.log(`Note: Google Search will return all recent articles, filtering by date will happen after collection`);
+    // STRATEGY 1: NEWEST articles first (CRITICAL - sorted by date for real-time monitoring)
+    console.log(`Building DATE-SORTED queries for NEWEST articles (last 7 days)`);
+    const recentDateRange = 'd7'; // Last 7 days
     
-    // STRATEGY 1: Top 3 configured local sources ONLY (most precise)
+    // All competitors + Gripen, sorted by date
+    for (const fighter of [...competitors, 'Gripen']) {
+      allSearchQueries.push({
+        query: `${fighter} ${countryName}`,
+        dateRange: recentDateRange,
+        sortByDate: true // SORT BY DATE to get newest first
+      });
+    }
+    
+    // Country domain, date-sorted
+    for (const fighter of [...competitors, 'Gripen']) {
+      allSearchQueries.push({
+        query: `${fighter} site:${domainSuffix}`,
+        dateRange: recentDateRange,
+        sortByDate: true
+      });
+    }
+    
+    // STRATEGY 2: Configured local sources with multiple date ranges
     if (hasCountrySources && sources && sources.length > 0) {
-      const topSources = sources.slice(0, 3); // Limit to 3 sources
-      console.log(`Building queries for TOP ${topSources.length} configured local sources (limited from ${sources.length})`);
+      const topSources = sources.slice(0, 5); // Increase to 5 sources
+      console.log(`Building queries for TOP ${topSources.length} configured local sources`);
       
       for (const source of topSources) {
         const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
         
-        // Only most important fighters on each source
-        for (const fighter of [...competitors.slice(0, 2), 'Gripen']) { // Max 3 fighters
+        // All fighters on each source with recent + historical ranges
+        for (const fighter of [...competitors, 'Gripen']) {
+          // Recent (last 30 days) - sorted by date
           allSearchQueries.push({
             query: fighter,
             site: domain,
-            dateRange
+            dateRange: 'd30',
+            sortByDate: true
+          });
+          
+          // Historical (no date restriction for older articles)
+          allSearchQueries.push({
+            query: fighter,
+            site: domain,
+            dateRange: undefined // No restriction to get older articles
           });
         }
       }
     }
 
-    // STRATEGY 2: Reduced country domain searches
-    console.log(`Building reduced ${domainSuffix} domain searches`);
+    // STRATEGY 3: Country domain searches with better coverage
+    console.log(`Building comprehensive ${domainSuffix} domain searches`);
     
-    // Top 2 fighters only on country TLD
-    for (const fighter of [...competitors.slice(0, 1), 'Gripen']) {
+    // All fighters on country TLD
+    for (const fighter of [...competitors, 'Gripen']) {
+      // Recent
       allSearchQueries.push({
         query: `${fighter} site:${domainSuffix}`,
-        dateRange
+        dateRange: 'd30',
+        sortByDate: true
+      });
+      // Historical
+      allSearchQueries.push({
+        query: `${fighter} site:${domainSuffix}`,
+        dateRange: undefined
       });
     }
     
-    // Only top native term
-    allSearchQueries.push({
-      query: `${localSearchTerms[0]} site:${domainSuffix}`,
-      dateRange
-    });
+    // Native search terms
+    for (const term of localSearchTerms.slice(0, 3)) {
+      allSearchQueries.push({
+        query: `${term} site:${domainSuffix}`,
+        dateRange: 'd30',
+        sortByDate: true
+      });
+    }
     
-    // Broad terms for all fighters
+    // Broad procurement terms
     for (const fighter of [...competitors, 'Gripen']) {
       allSearchQueries.push({
         query: `${fighter} ${countryName} procurement`,
-        dateRange
+        dateRange: 'd30',
+        sortByDate: true
+      });
+      allSearchQueries.push({
+        query: `${fighter} ${countryName} acquisition`,
+        dateRange: undefined // Historical
       });
     }
 
-    // STRATEGY 3: Top 3 international defense media ONLY
-    console.log(`Building top 3 international media searches`);
+    // STRATEGY 4: International defense media with comprehensive coverage
+    console.log(`Building international media searches`);
     
     const topInternationalOutlets = [
       'defensenews.com',
       'janes.com',
-      'flightglobal.com'
-    ]; // Reduced from 6 to 3
+      'flightglobal.com',
+      'airforce-technology.com',
+      'defenseworld.net'
+    ]; // Increased coverage
     
-    // Only search these 3 outlets for Gripen + top competitor
     for (const domain of topInternationalOutlets) {
-      allSearchQueries.push({
-        query: `Gripen ${countryName}`,
-        site: domain,
-        dateRange
-      });
-      if (competitors.length > 0) {
+      for (const fighter of [...competitors, 'Gripen']) {
+        // Recent
         allSearchQueries.push({
-          query: `${competitors[0]} ${countryName}`,
+          query: `${fighter} ${countryName}`,
           site: domain,
-          dateRange
+          dateRange: 'd30',
+          sortByDate: true
+        });
+        // Historical
+        allSearchQueries.push({
+          query: `${fighter} ${countryName}`,
+          site: domain,
+          dateRange: undefined
         });
       }
     }
 
-    // STRATEGY 4: Reduced general terms (2 instead of 5)
+    // STRATEGY 5: General defense procurement terms
     allSearchQueries.push(
-      { query: `fighter aircraft procurement ${countryName}`, dateRange },
-      { query: `air force modernization ${countryName}`, dateRange }
+      { query: `fighter aircraft procurement ${countryName}`, dateRange: 'd30', sortByDate: true },
+      { query: `air force modernization ${countryName}`, dateRange: 'd30', sortByDate: true },
+      { query: `combat aircraft ${countryName}`, dateRange: undefined },
+      { query: `military aviation ${countryName}`, dateRange: undefined }
     );
 
     console.log(`Step 7: Total of ${allSearchQueries.length} Google search queries prepared`);
@@ -737,20 +794,36 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
           }
         }
 
-        // If no source match, detect from URL domain (THIS IS AUTHORITATIVE)
+        // If no source match, detect from URL domain with improved local detection
         if (!sourceId) {
           try {
             const urlObj = new URL(article.url);
-            const hostname = urlObj.hostname;
+            const hostname = urlObj.hostname.toLowerCase();
             
-            // Check if it's a local country domain - CRITICAL LOGIC
-            if (hostname.endsWith(domainSuffix)) {
+            // Enhanced local detection - check multiple patterns
+            const isLocalDomain = 
+              hostname.endsWith(domainSuffix) || // .pt, .es, etc.
+              hostname.endsWith(`.${country.toLowerCase()}.`) || // subdomain pattern
+              hostname.includes(`.${country.toLowerCase()}.`); // middle domain pattern
+            
+            // Additional manual checks for known local domains that might not follow TLD pattern
+            const knownLocalDomains: Record<string, string[]> = {
+              'PT': ['publico.pt', 'observador.pt', 'jornaldenegocios.pt', 'dn.pt', 'rtp.pt', 'sapo.pt'],
+              'ES': ['elpais.com', 'elmundo.es', 'lavanguardia.com', 'abc.es'],
+              'BR': ['globo.com', 'uol.com.br', 'folha.uol.com.br'],
+              // Add more as needed
+            };
+            
+            const localDomainsForCountry = knownLocalDomains[country] || [];
+            const isKnownLocal = localDomainsForCountry.some(domain => hostname.includes(domain));
+            
+            if (isLocalDomain || isKnownLocal) {
               sourceCountry = country;
-              console.log(`  ✓ Detected LOCAL domain: ${hostname} ends with ${domainSuffix} -> ${sourceCountry}`);
+              console.log(`  ✓ Detected LOCAL domain: ${hostname} -> ${sourceCountry}${isKnownLocal ? ' (known local)' : ''}`);
             } else {
               // International domain (.com, .org, .net, .co.uk, etc.)
               sourceCountry = 'INTERNATIONAL';
-              console.log(`  ✓ Detected INTERNATIONAL domain: ${hostname} does not end with ${domainSuffix} -> INTERNATIONAL`);
+              console.log(`  ✓ Detected INTERNATIONAL domain: ${hostname} -> INTERNATIONAL`);
             }
           } catch (urlError) {
             console.error('  ✗ Error parsing URL for country detection:', article.url, urlError);
