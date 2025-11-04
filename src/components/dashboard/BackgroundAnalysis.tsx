@@ -137,6 +137,54 @@ export const BackgroundAnalysis = ({
     });
   };
 
+  const formatAnalysisText = (text: string) => {
+    const sections = text.split('\n\n');
+    
+    return sections.map((section, idx) => {
+      const lines = section.split('\n');
+      
+      // Check if this is a list section
+      const isList = lines.some(line => line.trim().startsWith('-') || line.trim().startsWith('•'));
+      
+      if (isList) {
+        return (
+          <div key={idx} className="space-y-2 mb-4">
+            {lines.map((line, lineIdx) => {
+              const trimmed = line.trim();
+              if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+                return (
+                  <div key={lineIdx} className="flex gap-3">
+                    <span className="text-primary font-bold mt-1">•</span>
+                    <p className="flex-1 text-foreground/90 leading-relaxed">
+                      {trimmed.substring(1).trim()}
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            })}
+          </div>
+        );
+      }
+      
+      // Check if this looks like a section header (ends with : or is short and emphatic)
+      if (section.endsWith(':') || (section.length < 100 && !section.includes('.'))) {
+        return (
+          <h4 key={idx} className="text-base font-semibold text-foreground mt-4 mb-2">
+            {section}
+          </h4>
+        );
+      }
+      
+      // Regular paragraph
+      return (
+        <p key={idx} className="text-foreground/90 leading-relaxed mb-4">
+          {section}
+        </p>
+      );
+    });
+  };
+
   return (
     <Card className="p-6">
       <div className="space-y-4">
@@ -175,89 +223,73 @@ export const BackgroundAnalysis = ({
             <TabsTrigger value="industry">Industry</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="procurement" className="space-y-4">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold">Procurement Context</h3>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {analysis.procurement_context.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-foreground">{paragraph}</p>
-                ))}
+          <TabsContent value="procurement" className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Procurement Context</h3>
+              <div className="text-sm">
+                {formatAnalysisText(analysis.procurement_context)}
               </div>
             </div>
 
-            <div className="space-y-3 mt-6">
-              <h3 className="text-lg font-semibold">Historical Patterns</h3>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {analysis.historical_patterns.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-foreground">{paragraph}</p>
-                ))}
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Historical Patterns</h3>
+              <div className="text-sm">
+                {formatAnalysisText(analysis.historical_patterns)}
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="competitors" className="space-y-4">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold">Saab Gripen</h3>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {analysis.gripen_overview.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-foreground">{paragraph}</p>
-                ))}
+          <TabsContent value="competitors" className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Saab Gripen</h3>
+              <div className="text-sm">
+                {formatAnalysisText(analysis.gripen_overview)}
               </div>
             </div>
 
-            <div className="space-y-3 mt-6">
-              <h3 className="text-lg font-semibold">Competitor Aircraft</h3>
-              <div className="flex flex-wrap gap-2 mb-3">
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Competitor Aircraft</h3>
+              <div className="flex flex-wrap gap-2 mb-4">
                 {activeCompetitors.map(competitor => (
                   <Badge key={competitor} variant="outline">{competitor}</Badge>
                 ))}
               </div>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {analysis.competitor_overview.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-foreground">{paragraph}</p>
-                ))}
+              <div className="text-sm">
+                {formatAnalysisText(analysis.competitor_overview)}
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="political" className="space-y-4">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold">Political Context</h3>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {analysis.political_context.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-foreground">{paragraph}</p>
-                ))}
+          <TabsContent value="political" className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Political Context</h3>
+              <div className="text-sm">
+                {formatAnalysisText(analysis.political_context)}
               </div>
             </div>
 
-            <div className="space-y-3 mt-6">
-              <h3 className="text-lg font-semibold">Economic Factors</h3>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {analysis.economic_factors.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-foreground">{paragraph}</p>
-                ))}
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Economic Factors</h3>
+              <div className="text-sm">
+                {formatAnalysisText(analysis.economic_factors)}
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="strategic" className="space-y-4">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold">Geopolitical Factors</h3>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {analysis.geopolitical_factors.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-foreground">{paragraph}</p>
-                ))}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Geopolitical Factors</h3>
+              <div className="text-sm">
+                {formatAnalysisText(analysis.geopolitical_factors)}
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="industry" className="space-y-4">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold">Industry Cooperation Analysis</h3>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {analysis.industry_cooperation.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-foreground">{paragraph}</p>
-                ))}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Industry Cooperation Analysis</h3>
+              <div className="text-sm">
+                {formatAnalysisText(analysis.industry_cooperation)}
               </div>
             </div>
           </TabsContent>
