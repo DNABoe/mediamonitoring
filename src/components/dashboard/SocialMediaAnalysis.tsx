@@ -243,7 +243,55 @@ export const SocialMediaAnalysis = ({ activeCountry, activeCompetitors }: Social
           </div>
         ) : analysis ? (
           <div className="prose prose-sm max-w-none dark:prose-invert">
-            <ReactMarkdown>{analysis}</ReactMarkdown>
+            <ReactMarkdown
+              components={{
+                h1: ({ children }) => (
+                  <h1 className="text-2xl font-bold text-primary mb-4 mt-6 border-b pb-2">{children}</h1>
+                ),
+                h2: ({ children }) => (
+                  <h2 className="text-xl font-bold text-primary mb-3 mt-5 border-b pb-2">{children}</h2>
+                ),
+                h3: ({ children }) => (
+                  <h3 className="text-lg font-semibold text-primary mb-3 mt-4">{children}</h3>
+                ),
+                h4: ({ children }) => (
+                  <h4 className="text-base font-semibold text-foreground mb-2 mt-3">{children}</h4>
+                ),
+                p: ({ children }) => (
+                  <p className="text-foreground/90 leading-relaxed mb-4">{children}</p>
+                ),
+                ul: ({ children }) => (
+                  <ul className="space-y-2 mb-4 ml-4">{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="space-y-2 mb-4 ml-4 list-decimal">{children}</ol>
+                ),
+                li: ({ children }) => (
+                  <li className="text-foreground/90 leading-relaxed flex gap-2">
+                    <span className="text-primary font-bold mt-0.5">•</span>
+                    <span className="flex-1">{children}</span>
+                  </li>
+                ),
+                strong: ({ children }) => (
+                  <strong className="font-semibold text-foreground">{children}</strong>
+                ),
+                em: ({ children }) => (
+                  <em className="italic text-foreground/80">{children}</em>
+                ),
+                blockquote: ({ children }) => (
+                  <blockquote className="border-l-4 border-primary/30 pl-4 py-2 my-4 italic text-foreground/80 bg-muted/30 rounded-r">
+                    {children}
+                  </blockquote>
+                ),
+                code: ({ children }) => (
+                  <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-primary">
+                    {children}
+                  </code>
+                ),
+              }}
+            >
+              {analysis}
+            </ReactMarkdown>
           </div>
         ) : stats.totalPosts === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -254,7 +302,7 @@ export const SocialMediaAnalysis = ({ activeCountry, activeCompetitors }: Social
         ) : (
           <div className="text-center py-12 text-muted-foreground">
             <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Click "Refresh Analysis" to generate AI insights</p>
+            <p>Click &quot;Refresh Analysis&quot; to generate AI insights</p>
           </div>
         )}
       </Card>
