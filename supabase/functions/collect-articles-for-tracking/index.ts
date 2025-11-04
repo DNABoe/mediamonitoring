@@ -213,17 +213,19 @@ serve(async (req) => {
     const lastCollectionDate = hasExistingCollection ? new Date(existingArticles[0].fetched_at) : null;
     
     let isIncrementalUpdate = false;
-    let incrementalDays = 7; // Default: search last 7 days for incremental updates
+    let incrementalDays = 2; // Default: focus on last 2 days for incremental updates
     
     if (hasExistingCollection && lastCollectionDate) {
       const hoursSinceLastCollection = (Date.now() - lastCollectionDate.getTime()) / (1000 * 60 * 60);
       
-      // If last collection was within the last 7 days, do incremental update
-      if (hoursSinceLastCollection < 168) { // 7 days = 168 hours
+      // If last collection was within the last 3 days, do incremental update (reduced from 7 days)
+      if (hoursSinceLastCollection < 72) { // 3 days = 72 hours
         isIncrementalUpdate = true;
-        incrementalDays = Math.max(3, Math.ceil(hoursSinceLastCollection / 24)); // At least 3 days
+        // Focus on 1-2 days for very recent articles
+        incrementalDays = Math.max(1, Math.min(2, Math.ceil(hoursSinceLastCollection / 24)));
         console.log(`✓ INCREMENTAL UPDATE MODE: Last collection was ${Math.round(hoursSinceLastCollection)} hours ago`);
-        console.log(`  Will search for articles from last ${incrementalDays} days only (drastically reduces API calls)`);
+        console.log(`  Will PRIORITIZE newest articles (last ${incrementalDays} days) with multiple date-sorted passes`);
+        console.log(`  Strategy: Focus on absolute newest content to catch breaking news`);
       } else {
         console.log(`Last collection was ${Math.round(hoursSinceLastCollection / 24)} days ago - doing full collection`);
       }
@@ -435,12 +437,22 @@ serve(async (req) => {
     }
     
     if (isIncrementalUpdate) {
-      // ============ INCREMENTAL MODE: Minimal searches for newest content only ============
+      // ============ INCREMENTAL MODE: AGGRESSIVE newest content focus ============
+      console.log(`INCREMENTAL: Multi-pass strategy to catch ALL newest articles`);
+      
+      // PASS 1: Last 24 hours - CRITICAL for breaking news (SUPER RECENT)
+      console.log(`  PASS 1: Last 24 hours (BREAKING NEWS priority)`);
+      for (const fighter of [...competitors, 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} ${countryName}`,
+          dateRange: 'd1',
+          sortByDate: true
+        });
+      }
+      
+      // PASS 2: Last 2-3 days with date sorting
       const recentDateRange = `d${incrementalDays}`;
-      
-      console.log(`INCREMENTAL: Searching last ${incrementalDays} days with date sorting`);
-      
-      // Strategy 1: All fighters, date-sorted, recent only
+      console.log(`  PASS 2: Last ${incrementalDays} days (recent coverage)`);
       for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
           query: `${fighter} ${countryName}`,
@@ -449,32 +461,34 @@ serve(async (req) => {
         });
       }
       
-      // Strategy 2: Top 2 configured sources only
+      // PASS 3: Configured sources - last 2 days ONLY
       if (hasCountrySources && sources && sources.length > 0) {
-        const topSources = sources.slice(0, 2);
+        console.log(`  PASS 3: Top 3 sources (last 2 days)`);
+        const topSources = sources.slice(0, 3);
         for (const source of topSources) {
           const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
           for (const fighter of [...competitors, 'Gripen']) {
             allSearchQueries.push({
               query: fighter,
               site: domain,
-              dateRange: recentDateRange,
+              dateRange: 'd2',
               sortByDate: true
             });
           }
         }
       }
       
-      // Strategy 3: Country domain, top fighters only
-      for (const fighter of [...competitors.slice(0, 1), 'Gripen']) {
+      // PASS 4: Country domain - newest only
+      console.log(`  PASS 4: Country domain (last 2 days)`);
+      for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
           query: `${fighter} site:${domainSuffix}`,
-          dateRange: recentDateRange,
+          dateRange: 'd2',
           sortByDate: true
         });
       }
       
-      console.log(`INCREMENTAL MODE: Only ${allSearchQueries.length} searches (vs ~85 in full mode) - saves API quota!`);
+      console.log(`INCREMENTAL MODE: ${allSearchQueries.length} targeted searches focusing on NEWEST content`);
       
     } else {
       // ============ FULL MODE: Comprehensive searches for initial collection ============

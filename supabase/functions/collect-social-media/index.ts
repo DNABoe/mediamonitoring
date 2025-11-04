@@ -98,12 +98,14 @@ serve(async (req) => {
     if (hasExistingCollection && lastCollectionDate) {
       const hoursSinceLastCollection = (Date.now() - lastCollectionDate.getTime()) / (1000 * 60 * 60);
       
-      // If last collection was within the last 7 days, do incremental update
-      if (hoursSinceLastCollection < 168) { // 7 days
+      // If last collection was within the last 3 days, do incremental update (reduced from 7 days)
+      if (hoursSinceLastCollection < 72) { // 3 days = 72 hours
         isIncrementalUpdate = true;
-        incrementalDays = Math.max(2, Math.ceil(hoursSinceLastCollection / 24)); // At least 2 days
+        // Focus on 1-2 days for very recent posts
+        incrementalDays = Math.max(1, Math.min(2, Math.ceil(hoursSinceLastCollection / 24)));
         console.log(`✓ INCREMENTAL UPDATE MODE: Last collection was ${Math.round(hoursSinceLastCollection)} hours ago`);
-        console.log(`  Will search for posts from last ${incrementalDays} days only (drastically reduces API calls)`);
+        console.log(`  Will PRIORITIZE newest posts (last ${incrementalDays} days) with multiple time ranges`);
+        console.log(`  Strategy: Multi-pass approach to catch all breaking discussions`);
       } else {
         console.log(`Last collection was ${Math.round(hoursSinceLastCollection / 24)} days ago - doing full collection`);
       }
@@ -143,34 +145,52 @@ serve(async (req) => {
       console.log(`Building queries for ${fighter} (${isIncrementalUpdate ? 'incremental' : 'full'} mode)`);
       
       if (isIncrementalUpdate) {
-        // ============ INCREMENTAL MODE: Only newest posts ============
-        const recentRange = `d${incrementalDays}`;
+        // ============ INCREMENTAL MODE: AGGRESSIVE multi-pass for newest posts ============
+        console.log(`  INCREMENTAL: Multi-pass strategy for ${fighter}`);
         
-        // REDDIT - Recent only, date-sorted
+        // PASS 1: Last 24 hours - CRITICAL for breaking discussions (all platforms)
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} ${country} site:reddit.com`,
-          dateRange: recentRange
+          dateRange: 'd1'
         });
-        
-        // X (TWITTER) - Very recent for real-time temperature
         searchQueries.push({
           platform: 'x',
           query: `${fighter} ${country} site:x.com OR site:twitter.com`,
-          dateRange: recentRange
+          dateRange: 'd1'
         });
-        
-        // FACEBOOK - Recent local language
         searchQueries.push({
           platform: 'facebook',
           query: `${fighter} ${localLanguage} site:facebook.com`,
-          dateRange: recentRange
+          dateRange: 'd1'
         });
-        
-        // LINKEDIN - Recent professional discourse
         searchQueries.push({
           platform: 'linkedin',
           query: `${fighter} site:linkedin.com`,
+          dateRange: 'd1'
+        });
+        
+        // PASS 2: Last 2 days - broader recent coverage
+        const recentRange = `d${incrementalDays}`;
+        
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} military site:reddit.com`,
+          dateRange: recentRange
+        });
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} defense site:x.com OR site:twitter.com`,
+          dateRange: recentRange
+        });
+        searchQueries.push({
+          platform: 'facebook',
+          query: `${fighter} ${country} site:facebook.com`,
+          dateRange: recentRange
+        });
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} aerospace site:linkedin.com`,
           dateRange: recentRange
         });
         
