@@ -26,6 +26,7 @@ import { MediaMonitoringAgent } from "@/components/dashboard/MediaMonitoringAgen
 import { SocialMediaFeed } from "@/components/dashboard/SocialMediaFeed";
 import { SocialMediaAnalysis } from "@/components/dashboard/SocialMediaAnalysis";
 import { SocialSentimentTimeline } from "@/components/dashboard/SocialSentimentTimeline";
+import { SocialTrendsSummary } from "@/components/dashboard/SocialTrendsSummary";
 import { SocialPlatformComparison } from "@/components/dashboard/SocialPlatformComparison";
 import { useSentimentData } from "@/hooks/useSentimentData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -285,6 +286,10 @@ const Index = () => {
             </TabsContent>
             <TabsContent value="trends">
               <div className="space-y-6">
+                <SocialTrendsSummary 
+                  activeCountry={userSettings.activeCountry}
+                  activeCompetitors={userSettings.activeCompetitors}
+                />
                 <SocialSentimentTimeline 
                   activeCountry={userSettings.activeCountry}
                   activeCompetitors={userSettings.activeCompetitors}

@@ -38,9 +38,10 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors, star
 
       if (error) throw error;
 
-      // Filter by active competitors
+      // Filter by active competitors + Gripen
+      const allCompetitors = ['Gripen', ...activeCompetitors];
       const filteredPosts = posts?.filter(post => 
-        activeCompetitors.some(comp => post.fighter_tags?.includes(comp))
+        allCompetitors.some(comp => post.fighter_tags?.includes(comp))
       ) || [];
 
       // Create daily buckets
@@ -61,8 +62,8 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors, star
           totalPosts: dayPosts.length,
         };
 
-        // Calculate per-fighter sentiment
-        activeCompetitors.forEach(fighter => {
+        // Calculate per-fighter sentiment (including Gripen)
+        allCompetitors.forEach(fighter => {
           const fighterPosts = dayPosts.filter(p => p.fighter_tags?.includes(fighter));
           const avgSentiment = fighterPosts.length > 0
             ? fighterPosts.reduce((sum, p) => sum + (p.sentiment || 0), 0) / fighterPosts.length
@@ -119,7 +120,7 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors, star
               }}
             />
             <Legend />
-            {activeCompetitors.map((fighter, index) => (
+            {['Gripen', ...activeCompetitors].map((fighter, index) => (
               <Line
                 key={fighter}
                 type="monotone"

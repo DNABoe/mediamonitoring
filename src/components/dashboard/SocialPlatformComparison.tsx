@@ -33,13 +33,14 @@ export const SocialPlatformComparison = ({ activeCountry, activeCompetitors }: S
 
       if (error) throw error;
 
-      // Filter by active competitors
+      // Filter by active competitors + Gripen
+      const allCompetitors = ['Gripen', ...activeCompetitors];
       const filteredPosts = posts?.filter(post => 
-        activeCompetitors.some(comp => post.fighter_tags?.includes(comp))
+        allCompetitors.some(comp => post.fighter_tags?.includes(comp))
       ) || [];
 
       // Group by platform
-      const platforms = ['twitter', 'reddit', 'linkedin'];
+      const platforms = ['x', 'twitter', 'reddit', 'facebook', 'linkedin'];
       const comparison = platforms.map(platform => {
         const platformPosts = filteredPosts.filter(p => p.platform === platform);
         
