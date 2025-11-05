@@ -22,7 +22,6 @@ import { BackgroundAnalysis } from "@/components/dashboard/BackgroundAnalysis";
 import { SentimentOverTimeChart } from "@/components/dashboard/SentimentOverTimeChart";
 import { SentimentDistributionChart } from "@/components/dashboard/SentimentDistributionChart";
 import { PublicationTimelineChart } from "@/components/dashboard/PublicationTimelineChart";
-import { MediaMonitoringAgent } from "@/components/dashboard/MediaMonitoringAgent";
 import { SocialMediaFeed } from "@/components/dashboard/SocialMediaFeed";
 import { SocialMediaAnalysis } from "@/components/dashboard/SocialMediaAnalysis";
 import { SocialSentimentTimeline } from "@/components/dashboard/SocialSentimentTimeline";
@@ -207,55 +206,7 @@ const Index = () => {
           <ResearchExecutiveSummary activeCompetitors={userSettings.activeCompetitors} />
         </div>
 
-        <div className="mb-6">
-          <SentimentOverTimeChart 
-            activeCompetitors={userSettings.activeCompetitors}
-            data={sentimentOverTime}
-          />
-        </div>
-
-        <div className="mb-6">
-          <SentimentDistributionChart 
-            activeCompetitors={userSettings.activeCompetitors}
-            sentimentData={sentimentDistribution}
-          />
-        </div>
-
-        <div className="mb-6">
-          <PublicationTimelineChart 
-            activeCompetitors={userSettings.activeCompetitors}
-            data={publicationTimeline}
-          />
-        </div>
-
-        <div className="mb-6">
-          <SentimentTimeline activeCompetitors={userSettings.activeCompetitors} />
-        </div>
-
-        {/* <div className="mb-6">
-          <ResearchDimensions />
-        </div> */}
-
-        <div className="mb-6">
-          <WinnerMetar activeCompetitors={userSettings.activeCompetitors} />
-        </div>
-
-        <div className="mb-6">
-          <StrategicSuggestions activeCompetitors={userSettings.activeCompetitors} />
-        </div>
-
-        <div className="mb-6">
-          <BlackHatAnalysis activeCompetitors={userSettings.activeCompetitors} activeCountry={userSettings.activeCountry} />
-        </div>
-
-        <div className="mb-6">
-          <ResearchSources />
-        </div>
-
-        <div className="mb-6">
-          <MediaMonitoringAgent />
-        </div>
-
+        {/* Media Monitoring - Prioritized at top */}
         <div className="mb-6">
           <Tabs defaultValue="articles" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
@@ -302,6 +253,47 @@ const Index = () => {
               </div>
             </TabsContent>
           </Tabs>
+        </div>
+
+        <div className="mb-6">
+          <SentimentOverTimeChart 
+            activeCompetitors={userSettings.activeCompetitors}
+            data={sentimentOverTime}
+          />
+        </div>
+
+        <div className="mb-6">
+          <SentimentDistributionChart 
+            activeCompetitors={userSettings.activeCompetitors}
+            sentimentData={sentimentDistribution}
+          />
+        </div>
+
+        <div className="mb-6">
+          <PublicationTimelineChart 
+            activeCompetitors={userSettings.activeCompetitors}
+            data={publicationTimeline}
+          />
+        </div>
+
+        <div className="mb-6">
+          <SentimentTimeline activeCompetitors={userSettings.activeCompetitors} />
+        </div>
+
+        <div className="mb-6">
+          <WinnerMetar activeCompetitors={userSettings.activeCompetitors} />
+        </div>
+
+        <div className="mb-6">
+          <StrategicSuggestions activeCompetitors={userSettings.activeCompetitors} />
+        </div>
+
+        <div className="mb-6">
+          <BlackHatAnalysis activeCompetitors={userSettings.activeCompetitors} activeCountry={userSettings.activeCountry} />
+        </div>
+
+        <div className="mb-6">
+          <ResearchSources />
         </div>
 
         <div className="mb-6">

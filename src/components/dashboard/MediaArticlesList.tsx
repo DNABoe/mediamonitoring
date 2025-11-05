@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Loader2, ExternalLink, RefreshCw } from "lucide-react";
+import { Loader2, ExternalLink, RefreshCw, Activity, ChevronDown, Clock, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
@@ -12,6 +12,7 @@ import { ArticleFilters } from "./ArticleFilters";
 import { useArticleFilters } from "@/hooks/useArticleFilters";
 import { useRealtimeArticles } from "@/hooks/useRealtimeArticles";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface MediaArticle {
   id: string;
@@ -39,7 +40,9 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const [lastFetchTime, setLastFetchTime] = useState<Date>(new Date());
   const [currentPage, setCurrentPage] = useState(1);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-  const articlesPerPage = 20;
+  const [agentStatus, setAgentStatus] = useState<any>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const articlesPerPage = 30;
   const { toast } = useToast();
   
   const { newArticlesCount, resetNewCount } = useRealtimeArticles({
@@ -73,7 +76,28 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
 
   useEffect(() => {
     fetchMediaArticles();
+    fetchAgentStatus();
   }, [activeCountry, activeCompetitors]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchAgentStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchAgentStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('agent_status')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (data) {
+      setAgentStatus(data);
+    }
+  };
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -400,20 +424,45 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
     <>
       <Card className="p-6">
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ExternalLink className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-bold">Media Monitoring - Fighter Procurement</h2>
-              {newArticlesCount > 0 && (
-                <Badge variant="default" className="animate-pulse">
-                  {newArticlesCount} new
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-xs text-muted-foreground">
-                Last updated: {formatDistanceToNow(lastFetchTime, { addSuffix: true })}
+          {/* Compact Header with Agent Status */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <Activity className="h-6 w-6 text-primary" />
+                <h2 className="text-2xl font-bold">Media Monitoring - Fighter Procurement</h2>
+                {agentStatus?.status === 'running' && (
+                  <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                )}
+                {newArticlesCount > 0 && (
+                  <Badge variant="default" className="animate-pulse">
+                    {newArticlesCount} new
+                  </Badge>
+                )}
               </div>
+              
+              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                <span>
+                  Monitoring Gripen vs {activeCompetitors.join(', ')} in {activeCountry}
+                  {startTrackingDate && ` • Since ${format(startTrackingDate, 'MMM d, yyyy')}`}
+                </span>
+                {agentStatus && (
+                  <>
+                    <span className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      {agentStatus.articles_collected_total || 0} articles collected
+                    </span>
+                    {agentStatus.next_run_at && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Next update {formatDistanceToNow(new Date(agentStatus.next_run_at), { addSuffix: true })}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
               <Button 
                 onClick={collectNewArticles} 
                 variant="default" 
@@ -421,7 +470,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                 disabled={loading}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Collect Articles
+                Collect
               </Button>
               <Button 
                 onClick={fetchMediaArticles} 
@@ -429,44 +478,54 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                 size="sm"
                 disabled={loading}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           </div>
-          
-          <p className="text-sm text-muted-foreground">
-            Monitoring media coverage of Gripen vs {activeCompetitors.join(', ')} in {activeCountry} fighter procurement
-            {startTrackingDate && ` (Tracking from ${format(startTrackingDate, 'MMM d, yyyy')})`}
-          </p>
 
-          <div className="space-y-3">
-            <ArticleFilters
-              filters={filters}
-              onSearchChange={setSearchText}
-              onDateRangeChange={setDateRange}
-              onSentimentChange={setSentiment}
-              onSourceTypeChange={setSourceType}
-              onCompetitorsChange={setCompetitors}
-              onClearFilters={clearFilters}
-              activeFilterCount={activeFilterCount}
-              availableCompetitors={['Gripen', ...activeCompetitors]}
-            />
-            
-            {filters.dateFrom && filters.dateTo && (
-              <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
-                <p className="text-sm">
-                  <strong>Collection Date Range Set:</strong> When you click "Collect Articles", 
-                  it will fetch articles from <strong>{format(filters.dateFrom, 'MMM d, yyyy')}</strong> to <strong>{format(filters.dateTo, 'MMM d, yyyy')}</strong>. 
-                  Clear the date filter to use the default 1-year range.
-                </p>
-              </div>
-            )}
-          </div>
+          {/* Collapsible Filters */}
+          <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full justify-between">
+                <span className="flex items-center gap-2">
+                  Filters {activeFilterCount > 0 && `(${activeFilterCount} active)`}
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3 space-y-3">
+              <ArticleFilters
+                filters={filters}
+                onSearchChange={setSearchText}
+                onDateRangeChange={setDateRange}
+                onSentimentChange={setSentiment}
+                onSourceTypeChange={setSourceType}
+                onCompetitorsChange={setCompetitors}
+                onClearFilters={clearFilters}
+                activeFilterCount={activeFilterCount}
+                availableCompetitors={['Gripen', ...activeCompetitors]}
+              />
+              
+              {filters.dateFrom && filters.dateTo && (
+                <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                  <p className="text-sm">
+                    <strong>Collection Date Range Set:</strong> When you click "Collect", 
+                    it will fetch articles from <strong>{format(filters.dateFrom, 'MMM d, yyyy')}</strong> to <strong>{format(filters.dateTo, 'MMM d, yyyy')}</strong>.
+                  </p>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
 
-          <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1}-{Math.min(endIndex, allArticles.length)} of {allArticles.length} articles
-            {activeFilterCount > 0 && ` (filtered from ${mediaArticles.length} total)`}
+          {/* Results count */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              Showing {startIndex + 1}-{Math.min(endIndex, allArticles.length)} of {allArticles.length} articles
+              {activeFilterCount > 0 && ` (filtered from ${mediaArticles.length} total)`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Updated {formatDistanceToNow(lastFetchTime, { addSuffix: true })}
+            </span>
           </div>
 
           {allArticles.length === 0 ? (
