@@ -155,8 +155,18 @@ serve(async (req) => {
           dateRange: 'd1'
         });
         searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} procurement site:reddit.com`,
+          dateRange: 'd1'
+        });
+        searchQueries.push({
           platform: 'x',
           query: `${fighter} ${country} site:x.com OR site:twitter.com`,
+          dateRange: 'd1'
+        });
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} procurement site:x.com OR site:twitter.com`,
           dateRange: 'd1'
         });
         searchQueries.push({
@@ -170,7 +180,7 @@ serve(async (req) => {
           dateRange: 'd1'
         });
         
-        // PASS 2: Last 2 days - broader recent coverage
+        // PASS 2: Last 2-3 days - broader recent coverage with multiple query variations
         const recentRange = `d${incrementalDays}`;
         
         searchQueries.push({
@@ -179,8 +189,18 @@ serve(async (req) => {
           dateRange: recentRange
         });
         searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} ${country} purchase site:reddit.com`,
+          dateRange: recentRange
+        });
+        searchQueries.push({
           platform: 'x',
           query: `${fighter} defense site:x.com OR site:twitter.com`,
+          dateRange: recentRange
+        });
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} ${country} contract site:x.com OR site:twitter.com`,
           dateRange: recentRange
         });
         searchQueries.push({
@@ -189,19 +209,34 @@ serve(async (req) => {
           dateRange: recentRange
         });
         searchQueries.push({
+          platform: 'facebook',
+          query: `${fighter} defense ${localLanguage} site:facebook.com`,
+          dateRange: recentRange
+        });
+        searchQueries.push({
           platform: 'linkedin',
           query: `${fighter} aerospace site:linkedin.com`,
+          dateRange: recentRange
+        });
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} ${country} defense site:linkedin.com`,
           dateRange: recentRange
         });
         
       } else {
         // ============ FULL MODE: Comprehensive coverage ============
       
-        // REDDIT - Multiple search strategies
+        // REDDIT - Multiple search strategies with more thorough coverage
         // Recent discussions (last 7 days) - MOST IMPORTANT for temperature
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} ${country} fighter jet site:reddit.com`,
+          dateRange: 'd7'
+        });
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} ${country} procurement site:reddit.com`,
           dateRange: 'd7'
         });
         
@@ -211,6 +246,11 @@ serve(async (req) => {
           query: `${fighter} military aviation site:reddit.com`,
           dateRange: 'd30'
         });
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} purchase contract site:reddit.com`,
+          dateRange: 'd30'
+        });
         
         // Specific subreddits if country-specific
         searchQueries.push({
@@ -218,12 +258,22 @@ serve(async (req) => {
           query: `${fighter} site:reddit.com/r/${country.toLowerCase()}`,
           dateRange: 'd30'
         });
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} defense site:reddit.com/r/defense`,
+          dateRange: 'd30'
+        });
         
-        // X (TWITTER) - Multiple angles
+        // X (TWITTER) - Multiple angles with more variations
         // Very recent (last 3 days for real-time temperature)
         searchQueries.push({
           platform: 'x',
           query: `${fighter} ${country} site:x.com OR site:twitter.com`,
+          dateRange: 'd3'
+        });
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} ${country} contract site:x.com OR site:twitter.com`,
           dateRange: 'd3'
         });
         
@@ -232,17 +282,32 @@ serve(async (req) => {
           query: `${fighter} procurement ${localLanguage} site:x.com OR site:twitter.com`,
           dateRange: 'd7'
         });
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} ${country} deal site:x.com OR site:twitter.com`,
+          dateRange: 'd7'
+        });
         
         searchQueries.push({
           platform: 'x',
           query: `${fighter} military site:x.com OR site:twitter.com`,
           dateRange: 'd30'
         });
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} defense purchase site:x.com OR site:twitter.com`,
+          dateRange: 'd30'
+        });
 
-        // FACEBOOK - Local language focus
+        // FACEBOOK - Local language focus with more queries
         searchQueries.push({
           platform: 'facebook',
           query: `${fighter} ${country} ${localLanguage} site:facebook.com`,
+          dateRange: 'd7'
+        });
+        searchQueries.push({
+          platform: 'facebook',
+          query: `${fighter} procurement ${localLanguage} site:facebook.com`,
           dateRange: 'd7'
         });
         
@@ -251,17 +316,32 @@ serve(async (req) => {
           query: `${fighter} defense ${localLanguage} site:facebook.com`,
           dateRange: 'd30'
         });
+        searchQueries.push({
+          platform: 'facebook',
+          query: `${fighter} contract ${localLanguage} site:facebook.com`,
+          dateRange: 'd30'
+        });
 
-        // LINKEDIN - Professional discourse
+        // LINKEDIN - Professional discourse with more depth
         searchQueries.push({
           platform: 'linkedin',
           query: `${fighter} ${country} aerospace site:linkedin.com`,
+          dateRange: 'd7'
+        });
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} ${country} defense site:linkedin.com`,
           dateRange: 'd7'
         });
         
         searchQueries.push({
           platform: 'linkedin',
           query: `${fighter} procurement site:linkedin.com`,
+          dateRange: 'd30'
+        });
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} contract site:linkedin.com`,
           dateRange: 'd30'
         });
       }

@@ -43,6 +43,7 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
       const filtered = data.filter(post => 
         allCompetitors.some(comp => post.fighter_tags?.includes(comp))
       );
+      // Sort by published_at newest first (already sorted by DB query)
       setPosts(filtered);
     }
     setIsLoading(false);
