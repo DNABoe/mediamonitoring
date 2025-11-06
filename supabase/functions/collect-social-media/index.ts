@@ -353,36 +353,46 @@ async function processSocialPost(
             model: 'google/gemini-2.5-flash',
             messages: [{
               role: 'user',
-              content: `Analyze this social media post about fighter jets for ${country}.
+              content: `Analyze this social media post about fighter jet procurement for ${country}.
+
+We are tracking these fighters: ${[...competitors, 'Gripen'].join(', ')}
 
 Post: "${content}"
 
-STRICT REQUIREMENTS - Only analyze if post is about FIGHTER JET PROCUREMENT/ACQUISITION:
-✅ Discussions about ${country} purchasing/acquiring fighters
-✅ Comparisons of fighter options for ${country}
-✅ Opinions on ${country}'s fighter procurement decision
-✅ News/rumors about ${country}'s fighter deals
+STRICT REQUIREMENTS - Only analyze if post discusses FIGHTER JET PROCUREMENT for ${country}:
+✅ INCLUDE if post discusses:
+- ${country}'s fighter procurement/acquisition decision
+- Comparisons between: ${[...competitors, 'Gripen'].join(', ')} for ${country}
+- Opinions/debates about which fighter ${country} should choose
+- News/rumors about ${country}'s fighter deals or negotiations
+- Political/economic factors affecting ${country}'s fighter choice
 
 ❌ REJECT if post is about:
-- General military news unrelated to procurement
-- Technical specs without procurement context
+- General military news unrelated to ${country}'s procurement
+- Technical specs without procurement context for ${country}
 - Historical content or anniversaries
-- Other countries' purchases (unless comparing to ${country})
+- Other countries' purchases (unless directly comparing to ${country})
+- Military exercises or operations unrelated to procurement
 
-If NOT relevant to ${country}'s fighter procurement, return sentiment: 0, fighter_tags: [], temperature: "cool"
+CRITICAL: Tag ALL fighters mentioned from our tracking list: ${[...competitors, 'Gripen'].join(', ')}
+
+If NOT relevant to ${country}'s fighter procurement, return:
+{ "sentiment": 0, "fighter_tags": [], "temperature": "cool", "relevance": 0, "procurement_related": false }
 
 If relevant, provide:
-1. Sentiment (-1.0 to 1.0): Consider tone, language intensity
-2. Which fighters mentioned: ${[...competitors, 'Gripen'].join(', ')}
-3. Discussion temperature: passionate debate or calm discussion
-4. Relevance score (1-10): how relevant to ${country}'s procurement
+1. Sentiment (-1.0 to 1.0): Overall tone about the procurement situation
+2. fighter_tags: Array of ALL fighters mentioned from: ${[...competitors, 'Gripen'].join(', ')}
+3. temperature: "hot" (passionate debate), "warm" (active discussion), "cool" (calm)
+4. relevance (1-10): How relevant to ${country}'s procurement decision
+5. sentiment_by_fighter: Object with sentiment for each fighter mentioned (optional)
 
 Return JSON: {
   "sentiment": number,
   "fighter_tags": string[],
   "temperature": "hot" | "warm" | "cool",
   "relevance": number,
-  "procurement_related": boolean
+  "procurement_related": boolean,
+  "sentiment_by_fighter": { "fighter_name": number }
 }`
             }],
           }),
