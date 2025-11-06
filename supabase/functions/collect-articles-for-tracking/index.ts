@@ -252,70 +252,70 @@ serve(async (req) => {
       console.log(`No sources configured for ${country}, will use general domain search`);
     }
 
-    // Multi-language search terms based on country
+    // Multi-language search terms based on country - enhanced for better relevance
     const searchTermsByCountry: Record<string, { native: string[], countryName: string }> = {
       PT: { 
-        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição militar', 'Força Aérea'],
+        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição avião militar', 'Força Aérea Portuguesa', 'F-35', 'Gripen', 'Rafale'],
         countryName: 'Portugal'
       },
       ES: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea'],
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Ejército del Aire', 'F-35', 'Gripen', 'Rafale'],
         countryName: 'Spain'
       },
       CO: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Colombiana', 'FAC'],
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Colombiana', 'FAC', 'F-35', 'Gripen', 'Rafale'],
         countryName: 'Colombia'
       },
       MX: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Mexicana'],
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Mexicana', 'F-35', 'Gripen'],
         countryName: 'Mexico'
       },
       AR: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Argentina'],
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Argentina', 'F-35', 'Gripen'],
         countryName: 'Argentina'
       },
       CL: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea de Chile'],
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea de Chile', 'F-35', 'Gripen'],
         countryName: 'Chile'
       },
       PE: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea del Perú', 'FAP'],
+        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea del Perú', 'FAP', 'F-35', 'Gripen'],
         countryName: 'Peru'
       },
       BR: {
-        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição militar', 'Força Aérea Brasileira'],
+        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição militar', 'Força Aérea Brasileira', 'F-35', 'Gripen', 'Rafale'],
         countryName: 'Brazil'
       },
       CZ: {
-        native: ['stíhačka', 'stíhací letoun', 'bojový letoun', 'vojenské letadlo', 'armáda', 'letectvo'],
+        native: ['stíhačka', 'stíhací letoun', 'bojový letoun', 'nákup stíhaček', 'Vzdušné síly', 'F-35', 'Gripen'],
         countryName: 'Czech Republic'
       },
       PL: {
-        native: ['myśliwiec', 'samolot bojowy', 'zakup wojskowy', 'Siły Powietrzne'],
+        native: ['myśliwiec', 'samolot bojowy', 'zakup myśliwców', 'Siły Powietrzne', 'F-35', 'Gripen'],
         countryName: 'Poland'
       },
       RO: {
-        native: ['avion de vânătoare', 'avion de luptă', 'achiziție militară', 'Forțele Aeriene'],
+        native: ['avion de vânătoare', 'avion de luptă', 'achiziție avioane militare', 'Forțele Aeriene Române', 'F-35', 'Gripen'],
         countryName: 'Romania'
       },
       GR: {
-        native: ['μαχητικό αεροσκάφος', 'πολεμική αεροπορία', 'στρατιωτική προμήθεια'],
+        native: ['μαχητικό αεροσκάφος', 'πολεμική αεροπορία', 'αγορά μαχητικών', 'F-35', 'Gripen', 'Rafale'],
         countryName: 'Greece'
       },
       FR: {
-        native: ['avion de chasse', 'chasseur', 'acquisition militaire', 'Armée de l\'Air'],
+        native: ['avion de chasse', 'chasseur', 'acquisition avions de combat', 'Armée de l\'Air', 'F-35', 'Rafale'],
         countryName: 'France'
       },
       DE: {
-        native: ['Kampfflugzeug', 'Jagdflugzeug', 'militärische Beschaffung', 'Luftwaffe'],
+        native: ['Kampfflugzeug', 'Jagdflugzeug', 'Beschaffung Kampfjets', 'Luftwaffe', 'F-35', 'Eurofighter'],
         countryName: 'Germany'
       },
       IT: {
-        native: ['caccia', 'aereo da combattimento', 'acquisizione militare', 'Aeronautica Militare'],
+        native: ['caccia', 'aereo da combattimento', 'acquisizione caccia', 'Aeronautica Militare', 'F-35', 'Eurofighter'],
         countryName: 'Italy'
       },
       DEFAULT: { 
-        native: ['fighter jet', 'military aircraft', 'air force', 'defense procurement', 'combat aircraft'],
+        native: ['fighter jet procurement', 'military aircraft acquisition', 'air force fighters', 'defense procurement fighters', 'F-35', 'Gripen', 'Rafale'],
         countryName: 'Unknown'
       }
     };
@@ -682,17 +682,30 @@ serve(async (req) => {
           content: `You are analyzing news articles about FIGHTER JET PROCUREMENT for ${countryName}.
 
 I have ${uniqueResults.length} articles from the last ${daysDiff} days. Your task is to:
-1. ONLY identify articles about fighter jet PROCUREMENT, ACQUISITION, or PURCHASE decisions (NOT general military news)
-2. Focus SPECIFICALLY on ${countryName}'s potential purchase or acquisition of fighter jets: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50
-3. Return ONLY articles discussing procurement decisions, bids, offers, negotiations, or purchases (max 50)
-4. For each article, identify which fighters are mentioned and the sentiment
+1. STRICTLY identify articles about fighter jet PROCUREMENT, ACQUISITION, or PURCHASE for ${countryName}'s Air Force
+2. Focus on these specific fighters: ${competitors.join(', ')}, Gripen
+3. Return ONLY highly relevant articles (max 40 articles)
+4. Assign importance score based on relevance to procurement (10 = direct procurement news, 1 = barely relevant)
 
-CRITICAL EXCLUSION RULES:
-- EXCLUDE general military exercises or operations
-- EXCLUDE historical or technical articles about fighters (unless discussing procurement)
-- EXCLUDE articles that only mention fighters in passing
-- EXCLUDE articles about other countries' purchases (unless comparing to ${countryName})
-- ONLY INCLUDE articles where ${countryName} is considering, negotiating, or purchasing fighter jets
+STRICT EXCLUSION RULES - REJECT articles about:
+❌ General military exercises or training operations
+❌ Existing fleet maintenance or repairs  
+❌ Historical articles or anniversaries
+❌ Technical specifications without procurement context
+❌ Other countries' purchases (unless directly comparing to ${countryName})
+❌ Air shows, demonstrations, or exhibitions (unless procurement announcement)
+❌ General defense budget news (unless specifically mentioning fighter procurement)
+❌ Pilot training programs (unless tied to new aircraft acquisition)
+
+ONLY INCLUDE articles that:
+✅ Discuss ${countryName}'s procurement decision, tender, or competition
+✅ Mention negotiations, offers, or bids for new fighters
+✅ Announce purchase decisions or contracts
+✅ Compare fighter options for ${countryName}'s acquisition
+✅ Quote officials about fighter acquisition plans
+✅ Report on parliamentary/government approval for fighter purchase
+
+Minimum importance threshold: 5/10 (discard anything lower)
 
 Articles to analyze:
 ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({ 
@@ -725,7 +738,7 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
                       },
                       importance: {
                         type: 'number',
-                        description: 'Importance score 1-10, where 10 is breaking news about procurement'
+                        description: 'Relevance score 1-10: 10=breaking procurement news, 8-9=negotiations/bids, 6-7=comparison/analysis, 5=tangentially related, <5=not relevant (discard)'
                       },
                       source_country: { 
                         type: 'string',
@@ -774,13 +787,20 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
     }
     console.log('========================================');
     
-    // Sort by importance and take top articles
+    // Filter by relevance threshold and sort by importance
     structuredArticles = structuredArticles
-      .filter((a: any) => a.importance >= 5) // Only keep important articles (5+/10)
+      .filter((a: any) => {
+        // Strict filtering: importance must be >= 6 for high relevance
+        if (a.importance < 6) {
+          console.log(`  Rejected low relevance (${a.importance}/10): "${a.title?.substring(0, 50)}"`);
+          return false;
+        }
+        return true;
+      })
       .sort((a: any, b: any) => (b.importance || 0) - (a.importance || 0))
-      .slice(0, 50); // Max 50 articles
+      .slice(0, 40); // Max 40 highly relevant articles
     
-    console.log(`Step 12: Filtered to top ${structuredArticles.length} articles (importance >= 5/10)`);
+    console.log(`Step 12: Filtered to top ${structuredArticles.length} highly relevant articles (importance >= 6/10)`);
 
     // Map AI results to URLs from original Google results
     console.log(`Step 13: Mapping ${structuredArticles.length} articles to URLs...`);

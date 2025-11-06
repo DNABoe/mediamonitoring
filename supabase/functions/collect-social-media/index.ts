@@ -357,16 +357,32 @@ async function processSocialPost(
 
 Post: "${content}"
 
-Provide:
-1. Overall sentiment (-1.0 to 1.0): Consider tone, language intensity, and opinion strength
-2. Which fighters are mentioned: ${[...competitors, 'Gripen'].join(', ')}
-3. Discussion temperature: Is this heated/passionate or calm/factual?
+STRICT REQUIREMENTS - Only analyze if post is about FIGHTER JET PROCUREMENT/ACQUISITION:
+✅ Discussions about ${country} purchasing/acquiring fighters
+✅ Comparisons of fighter options for ${country}
+✅ Opinions on ${country}'s fighter procurement decision
+✅ News/rumors about ${country}'s fighter deals
 
-Return JSON with: {
+❌ REJECT if post is about:
+- General military news unrelated to procurement
+- Technical specs without procurement context
+- Historical content or anniversaries
+- Other countries' purchases (unless comparing to ${country})
+
+If NOT relevant to ${country}'s fighter procurement, return sentiment: 0, fighter_tags: [], temperature: "cool"
+
+If relevant, provide:
+1. Sentiment (-1.0 to 1.0): Consider tone, language intensity
+2. Which fighters mentioned: ${[...competitors, 'Gripen'].join(', ')}
+3. Discussion temperature: passionate debate or calm discussion
+4. Relevance score (1-10): how relevant to ${country}'s procurement
+
+Return JSON: {
   "sentiment": number,
   "fighter_tags": string[],
   "temperature": "hot" | "warm" | "cool",
-  "key_themes": string[]
+  "relevance": number,
+  "procurement_related": boolean
 }`
             }],
           }),
@@ -378,14 +394,28 @@ Return JSON with: {
           
           try {
             const parsed = JSON.parse(responseText);
+            
+            // Check relevance - skip if not procurement-related
+            if (parsed.procurement_related === false || (parsed.relevance && parsed.relevance < 5)) {
+              console.log(`  Skipped irrelevant post (relevance: ${parsed.relevance})`);
+              return; // Don't store irrelevant posts
+            }
+            
             sentiment = parsed.sentiment || 0;
             tags = parsed.fighter_tags || [];
             
-            console.log(`  AI Analysis: sentiment=${sentiment}, temp=${parsed.temperature}, themes=${parsed.key_themes?.join(', ')}`);
+            console.log(`  AI Analysis: sentiment=${sentiment}, temp=${parsed.temperature}, relevance=${parsed.relevance}`);
           } catch {
             // Fallback: extract from text response
             const sentimentMatch = responseText.match(/sentiment["\s:]+(-?\d+\.?\d*)/i);
             if (sentimentMatch) sentiment = parseFloat(sentimentMatch[1]);
+            
+            // Check if AI indicated irrelevance in text
+            if (responseText.toLowerCase().includes('not relevant') || 
+                responseText.toLowerCase().includes('irrelevant')) {
+              console.log(`  Skipped: AI marked as irrelevant`);
+              return;
+            }
             
             for (const fighter of [...competitors, 'Gripen']) {
               if (content.toLowerCase().includes(fighter.toLowerCase())) {
@@ -399,12 +429,19 @@ Return JSON with: {
       }
     }
     
-    // Fallback if AI didn't detect fighters
+    // Additional relevance check - skip if no fighter tags detected
     if (tags.length === 0) {
+      // Try basic keyword matching as final check
       for (const fighter of [...competitors, 'Gripen']) {
         if (content.toLowerCase().includes(fighter.toLowerCase())) {
           tags.push(fighter);
         }
+      }
+      
+      // Still no tags? Post is likely irrelevant
+      if (tags.length === 0) {
+        console.log(`  Skipped: No fighter tags detected`);
+        return;
       }
     }
 
