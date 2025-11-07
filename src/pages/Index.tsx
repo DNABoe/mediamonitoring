@@ -29,6 +29,7 @@ import { SocialTrendsSummary } from "@/components/dashboard/SocialTrendsSummary"
 import { SocialPlatformComparison } from "@/components/dashboard/SocialPlatformComparison";
 import { useSentimentData } from "@/hooks/useSentimentData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const {
@@ -48,6 +49,7 @@ const Index = () => {
     sentimentDistribution, 
     loading: sentimentLoading 
   } = useSentimentData(userSettings.activeCountry, userSettings.activeCompetitors, startTrackingDate);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -141,51 +143,84 @@ const Index = () => {
   }
   return <div className="min-h-screen bg-background text-foreground">
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-start gap-4">
-            <span className="text-6xl leading-none">{userSettings.countryFlag}</span>
-            <div className="flex flex-col items-start gap-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-foreground text-left">
-                  Fighter Program Media Analysis - {userSettings.countryName}
-                </h1>
-                {isAdmin && <BaselineGenerator currentDate={baselineDate} />}
-              </div>
-                <div className="flex items-center gap-2 flex-wrap text-left">
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
-                  Real-time intelligence dashboard • Competitors:
-                </p>
-                <span className="text-xs font-medium text-primary">
-                  Gripen
-                </span>
-                <span className="text-xs text-muted-foreground">vs</span>
-                {userSettings.activeCompetitors.map((competitor, index) => (
-                  <span key={competitor}>
-                    <span className="text-xs font-medium text-primary">
-                      {competitor}
-                    </span>
-                    {index < userSettings.activeCompetitors.length - 1 && (
-                      <span className="text-xs text-muted-foreground mx-1">•</span>
-                    )}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <ExportPDF />
-            {isAdmin && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
-                <Settings className="h-4 w-4" />
-              </Button>}
-            <Button variant="outline" size="sm" onClick={signOut} title="Sign Out">
-              <LogOut className="h-4 w-4" />
-            </Button>
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2">
+            {/* Mobile Layout */}
+            {isMobile ? (
+              <>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-3xl leading-none flex-shrink-0">{userSettings.countryFlag}</span>
+                  <div className="flex flex-col items-start gap-0.5 min-w-0 flex-1">
+                    <h1 className="text-sm font-bold text-foreground text-left truncate w-full">
+                      {userSettings.countryName} Analysis
+                    </h1>
+                    <div className="flex items-center gap-1 flex-wrap text-left">
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
+                        Live
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {isAdmin && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} className="h-7 w-7 p-0">
+                      <Settings className="h-3.5 w-3.5" />
+                    </Button>}
+                  <Button variant="outline" size="sm" onClick={signOut} title="Sign Out" className="h-7 w-7 p-0">
+                    <LogOut className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              /* Desktop Layout */
+              <>
+                <div className="flex items-start gap-4">
+                  <span className="text-6xl leading-none">{userSettings.countryFlag}</span>
+                  <div className="flex flex-col items-start gap-1">
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-xl font-bold text-foreground text-left">
+                        Fighter Program Media Analysis - {userSettings.countryName}
+                      </h1>
+                      {isAdmin && <BaselineGenerator currentDate={baselineDate} />}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-left">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
+                        Real-time intelligence dashboard • Competitors:
+                      </p>
+                      <span className="text-xs font-medium text-primary">
+                        Gripen
+                      </span>
+                      <span className="text-xs text-muted-foreground">vs</span>
+                      {userSettings.activeCompetitors.map((competitor, index) => (
+                        <span key={competitor}>
+                          <span className="text-xs font-medium text-primary">
+                            {competitor}
+                          </span>
+                          {index < userSettings.activeCompetitors.length - 1 && (
+                            <span className="text-xs text-muted-foreground mx-1">•</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ExportPDF />
+                  {isAdmin && <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+                      <Settings className="h-4 w-4" />
+                    </Button>}
+                  <Button variant="outline" size="sm" onClick={signOut} title="Sign Out">
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-6">
         {isAdmin && <div className="mb-6">
             <ResearchControls />
           </div>}
@@ -207,13 +242,21 @@ const Index = () => {
         </div>
 
         {/* Media Monitoring - Prioritized at top */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <Tabs defaultValue="articles" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="articles">Media Articles</TabsTrigger>
-              <TabsTrigger value="social">Social Feed</TabsTrigger>
-              <TabsTrigger value="analysis">Social Analysis</TabsTrigger>
-              <TabsTrigger value="trends">Social Trends</TabsTrigger>
+            <TabsList className={isMobile ? "grid w-full grid-cols-2" : "grid w-full grid-cols-4"}>
+              <TabsTrigger value="articles" className={isMobile ? "text-xs" : ""}>
+                {isMobile ? "Articles" : "Media Articles"}
+              </TabsTrigger>
+              <TabsTrigger value="social" className={isMobile ? "text-xs" : ""}>
+                {isMobile ? "Social" : "Social Feed"}
+              </TabsTrigger>
+              <TabsTrigger value="analysis" className={isMobile ? "text-xs" : ""}>
+                {isMobile ? "Analysis" : "Social Analysis"}
+              </TabsTrigger>
+              <TabsTrigger value="trends" className={isMobile ? "text-xs" : ""}>
+                {isMobile ? "Trends" : "Social Trends"}
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="articles">
               <MediaArticlesList 
@@ -255,48 +298,48 @@ const Index = () => {
           </Tabs>
         </div>
 
-        <div className="mb-6">
-          <SentimentOverTimeChart 
+        <div className="mb-4 sm:mb-6">
+          <SentimentOverTimeChart
             activeCompetitors={userSettings.activeCompetitors}
             data={sentimentOverTime}
           />
         </div>
 
-        <div className="mb-6">
-          <SentimentDistributionChart 
+        <div className="mb-4 sm:mb-6">
+          <SentimentDistributionChart
             activeCompetitors={userSettings.activeCompetitors}
             sentimentData={sentimentDistribution}
           />
         </div>
 
-        <div className="mb-6">
-          <PublicationTimelineChart 
+        <div className="mb-4 sm:mb-6">
+          <PublicationTimelineChart
             activeCompetitors={userSettings.activeCompetitors}
             data={publicationTimeline}
           />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <SentimentTimeline activeCompetitors={userSettings.activeCompetitors} />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <WinnerMetar activeCompetitors={userSettings.activeCompetitors} />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <StrategicSuggestions activeCompetitors={userSettings.activeCompetitors} />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <BlackHatAnalysis activeCompetitors={userSettings.activeCompetitors} activeCountry={userSettings.activeCountry} />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <ResearchSources />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <AgentStatusPanel
             activeCountry={userSettings.activeCountry}
             activeCompetitors={userSettings.activeCompetitors}
