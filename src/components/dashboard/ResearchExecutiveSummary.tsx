@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TopSource {
   name: string;
@@ -30,6 +31,7 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [topSources, setTopSources] = useState<TopSource[]>([]);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchLatestReport();
@@ -160,36 +162,38 @@ export const ResearchExecutiveSummary = ({ activeCompetitors }: ResearchExecutiv
   const timeAgo = formatDistanceToNow(new Date(report.created_at), { addSuffix: true });
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10">
+    <Card className="p-3 sm:p-6 bg-gradient-to-br from-primary/5 to-primary/10">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Intelligence Summary</h2>
-          <span className="text-sm text-muted-foreground">Updated {timeAgo}</span>
+        <div className={isMobile ? "space-y-2" : "flex items-center justify-between"}>
+          <h2 className={isMobile ? "text-lg font-bold" : "text-2xl font-bold"}>Intelligence Summary</h2>
+          <span className="text-xs sm:text-sm text-muted-foreground">Updated {timeAgo}</span>
         </div>
 
         <div className="prose prose-sm max-w-none">
-          <p className="text-base leading-relaxed whitespace-pre-line">
+          <p className={`${isMobile ? 'text-sm' : 'text-base'} leading-relaxed whitespace-pre-line`}>
             {report.executive_summary}
           </p>
         </div>
 
         {report.media_presence && (
           <div className="pt-4 border-t">
-            <div className="flex justify-around items-center gap-4">
+            <div className={`${isMobile ? 'grid grid-cols-2' : 'flex justify-around items-center'} gap-3 sm:gap-4`}>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">
+                <div className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold text-primary`}>
                   {report.media_presence.total_gripen_mentions || 0}
                 </div>
-                <div className="text-sm text-muted-foreground">Gripen Mentions</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Gripen {isMobile ? '' : 'Mentions'}</div>
               </div>
               {activeCompetitors.map((competitor) => {
                 const mentionKey = `total_${competitor.toLowerCase().replace(/[^a-z0-9]/g, '_')}_mentions`;
                 return (
                   <div key={competitor} className="text-center">
-                    <div className="text-3xl font-bold text-primary">
+                    <div className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold text-primary`}>
                       {report.media_presence[mentionKey] || 0}
                     </div>
-                    <div className="text-sm text-muted-foreground">{competitor} Mentions</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">
+                      {competitor} {isMobile ? '' : 'Mentions'}
+                    </div>
                   </div>
                 );
               })}

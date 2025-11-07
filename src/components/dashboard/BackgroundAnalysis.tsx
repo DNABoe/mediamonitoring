@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { format } from "date-fns";
 
 interface BackgroundAnalysisProps {
   activeCountry: string;
@@ -37,6 +39,7 @@ export const BackgroundAnalysis = ({
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchAnalysis();
@@ -186,41 +189,46 @@ export const BackgroundAnalysis = ({
   };
 
   return (
-    <Card className="p-6">
+    <Card className="p-3 sm:p-6">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BookOpen className="h-6 w-6 text-primary" />
+        <div className={isMobile ? "space-y-2" : "flex items-center justify-between"}>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <BookOpen className={isMobile ? "h-5 w-5 text-primary" : "h-6 w-6 text-primary"} />
             <div>
-              <h2 className="text-2xl font-bold">Background Analysis</h2>
-              <p className="text-sm text-muted-foreground">
-                Comprehensive context for {countryName} fighter procurement
+              <h2 className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>Background Analysis</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {isMobile ? countryName : `Comprehensive context for ${countryName} fighter procurement`}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              Generated {formatDate(analysis.created_at)}
+          <div className={`flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}>
+            <Badge variant="secondary" className="text-xs">
+              {isMobile ? format(new Date(analysis.created_at), 'MMM d') : `Generated ${formatDate(analysis.created_at)}`}
             </Badge>
             <Button
               onClick={generateAnalysis}
               variant="outline"
               size="sm"
               disabled={generating}
+              className={isMobile ? 'flex-1' : ''}
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${generating ? 'animate-spin' : ''}`} />
-              Regenerate
+              <RefreshCw className={`h-4 w-4 ${isMobile ? '' : 'mr-2'} ${generating ? 'animate-spin' : ''}`} />
+              {!isMobile && 'Regenerate'}
             </Button>
           </div>
         </div>
 
         <Tabs defaultValue="procurement" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="procurement">Procurement</TabsTrigger>
-            <TabsTrigger value="competitors">Competitors</TabsTrigger>
-            <TabsTrigger value="political">Political</TabsTrigger>
-            <TabsTrigger value="strategic">Strategic</TabsTrigger>
-            <TabsTrigger value="industry">Industry</TabsTrigger>
+          <TabsList className={isMobile ? "grid w-full grid-cols-3" : "grid w-full grid-cols-5"}>
+            <TabsTrigger value="procurement" className={isMobile ? "text-xs" : ""}>
+              {isMobile ? "Proc." : "Procurement"}
+            </TabsTrigger>
+            <TabsTrigger value="competitors" className={isMobile ? "text-xs" : ""}>
+              {isMobile ? "Comp." : "Competitors"}
+            </TabsTrigger>
+            <TabsTrigger value="political" className={isMobile ? "text-xs" : ""}>Political</TabsTrigger>
+            {!isMobile && <TabsTrigger value="strategic">Strategic</TabsTrigger>}
+            {!isMobile && <TabsTrigger value="industry">Industry</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="procurement" className="space-y-6">

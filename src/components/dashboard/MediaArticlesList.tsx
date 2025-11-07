@@ -13,6 +13,7 @@ import { useArticleFilters } from "@/hooks/useArticleFilters";
 import { useRealtimeArticles } from "@/hooks/useRealtimeArticles";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MediaArticle {
   id: string;
@@ -44,6 +45,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const [filtersOpen, setFiltersOpen] = useState(false);
   const articlesPerPage = 30;
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   const { newArticlesCount, resetNewCount } = useRealtimeArticles({
     activeCountry,
@@ -422,25 +424,27 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
 
   return (
     <>
-      <Card className="p-6">
+      <Card className="p-3 sm:p-6">
         <div className="space-y-4">
           {/* Compact Header with Agent Status */}
-          <div className="flex items-start justify-between gap-4">
+          <div className={isMobile ? "space-y-3" : "flex items-start justify-between gap-4"}>
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <Activity className="h-6 w-6 text-primary" />
-                <h2 className="text-2xl font-bold">Media Monitoring - Fighter Procurement</h2>
+              <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                <Activity className={isMobile ? "h-5 w-5 text-primary" : "h-6 w-6 text-primary"} />
+                <h2 className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>
+                  {isMobile ? "Media Monitoring" : "Media Monitoring - Fighter Procurement"}
+                </h2>
                 {agentStatus?.status === 'running' && (
                   <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
                 )}
                 {newArticlesCount > 0 && (
-                  <Badge variant="default" className="animate-pulse">
+                  <Badge variant="default" className="animate-pulse text-xs">
                     {newArticlesCount} new
                   </Badge>
                 )}
               </div>
               
-              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+              <div className={`flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground flex-wrap ${isMobile ? 'hidden' : ''}`}>
                 <span>
                   Monitoring Gripen vs {activeCompetitors.join(', ')} in {activeCountry}
                   {startTrackingDate && ` • Since ${format(startTrackingDate, 'MMM d, yyyy')}`}
@@ -449,12 +453,12 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                   <>
                     <span className="flex items-center gap-1">
                       <TrendingUp className="h-3 w-3" />
-                      {agentStatus.articles_collected_total || 0} articles collected
+                      {agentStatus.articles_collected_total || 0} articles
                     </span>
                     {agentStatus.next_run_at && (
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Next update {formatDistanceToNow(new Date(agentStatus.next_run_at), { addSuffix: true })}
+                        Next {formatDistanceToNow(new Date(agentStatus.next_run_at), { addSuffix: true })}
                       </span>
                     )}
                   </>
@@ -462,21 +466,23 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}>
               <Button 
                 onClick={collectNewArticles} 
                 variant="default" 
                 size="sm"
                 disabled={loading}
+                className={isMobile ? 'flex-1' : ''}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Collect
+                <RefreshCw className={`h-4 w-4 ${isMobile ? '' : 'mr-2'} ${loading ? 'animate-spin' : ''}`} />
+                {!isMobile && 'Collect'}
               </Button>
               <Button 
                 onClick={fetchMediaArticles} 
                 variant="outline" 
                 size="sm"
                 disabled={loading}
+                className={isMobile ? 'px-3' : ''}
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>

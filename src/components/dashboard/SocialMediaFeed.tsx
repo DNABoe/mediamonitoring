@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ExternalLink, Twitter, MessageCircle, ThumbsUp, Share2, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SocialMediaFeedProps {
   activeCountry: string;
@@ -19,6 +20,7 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
   const [isCollecting, setIsCollecting] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['x', 'reddit', 'facebook', 'linkedin']);
   const [sentimentFilter, setSentimentFilter] = useState<'all' | 'positive' | 'neutral' | 'negative'>('all');
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchPosts();
@@ -143,18 +145,19 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
   return (
     <div className="space-y-4">
       {/* Collection Button */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
+      <Card className="p-3 sm:p-4">
+        <div className={isMobile ? "space-y-2" : "flex items-center justify-between"}>
+          <div className="flex-1">
             <h4 className="text-sm font-semibold">Social Media Collection</h4>
-            <p className="text-xs text-muted-foreground mt-1">
-              Collect recent social media posts about {activeCountry} fighter procurement
+            <p className={`text-xs text-muted-foreground ${isMobile ? 'mt-1' : 'mt-1'}`}>
+              {isMobile ? `Collect posts from ${activeCountry}` : `Collect recent social media posts about ${activeCountry} fighter procurement`}
             </p>
           </div>
           <Button 
             onClick={collectSocialMedia} 
             disabled={isCollecting}
             size="sm"
+            className={isMobile ? 'w-full' : ''}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isCollecting ? 'animate-spin' : ''}`} />
             {isCollecting ? 'Collecting...' : 'Collect Posts'}
@@ -163,11 +166,11 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
       </Card>
 
       {/* Filters */}
-      <Card className="p-4">
-        <div className="space-y-4">
+      <Card className="p-3 sm:p-4">
+        <div className="space-y-3 sm:space-y-4">
           <div>
             <h4 className="text-sm font-semibold mb-2">Platforms</h4>
-            <div className="flex flex-wrap gap-4">
+            <div className={`grid ${isMobile ? 'grid-cols-2' : 'flex flex-wrap'} gap-3 sm:gap-4`}>
               {['x', 'reddit', 'facebook', 'linkedin'].map(platform => (
                 <div key={platform} className="flex items-center gap-2">
                   <Checkbox
@@ -180,7 +183,7 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
                       }
                     }}
                   />
-                  <label className="text-sm capitalize">{platform === 'x' ? 'X (Twitter)' : platform}</label>
+                  <label className="text-xs sm:text-sm capitalize">{platform === 'x' ? 'X' : platform}</label>
                 </div>
               ))}
             </div>
@@ -188,13 +191,14 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
 
           <div>
             <h4 className="text-sm font-semibold mb-2">Sentiment</h4>
-            <div className="flex gap-2">
+            <div className={`grid ${isMobile ? 'grid-cols-2' : 'flex'} gap-2`}>
               {(['all', 'positive', 'neutral', 'negative'] as const).map(filter => (
                 <Button
                   key={filter}
                   size="sm"
                   variant={sentimentFilter === filter ? 'default' : 'outline'}
                   onClick={() => setSentimentFilter(filter)}
+                  className={isMobile ? 'text-xs' : ''}
                 >
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </Button>
@@ -210,25 +214,26 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
       </div>
 
       {/* Posts Grid */}
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {filteredPosts.map(post => (
-          <Card key={post.id} className="p-4 hover:shadow-md transition-shadow">
-            <div className="space-y-3">
+          <Card key={post.id} className="p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="space-y-2 sm:space-y-3">
               {/* Header */}
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2">
-                <Badge className={getPlatformColor(post.platform)}>
+                <div className="flex items-center gap-2 flex-wrap">
+                <Badge className={`${getPlatformColor(post.platform)} text-xs`}>
                   {getPlatformIcon(post.platform)}
                   <span className="ml-1 capitalize">{post.platform === 'x' ? 'X' : post.platform}</span>
                 </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    {format(new Date(post.published_at), 'PPp')}
+                  <span className="text-xs sm:text-sm text-muted-foreground">
+                    {isMobile ? format(new Date(post.published_at), 'MMM d') : format(new Date(post.published_at), 'PPp')}
                   </span>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => window.open(post.post_url, '_blank')}
+                  className="h-8 w-8 p-0"
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>
