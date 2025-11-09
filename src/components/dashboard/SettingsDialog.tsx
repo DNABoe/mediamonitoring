@@ -184,37 +184,45 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
             Manage your research data and configurations
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="analysis" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="analysis">Analysis Settings</TabsTrigger>
-            <TabsTrigger value="media">Media Outlets</TabsTrigger>
-            <TabsTrigger value="prompt">
-              <FileEdit className="h-4 w-4 mr-2" />
-              Research Prompt
+        <Tabs defaultValue="analysis" className="w-full flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 flex-shrink-0">
+            <TabsTrigger value="analysis" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Analysis Settings</span>
+              <span className="sm:hidden">Analysis</span>
             </TabsTrigger>
-            <TabsTrigger value="data">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Data Management
+            <TabsTrigger value="media" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Media Outlets</span>
+              <span className="sm:hidden">Media</span>
+            </TabsTrigger>
+            <TabsTrigger value="prompt" className="text-xs sm:text-sm">
+              <FileEdit className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Research Prompt</span>
+              <span className="sm:hidden">Prompt</span>
+            </TabsTrigger>
+            <TabsTrigger value="data" className="text-xs sm:text-sm">
+              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Data Management</span>
+              <span className="sm:hidden">Data</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="analysis" className="space-y-4">
+          <TabsContent value="analysis" className="space-y-4 overflow-y-auto flex-1">
             <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} />
           </TabsContent>
 
-          <TabsContent value="media" className="space-y-4">
+          <TabsContent value="media" className="space-y-4 overflow-y-auto flex-1">
             <MediaOutletsSettings onSettingsSaved={onSettingsSaved} />
           </TabsContent>
 
-          <TabsContent value="prompt" className="space-y-4">
+          <TabsContent value="prompt" className="space-y-4 overflow-y-auto flex-1">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -252,8 +260,8 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
             </div>
           </TabsContent>
 
-          <TabsContent value="data" className="space-y-4">
-          <div className="rounded-lg border border-destructive/50 p-4">
+          <TabsContent value="data" className="space-y-4 overflow-y-auto flex-1">
+          <div className="rounded-lg border border-destructive/50 p-3 sm:p-4">
             <div className="flex items-start gap-3 mb-4">
               <Trash2 className="h-5 w-5 text-destructive mt-0.5" />
               <div>
