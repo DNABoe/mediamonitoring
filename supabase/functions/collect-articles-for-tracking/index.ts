@@ -1,78 +1,80 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { corsHeaders } from '../_shared/cors.ts';
+import { batchPerplexitySearch } from '../_shared/perplexitySearch.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-// Normalize URLs by removing tracking parameters and cleaning up
+// Simple URL normalization to avoid duplicates
 function normalizeUrl(url: string): string {
   try {
-    const urlObj = new URL(url);
-    // Remove common tracking parameters
-    const paramsToRemove = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'];
-    paramsToRemove.forEach(param => urlObj.searchParams.delete(param));
-    return urlObj.toString();
+    const cleaned = url
+      .replace(/\?utm_[^&]+/g, '') // Remove UTM params
+      .replace(/&utm_[^&]+/g, '')
+      .replace(/\?fb[^&]+/g, '')   // Remove FB params
+      .replace(/&fb[^&]+/g, '')
+      .replace(/#.*$/, '')          // Remove anchors
+      .replace(/\/$/, '');          // Remove trailing slash
+    return cleaned;
   } catch {
     return url;
   }
 }
 
 serve(async (req) => {
-  console.log('========== FUNCTION STARTED ==========');
-  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Step 1: Authenticating user...');
+    console.log('========== collect-articles-for-tracking started ==========');
+    
+    // ============ AUTHENTICATION using JWT or service role key ============
+    console.log('Step 1: Authenticating request...');
     const authHeader = req.headers.get('Authorization');
+    
     if (!authHeader) {
+      console.error('Step 1 FAILED: No Authorization header');
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    const token = authHeader.replace('Bearer ', '');
-    
     let userId: string;
+    let supabaseClient;
     
-    // Check if this is a service role call (from agent) or user call (from UI)
-    if (token === SUPABASE_SERVICE_ROLE_KEY) {
-      // Service role call - userId must be in the request body
-      console.log('Service role authentication detected');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+      console.error('Step 1 FAILED: Missing Supabase config');
+      throw new Error('Missing Supabase configuration');
+    }
+
+    // Check if using service role key or JWT
+    const token = authHeader.replace('Bearer ', '');
+    const isServiceRole = token === SERVICE_ROLE_KEY;
+    
+    if (isServiceRole) {
+      console.log('Authenticated as SERVICE ROLE');
+      // For service role, user_id must be provided in request body
       const body = await req.json();
       userId = body.userId;
       
       if (!userId) {
-        return new Response(JSON.stringify({ error: 'userId required for service role calls' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        throw new Error('userId required when using service role authentication');
       }
       
-      console.log('Step 1 SUCCESS: Service role authenticated for user:', userId);
-      
-      // Re-parse the body for later use
-      req = new Request(req.url, {
-        method: req.method,
-        headers: req.headers,
-        body: JSON.stringify(body)
-      });
+      supabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     } else {
-      // User authentication
-      const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+      console.log('Authenticated as USER (JWT)');
+      // For JWT, verify the token and get user
+      supabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
       
-      if (userError || !user) {
+      if (authError || !user) {
+        console.error('Step 1 FAILED: Invalid JWT token:', authError);
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -80,99 +82,92 @@ serve(async (req) => {
       }
       
       userId = user.id;
-      console.log('Step 1 SUCCESS: User authenticated:', userId);
     }
-
-    console.log('Step 2: Parsing and validating request body...');
-    const body = await req.json();
     
-    // Validate input parameters
+    console.log('Step 1 SUCCESS: Authenticated user:', userId);
+
+    // ============ REQUEST VALIDATION ============
+    console.log('Step 2: Validating request body...');
+    const body = await req.json();
     const { country, competitors, startDate, endDate } = body;
     
-    console.log('Received parameters:', { country, competitors, startDate, endDate });
-    
+    console.log('Request params:', { country, competitors, startDate, endDate });
+
+    // Validate country code
     if (!country || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) {
-      console.error('Invalid country:', country);
+      console.error('Step 2 FAILED: Invalid country code');
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters',
-        details: 'Country must be a 2-letter uppercase code'
+        error: 'Invalid country code. Must be 2-letter ISO code (e.g., PT, ES)' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    
-    if (!Array.isArray(competitors) || competitors.length === 0 || competitors.length > 10) {
-      console.error('Invalid competitors array:', competitors);
+
+    // Validate competitors
+    if (!Array.isArray(competitors) || competitors.length === 0) {
+      console.error('Step 2 FAILED: Invalid competitors array');
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters',
-        details: 'Competitors must be an array with 1-10 items'
+        error: 'competitors must be a non-empty array' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    
-    for (const competitor of competitors) {
-      if (typeof competitor !== 'string' || competitor.length > 50) {
-        console.error('Invalid competitor:', competitor);
-        return new Response(JSON.stringify({ 
-          error: 'Invalid request parameters',
-          details: 'Each competitor must be a string ≤ 50 characters'
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    }
-    
+
+    // Validate dates
     if (!startDate || !endDate) {
-      console.error('Missing dates - startDate:', startDate, 'endDate:', endDate);
+      console.error('Step 2 FAILED: Missing date parameters');
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters',
-        details: 'Both startDate and endDate are required'
+        error: 'startDate and endDate are required (YYYY-MM-DD format)' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    
+
     const startDateObj = new Date(startDate);
     const endDateObj = new Date(endDate);
+    const now = new Date();
     
     if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
-      console.error('Invalid date format - startDate:', startDate, 'endDate:', endDate);
+      console.error('Step 2 FAILED: Invalid date format');
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters',
-        details: 'Dates must be in valid YYYY-MM-DD format'
+        error: 'Invalid date format. Use YYYY-MM-DD' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    
-    if (endDateObj <= startDateObj) {
-      console.error('End date must be after start date - start:', startDate, 'end:', endDate);
+
+    if (startDateObj > endDateObj) {
+      console.error('Step 2 FAILED: Start date after end date');
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters',
-        details: 'End date must be after start date'
+        error: 'startDate must be before endDate' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    
-    // Limit date range to maximum 2 years to prevent resource exhaustion
-    // (increased to accommodate tracking from baseline date)
-    const maxDays = 730;
-    const daysDiff = Math.floor((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
-    console.log(`Date range: ${daysDiff} days (max allowed: ${maxDays})`);
-    
-    if (daysDiff > maxDays) {
-      console.error(`Date range too large: ${daysDiff} days exceeds maximum of ${maxDays} days`);
+
+    if (endDateObj > now) {
+      console.error('Step 2 FAILED: End date in future');
       return new Response(JSON.stringify({ 
-        error: 'Invalid request parameters',
-        details: `Date range too large: ${daysDiff} days exceeds maximum of ${maxDays} days. Please select a shorter time period.`
+        error: 'endDate cannot be in the future' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Enforce reasonable maximum date range (2 years)
+    const daysDiff = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
+    const MAX_DAYS = 730; // 2 years
+    
+    if (daysDiff > MAX_DAYS) {
+      console.error(`Step 2 FAILED: Date range too large: ${daysDiff} days`);
+      return new Response(JSON.stringify({ 
+        error: `Date range too large. Maximum ${MAX_DAYS} days (2 years)` 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -185,16 +180,15 @@ serve(async (req) => {
 
     console.log('Step 4: Checking API keys...');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const GOOGLE_SEARCH_API_KEY = Deno.env.get('GOOGLE_SEARCH_API_KEY');
-    const GOOGLE_SEARCH_ENGINE_ID = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
+    const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     
     if (!LOVABLE_API_KEY) {
       console.error('Step 4 FAILED: LOVABLE_API_KEY not configured');
       throw new Error('LOVABLE_API_KEY not configured');
     }
-    if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
-      console.error('Step 4 FAILED: Google Search credentials not configured');
-      throw new Error('GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID must be configured');
+    if (!PERPLEXITY_API_KEY) {
+      console.error('Step 4 FAILED: PERPLEXITY_API_KEY not configured');
+      throw new Error('PERPLEXITY_API_KEY must be configured');
     }
     console.log('Step 4 SUCCESS: All API keys present');
 
@@ -213,19 +207,25 @@ serve(async (req) => {
     const lastCollectionDate = hasExistingCollection ? new Date(existingArticles[0].fetched_at) : null;
     
     let isIncrementalUpdate = false;
-    let incrementalDays = 2; // Default: focus on last 2 days for incremental updates
+    let recencyFilter: 'day' | 'week' | 'month' | 'year' = 'month';
     
     if (hasExistingCollection && lastCollectionDate) {
       const hoursSinceLastCollection = (Date.now() - lastCollectionDate.getTime()) / (1000 * 60 * 60);
       
-      // If last collection was within the last 3 days, do incremental update (reduced from 7 days)
+      // If last collection was within the last 3 days, do incremental update
       if (hoursSinceLastCollection < 72) { // 3 days = 72 hours
         isIncrementalUpdate = true;
-        // Focus on 1-2 days for very recent articles
-        incrementalDays = Math.max(1, Math.min(2, Math.ceil(hoursSinceLastCollection / 24)));
+        
+        if (hoursSinceLastCollection < 24) {
+          recencyFilter = 'day';
+        } else if (hoursSinceLastCollection < 48) {
+          recencyFilter = 'week';
+        } else {
+          recencyFilter = 'week';
+        }
+        
         console.log(`✓ INCREMENTAL UPDATE MODE: Last collection was ${Math.round(hoursSinceLastCollection)} hours ago`);
-        console.log(`  Will PRIORITIZE newest articles (last ${incrementalDays} days) with multiple date-sorted passes`);
-        console.log(`  Strategy: Focus on absolute newest content to catch breaking news`);
+        console.log(`  Using recency filter: ${recencyFilter}`);
       } else {
         console.log(`Last collection was ${Math.round(hoursSinceLastCollection / 24)} days ago - doing full collection`);
       }
@@ -246,406 +246,130 @@ serve(async (req) => {
     }
     console.log(`Step 6 SUCCESS: Found ${sources?.length || 0} enabled sources for ${country}`);
     
-    // If no country-specific sources, use general domain search
-    const hasCountrySources = sources && sources.length > 0;
-    if (!hasCountrySources) {
-      console.log(`No sources configured for ${country}, will use general domain search`);
-    }
+    // Extract domains from sources for Perplexity domain filtering
+    const sourceDomains = sources?.map(s => {
+      try {
+        const url = new URL(s.url);
+        return url.hostname.replace('www.', '');
+      } catch {
+        return null;
+      }
+    }).filter(Boolean) as string[] || [];
 
-    // Multi-language search terms based on country - enhanced for better relevance
+    // Multi-language search terms based on country
     const searchTermsByCountry: Record<string, { native: string[], countryName: string }> = {
       PT: { 
-        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição avião militar', 'Força Aérea Portuguesa', 'F-35', 'Gripen', 'Rafale'],
+        native: ['caça', 'avião de combate', 'aquisição avião militar', 'Força Aérea Portuguesa'],
         countryName: 'Portugal'
       },
       ES: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Ejército del Aire', 'F-35', 'Gripen', 'Rafale'],
+        native: ['caza', 'avión de combate', 'adquisición militar', 'Ejército del Aire'],
         countryName: 'Spain'
       },
       CO: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Colombiana', 'FAC', 'F-35', 'Gripen', 'Rafale'],
+        native: ['caza', 'avión de combate', 'Fuerza Aérea Colombiana'],
         countryName: 'Colombia'
       },
-      MX: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Mexicana', 'F-35', 'Gripen'],
-        countryName: 'Mexico'
-      },
-      AR: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea Argentina', 'F-35', 'Gripen'],
-        countryName: 'Argentina'
-      },
-      CL: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea de Chile', 'F-35', 'Gripen'],
-        countryName: 'Chile'
-      },
-      PE: {
-        native: ['caza', 'cazas', 'avión de combate', 'aviones de combate', 'adquisición militar', 'Fuerza Aérea del Perú', 'FAP', 'F-35', 'Gripen'],
-        countryName: 'Peru'
-      },
-      BR: {
-        native: ['caça', 'caças', 'avião de combate', 'aviões de combate', 'aquisição militar', 'Força Aérea Brasileira', 'F-35', 'Gripen', 'Rafale'],
-        countryName: 'Brazil'
-      },
-      CZ: {
-        native: ['stíhačka', 'stíhací letoun', 'bojový letoun', 'nákup stíhaček', 'Vzdušné síly', 'F-35', 'Gripen'],
-        countryName: 'Czech Republic'
-      },
-      PL: {
-        native: ['myśliwiec', 'samolot bojowy', 'zakup myśliwców', 'Siły Powietrzne', 'F-35', 'Gripen'],
-        countryName: 'Poland'
-      },
-      RO: {
-        native: ['avion de vânătoare', 'avion de luptă', 'achiziție avioane militare', 'Forțele Aeriene Române', 'F-35', 'Gripen'],
-        countryName: 'Romania'
-      },
-      GR: {
-        native: ['μαχητικό αεροσκάφος', 'πολεμική αεροπορία', 'αγορά μαχητικών', 'F-35', 'Gripen', 'Rafale'],
-        countryName: 'Greece'
-      },
-      FR: {
-        native: ['avion de chasse', 'chasseur', 'acquisition avions de combat', 'Armée de l\'Air', 'F-35', 'Rafale'],
-        countryName: 'France'
-      },
-      DE: {
-        native: ['Kampfflugzeug', 'Jagdflugzeug', 'Beschaffung Kampfjets', 'Luftwaffe', 'F-35', 'Eurofighter'],
-        countryName: 'Germany'
-      },
-      IT: {
-        native: ['caccia', 'aereo da combattimento', 'acquisizione caccia', 'Aeronautica Militare', 'F-35', 'Eurofighter'],
-        countryName: 'Italy'
-      },
       DEFAULT: { 
-        native: ['fighter jet procurement', 'military aircraft acquisition', 'air force fighters', 'defense procurement fighters', 'F-35', 'Gripen', 'Rafale'],
+        native: ['fighter jet procurement', 'military aircraft acquisition'],
         countryName: 'Unknown'
       }
     };
 
     const searchConfig = searchTermsByCountry[country] || searchTermsByCountry.DEFAULT;
-    const localSearchTerms = searchConfig.native;
     const countryName = searchConfig.countryName;
     
-    console.log('Search config:', { country, localSearchTerms, countryName });
+    console.log('Search config:', { country, countryName });
 
-    // Determine domain suffix from country code
-    const domainSuffix = `.${country.toLowerCase()}`;
-
-    // Helper: Google Custom Search with better error handling, sorting, and date filtering
-    async function googleSearch(query: string, siteRestrict?: string, dateRange?: string, sortByDate = false): Promise<any[]> {
-      try {
-        let searchUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_SEARCH_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=10`;
-        
-        if (siteRestrict) {
-          searchUrl += `&siteSearch=${encodeURIComponent(siteRestrict)}&siteSearchFilter=i`;
-        }
-        
-        if (dateRange) {
-          searchUrl += `&dateRestrict=${dateRange}`;
-        }
-        
-        // Sort by date to get newest articles (critical for real-time monitoring)
-        if (sortByDate) {
-          searchUrl += `&sort=date`;
-        }
-        
-        console.log(`  Google search: "${query.substring(0, 80)}"${siteRestrict ? ` (site: ${siteRestrict})` : ''}${sortByDate ? ' [SORTED BY DATE]' : ''}`);
-        
-        const response = await fetch(searchUrl);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`  Google search failed: ${response.status} - ${errorText.substring(0, 200)}`);
-          return [];
-        }
-        
-        const data = await response.json();
-        
-        if (!data.items || data.items.length === 0) {
-          console.log(`  No results found for: "${query.substring(0, 60)}"`);
-          return [];
-        }
-        
-        console.log(`  ✓ Found ${data.items.length} results`);
-        
-        return data.items.map((item: any) => ({
-          title: item.title,
-          url: item.link,
-          snippet: item.snippet || item.htmlSnippet || '',
-          // Try to extract date from pagemap metadata if available
-          publishedDate: item.pagemap?.metatags?.[0]?.['article:published_time'] || 
-                        item.pagemap?.metatags?.[0]?.['datePublished'] ||
-                        null
-        }));
-      } catch (e) {
-        console.error(`  Google search error for "${query.substring(0, 60)}":`, e);
-        return [];
-      }
-    }
-
-    // Batch searches with rate limiting, progress tracking, quota detection, and date sorting
-    async function batchGoogleSearch(searches: Array<{query: string, site?: string, dateRange?: string, sortByDate?: boolean}>, delayMs = 200) {
-      const results = [];
-      let successCount = 0;
-      let failCount = 0;
-      let quotaExceeded = false;
-      
-      console.log(`Starting ${searches.length} Google searches...`);
-      
-      for (let i = 0; i < searches.length; i++) {
-        const search = searches[i];
-        const items = await googleSearch(search.query, search.site, search.dateRange, search.sortByDate || false);
-        
-        // Check for quota exceeded (empty results after successful ones might indicate quota)
-        if (items.length === 0 && successCount > 0 && i > 10) {
-          console.warn(`Possible quota exceeded at search ${i + 1}/${searches.length}`);
-          quotaExceeded = true;
-        }
-        
-        if (items.length > 0) {
-          results.push(...items);
-          successCount++;
-        } else {
-          failCount++;
-        }
-        
-        // Progress logging every 5 searches
-        if ((i + 1) % 5 === 0 || i === searches.length - 1) {
-          console.log(`Progress: ${i + 1}/${searches.length} searches | ${successCount} with results | ${failCount} empty | ${results.length} total articles`);
-        }
-        
-        // Rate limiting delay
-        if (i < searches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-        }
-      }
-      
-      console.log(`Search complete: ${successCount} successful, ${failCount} empty, ${results.length} total articles found`);
-      if (quotaExceeded) {
-        console.warn(`⚠️ Google API quota may have been exceeded`);
-      }
-      return { results, quotaExceeded, successCount, failCount };
-    }
-
-    // Generate SMART search queries - full or incremental based on existing collection
-    const allSearchQueries: Array<{query: string, site?: string, dateRange?: string, sortByDate?: boolean}> = [];
+    // ============ BUILD PERPLEXITY SEARCH QUERIES ============
+    const allSearchQueries: Array<{
+      query: string;
+      country?: string;
+      domains?: string[];
+      recencyFilter?: 'day' | 'week' | 'month' | 'year';
+    }> = [];
+    
+    console.log(`Step 7: Building ${isIncrementalUpdate ? 'INCREMENTAL' : 'COMPREHENSIVE'} Perplexity search queries`);
     
     if (isIncrementalUpdate) {
-      console.log(`Step 7: Building INCREMENTAL search queries (last ${incrementalDays} days ONLY) - drastically reduced API calls`);
-      console.log(`Strategy: Only newest articles with date sorting to minimize searches`);
-    } else {
-      console.log(`Step 7: Building COMPREHENSIVE search queries for initial collection: ${startDate} to ${endDate} (${daysDiff} days)`);
-      console.log(`Strategy: Multiple date ranges (recent + historical) for complete coverage`);
-    }
-    
-    if (isIncrementalUpdate) {
-      // ============ INCREMENTAL MODE: AGGRESSIVE newest content focus ============
-      console.log(`INCREMENTAL: Multi-pass strategy to catch ALL newest articles`);
+      // INCREMENTAL: Focus on newest articles only
+      console.log(`INCREMENTAL: Focusing on ${recencyFilter} recency`);
       
-      // PASS 1: Last 24 hours - CRITICAL for breaking news (SUPER RECENT)
-      console.log(`  PASS 1: Last 24 hours (BREAKING NEWS priority)`);
+      // Each fighter with country context
       for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
-          query: `${fighter} ${countryName}`,
-          dateRange: 'd1',
-          sortByDate: true
+          query: `${fighter} ${countryName} procurement acquisition`,
+          country: countryName,
+          domains: sourceDomains.length > 0 ? sourceDomains.slice(0, 10) : undefined,
+          recencyFilter
         });
       }
-      
-      // PASS 2: Last 2-3 days with date sorting
-      const recentDateRange = `d${incrementalDays}`;
-      console.log(`  PASS 2: Last ${incrementalDays} days (recent coverage)`);
-      for (const fighter of [...competitors, 'Gripen']) {
-        allSearchQueries.push({
-          query: `${fighter} ${countryName}`,
-          dateRange: recentDateRange,
-          sortByDate: true
-        });
-      }
-      
-      // PASS 3: Configured sources - last 2 days ONLY
-      if (hasCountrySources && sources && sources.length > 0) {
-        console.log(`  PASS 3: Top 3 sources (last 2 days)`);
-        const topSources = sources.slice(0, 3);
-        for (const source of topSources) {
-          const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
-          for (const fighter of [...competitors, 'Gripen']) {
-            allSearchQueries.push({
-              query: fighter,
-              site: domain,
-              dateRange: 'd2',
-              sortByDate: true
-            });
-          }
-        }
-      }
-      
-      // PASS 4: Country domain - newest only
-      console.log(`  PASS 4: Country domain (last 2 days)`);
-      for (const fighter of [...competitors, 'Gripen']) {
-        allSearchQueries.push({
-          query: `${fighter} site:${domainSuffix}`,
-          dateRange: 'd2',
-          sortByDate: true
-        });
-      }
-      
-      console.log(`INCREMENTAL MODE: ${allSearchQueries.length} targeted searches focusing on NEWEST content`);
       
     } else {
-      // ============ FULL MODE: Comprehensive searches for initial collection ============
+      // FULL MODE: Comprehensive searches
+      console.log(`FULL MODE: Comprehensive search across ${daysDiff} days`);
       
-      // STRATEGY 1: NEWEST articles first (CRITICAL - sorted by date for real-time monitoring)
-      console.log(`Building DATE-SORTED queries for NEWEST articles (last 7 days)`);
-      const recentDateRange = 'd7';
-      
-      // All competitors + Gripen, sorted by date
+      // Recent articles (last month) for each fighter
       for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
-          query: `${fighter} ${countryName}`,
-          dateRange: recentDateRange,
-          sortByDate: true
+          query: `${fighter} ${countryName} fighter jet procurement`,
+          country: countryName,
+          domains: sourceDomains.length > 0 ? sourceDomains.slice(0, 15) : undefined,
+          recencyFilter: 'month'
         });
       }
       
-      // Country domain, date-sorted
+      // Broader search for full year
       for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
-          query: `${fighter} site:${domainSuffix}`,
-          dateRange: recentDateRange,
-          sortByDate: true
+          query: `${fighter} ${countryName} air force acquisition`,
+          country: countryName,
+          recencyFilter: 'year'
         });
       }
       
-      // STRATEGY 2: Configured local sources with multiple date ranges
-      if (hasCountrySources && sources && sources.length > 0) {
-        const topSources = sources.slice(0, 5);
-        console.log(`Building queries for TOP ${topSources.length} configured local sources`);
-        
-        for (const source of topSources) {
-          const domain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
-          
-          for (const fighter of [...competitors, 'Gripen']) {
-            // Recent (last 30 days) - sorted by date
-            allSearchQueries.push({
-              query: fighter,
-              site: domain,
-              dateRange: 'd30',
-              sortByDate: true
-            });
-            
-            // Historical (no date restriction for older articles)
-            allSearchQueries.push({
-              query: fighter,
-              site: domain,
-              dateRange: undefined
-            });
-          }
-        }
-      }
-
-      // STRATEGY 3: Country domain searches with better coverage
-      console.log(`Building comprehensive ${domainSuffix} domain searches`);
-      
-      for (const fighter of [...competitors, 'Gripen']) {
-        // Recent
+      // Native language searches
+      for (const term of searchConfig.native.slice(0, 2)) {
         allSearchQueries.push({
-          query: `${fighter} site:${domainSuffix}`,
-          dateRange: 'd30',
-          sortByDate: true
-        });
-        // Historical
-        allSearchQueries.push({
-          query: `${fighter} site:${domainSuffix}`,
-          dateRange: undefined
+          query: `${term} ${competitors.join(' ')} Gripen`,
+          country: countryName,
+          domains: sourceDomains.length > 0 ? sourceDomains.slice(0, 10) : undefined,
+          recencyFilter: 'month'
         });
       }
-      
-      // Native search terms
-      for (const term of localSearchTerms.slice(0, 3)) {
-        allSearchQueries.push({
-          query: `${term} site:${domainSuffix}`,
-          dateRange: 'd30',
-          sortByDate: true
-        });
-      }
-      
-      // Broad procurement terms
-      for (const fighter of [...competitors, 'Gripen']) {
-        allSearchQueries.push({
-          query: `${fighter} ${countryName} procurement`,
-          dateRange: 'd30',
-          sortByDate: true
-        });
-        allSearchQueries.push({
-          query: `${fighter} ${countryName} acquisition`,
-          dateRange: undefined
-        });
-      }
-
-      // STRATEGY 4: International defense media with comprehensive coverage
-      console.log(`Building international media searches`);
-      
-      const topInternationalOutlets = [
-        'defensenews.com',
-        'janes.com',
-        'flightglobal.com',
-        'airforce-technology.com',
-        'defenseworld.net'
-      ];
-      
-      for (const domain of topInternationalOutlets) {
-        for (const fighter of [...competitors, 'Gripen']) {
-          // Recent
-          allSearchQueries.push({
-            query: `${fighter} ${countryName}`,
-            site: domain,
-            dateRange: 'd30',
-            sortByDate: true
-          });
-          // Historical
-          allSearchQueries.push({
-            query: `${fighter} ${countryName}`,
-            site: domain,
-            dateRange: undefined
-          });
-        }
-      }
-
-      // STRATEGY 5: General defense procurement terms
-      allSearchQueries.push(
-        { query: `fighter aircraft procurement ${countryName}`, dateRange: 'd30', sortByDate: true },
-        { query: `air force modernization ${countryName}`, dateRange: 'd30', sortByDate: true },
-        { query: `combat aircraft ${countryName}`, dateRange: undefined },
-        { query: `military aviation ${countryName}`, dateRange: undefined }
-      );
     }
 
-    console.log(`Step 7: Total of ${allSearchQueries.length} Google search queries prepared`);
-    console.log(`Sample queries:`, allSearchQueries.slice(0, 5).map(q => `"${q.query}"${q.site ? ` site:${q.site}` : ''}`));
+    console.log(`Step 7: Total of ${allSearchQueries.length} Perplexity searches prepared`);
+    console.log(`Sample queries:`, allSearchQueries.slice(0, 3).map(q => q.query));
 
-    console.log(`Step 7: Executing ${allSearchQueries.length} OPTIMIZED Google searches (reduced from ~100+)...`);
+    // ============ EXECUTE PERPLEXITY SEARCHES ============
+    console.log(`Executing ${allSearchQueries.length} Perplexity AI searches...`);
 
-    // Execute all searches
-    const { results: searchResults, quotaExceeded, successCount, failCount } = await batchGoogleSearch(allSearchQueries);
+    const { results: searchResults, successCount, failCount, rateLimitHit } = await batchPerplexitySearch(
+      allSearchQueries,
+      PERPLEXITY_API_KEY,
+      1000 // 1 second delay between searches
+    );
     
     // Deduplicate by URL
     const uniqueResults = Array.from(
       new Map(searchResults.map(r => [normalizeUrl(r.url), r])).values()
     );
 
-    console.log(`Found ${uniqueResults.length} unique articles for tracking period`);
+    console.log(`Found ${uniqueResults.length} unique articles from Perplexity`);
 
     if (uniqueResults.length === 0) {
       return new Response(JSON.stringify({ 
         articles: [],
-        message: 'No articles found for tracking period',
-        quotaExceeded,
+        message: 'No articles found via Perplexity',
+        rateLimitHit,
         searchStats: { total: allSearchQueries.length, success: successCount, failed: failCount }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Pre-filter articles by fighter keywords BEFORE AI analysis
+    // Pre-filter articles by fighter keywords
     const fighterKeywords = ['Gripen', 'F-35', 'F35', 'Rafale', 'F-16V', 'F16V', 'Eurofighter', 'Typhoon', 'F/A-50'];
     const preFilteredResults = uniqueResults.filter(r => {
       const combined = `${r.title} ${r.snippet}`.toLowerCase();
@@ -666,9 +390,9 @@ serve(async (req) => {
       });
     }
 
-    // Use AI with tool calling for structured output
+    // ============ AI ANALYSIS WITH TOOL CALLING ============
     console.log('Sending to AI for structured analysis...');
-    // AI analyzes ALL articles and picks the most important ones
+    
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -681,7 +405,7 @@ serve(async (req) => {
           role: 'user',
           content: `You are analyzing news articles about FIGHTER JET PROCUREMENT for ${countryName}.
 
-I have ${uniqueResults.length} articles from the last ${daysDiff} days. Your task is to:
+I have ${preFilteredResults.length} articles. Your task is to:
 1. STRICTLY identify articles about fighter jet PROCUREMENT, ACQUISITION, or PURCHASE for ${countryName}'s Air Force
 2. Focus on these specific fighters: ${competitors.join(', ')}, Gripen
 3. Return ONLY highly relevant articles (max 40 articles)
@@ -694,30 +418,23 @@ STRICT EXCLUSION RULES - REJECT articles about:
 ❌ Technical specifications without procurement context
 ❌ Other countries' purchases (unless directly comparing to ${countryName})
 ❌ Air shows, demonstrations, or exhibitions (unless procurement announcement)
-❌ General defense budget news (unless specifically mentioning fighter procurement)
-❌ Pilot training programs (unless tied to new aircraft acquisition)
 
 ONLY INCLUDE articles that:
 ✅ Discuss ${countryName}'s procurement decision, tender, or competition
-✅ Mention negotiations, offers, or bids for new fighters
-✅ Announce purchase decisions or contracts
-✅ Compare fighter options for ${countryName}'s acquisition
-✅ Quote officials about fighter acquisition plans
-✅ Report on parliamentary/government approval for fighter purchase
+✅ Announce official procurement milestones
+✅ Quote government/military officials about acquisition
+✅ Compare fighter options for ${countryName}
+✅ Report on procurement budgets or timelines
+✅ Cover industry responses to ${countryName}'s tender
 
-Minimum importance threshold: 5/10 (discard anything lower)
-
-Articles to analyze:
-${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({ 
-  title: r.title, 
-  snippet: r.snippet
-})), null, 2)}`
+Articles:
+${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${r.url}`).join('\n\n')}`
         }],
         tools: [{
           type: 'function',
           function: {
-            name: 'extract_important_articles',
-            description: 'Extract the most important fighter jet articles',
+            name: 'return_relevant_articles',
+            description: 'Returns articles relevant to fighter jet procurement',
             parameters: {
               type: 'object',
               properties: {
@@ -726,26 +443,22 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
                   items: {
                     type: 'object',
                     properties: {
-                      title: { type: 'string' },
+                      article_number: { type: 'number', description: 'Article number from the list (1-indexed)' },
                       fighter_tags: { 
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Fighter jets mentioned: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50'
+                        description: 'Which fighters are mentioned: Gripen, F-35, Rafale, F-16V, Eurofighter, F/A-50'
                       },
                       sentiment: { 
-                        type: 'number', 
-                        description: 'Sentiment: positive (0.7), neutral (0.0), negative (-0.7)' 
+                        type: 'number',
+                        description: 'Sentiment towards Gripen: -1 (very negative) to +1 (very positive)'
                       },
                       importance: {
                         type: 'number',
-                        description: 'Relevance score 1-10: 10=breaking procurement news, 8-9=negotiations/bids, 6-7=comparison/analysis, 5=tangentially related, <5=not relevant (discard)'
-                      },
-                      source_country: { 
-                        type: 'string',
-                        description: `Use "${country}" for local ${countryName} sources, "INTERNATIONAL" for others`
+                        description: 'Importance score 1-10: 10=direct procurement news, 5=related analysis, 1=tangential'
                       }
                     },
-                    required: ['title', 'fighter_tags', 'sentiment', 'importance', 'source_country']
+                    required: ['article_number', 'fighter_tags', 'sentiment', 'importance']
                   }
                 }
               },
@@ -753,285 +466,152 @@ ${JSON.stringify(uniqueResults.slice(0, 100).map(r => ({
             }
           }
         }],
-        tool_choice: { type: 'function', function: { name: 'extract_important_articles' } }
+        tool_choice: { type: 'function', function: { name: 'return_relevant_articles' } }
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText.substring(0, 500));
-      throw new Error(`AI API error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    console.log('AI response received');
-    
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      console.error('AI did not use tool:', JSON.stringify(aiData.choices?.[0]?.message).substring(0, 500));
-      throw new Error('AI did not return structured data');
-    }
-    
-    const extractedData = JSON.parse(toolCall.function.arguments);
-    let structuredArticles = extractedData.articles || [];
-    
-    console.log(`Step 11: AI identified ${structuredArticles.length} important articles`);
-    
-    // Log what AI returned
-    console.log('========== AI ANALYSIS RESULTS ==========');
-    structuredArticles.slice(0, 10).forEach((a: any, idx: number) => {
-      console.log(`${idx + 1}. "${a.title?.substring(0, 60)}" | Fighters: ${a.fighter_tags?.join(', ')} | Importance: ${a.importance} | Sentiment: ${a.sentiment}`);
-    });
-    if (structuredArticles.length > 10) {
-      console.log(`... and ${structuredArticles.length - 10} more articles`);
-    }
-    console.log('========================================');
-    
-    // Filter by relevance threshold and sort by importance
-    structuredArticles = structuredArticles
-      .filter((a: any) => {
-        // Strict filtering: importance must be >= 6 for high relevance
-        if (a.importance < 6) {
-          console.log(`  Rejected low relevance (${a.importance}/10): "${a.title?.substring(0, 50)}"`);
-          return false;
-        }
-        return true;
-      })
-      .sort((a: any, b: any) => (b.importance || 0) - (a.importance || 0))
-      .slice(0, 40); // Max 40 highly relevant articles
-    
-    console.log(`Step 12: Filtered to top ${structuredArticles.length} highly relevant articles (importance >= 6/10)`);
-
-    // Map AI results to URLs from original Google results
-    console.log(`Step 13: Mapping ${structuredArticles.length} articles to URLs...`);
-    const validArticles = structuredArticles.map((article: any) => {
-      const normalizeTitle = (title: string) => {
-        return title.toLowerCase()
-          .trim()
-          .replace(/\s+/g, ' ')
-          .replace(/[^\w\s-]/g, '');
-      };
+      console.error(`AI gateway error: ${aiResponse.status} - ${errorText}`);
       
-      const aiTitle = normalizeTitle(article.title || '');
-      
-      // Find matching result from uniqueResults (all Google results)
-      let matchingResult = uniqueResults.find(r => 
-        normalizeTitle(r.title) === aiTitle
-      );
-      
-      if (!matchingResult) {
-        matchingResult = uniqueResults.find(r => {
-          const resultTitle = normalizeTitle(r.title);
-          return resultTitle.includes(aiTitle) || aiTitle.includes(resultTitle);
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ 
+          error: 'AI gateway rate limit exceeded. Please try again later.' 
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ 
+          error: 'AI gateway payment required. Please add credits to your workspace.' 
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
       
-      if (!matchingResult) {
-        console.warn('Could not match article:', article.title?.substring(0, 50));
+      throw new Error(`AI gateway error: ${aiResponse.status}`);
+    }
+
+    const aiData = await aiResponse.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (!toolCall) {
+      throw new Error('AI did not return structured data');
+    }
+
+    const analysisResult = JSON.parse(toolCall.function.arguments);
+    console.log(`AI identified ${analysisResult.articles?.length || 0} relevant articles`);
+
+    // Filter by minimum importance and sort
+    const MIN_IMPORTANCE = 6;
+    const importantArticles = (analysisResult.articles || [])
+      .filter((a: any) => a.importance >= MIN_IMPORTANCE)
+      .sort((a: any, b: any) => b.importance - a.importance);
+
+    console.log(`${importantArticles.length} articles meet importance threshold (>= ${MIN_IMPORTANCE})`);
+
+    if (importantArticles.length === 0) {
+      return new Response(JSON.stringify({ 
+        success: true,
+        articlesFound: preFilteredResults.length,
+        articlesStored: 0,
+        message: 'No articles met importance threshold'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ============ PREPARE ARTICLES FOR DATABASE ============
+    const articlesToStore = importantArticles.map((article: any) => {
+      const originalArticle = preFilteredResults[article.article_number - 1];
+      if (!originalArticle) {
+        console.warn(`Article ${article.article_number} not found in results`);
         return null;
       }
-      
-      article.url = normalizeUrl(matchingResult.url);
-      console.log(`✓ Matched "${article.title?.substring(0, 40)}" -> ${article.url.substring(0, 60)}`);
-      
-      // Ensure fighter_tags is array
-      if (!article.fighter_tags || !Array.isArray(article.fighter_tags)) {
-        article.fighter_tags = [];
-      }
-      
-      // Fallback fighter detection if AI missed them
-      if (article.fighter_tags.length === 0) {
-        const combined = `${article.title} ${matchingResult?.snippet || ''}`.toLowerCase();
-        const detected = [];
-        
-        if (combined.includes('gripen') || combined.includes('jas 39') || combined.includes('jas-39')) {
-          detected.push('Gripen');
-        }
-        if (combined.includes('f-35') || combined.includes('f35') || combined.includes('f 35') || 
-            combined.includes('lightning ii') || combined.includes('joint strike fighter') || combined.includes('jsf')) {
-          detected.push('F-35');
-        }
-        if (combined.includes('rafale')) {
-          detected.push('Rafale');
-        }
-        if (combined.includes('f-16') || combined.includes('f16') || combined.includes('f 16') || 
-            combined.includes('viper') || combined.includes('fighting falcon')) {
-          detected.push('F-16V');
-        }
-        if (combined.includes('eurofighter') || combined.includes('typhoon') || combined.includes('euro fighter')) {
-          detected.push('Eurofighter');
-        }
-        if (combined.includes('f/a-50') || combined.includes('fa-50') || combined.includes('fa 50') || 
-            combined.includes('golden eagle')) {
-          detected.push('F/A-50');
-        }
-        
-        if (detected.length > 0) {
-          console.log(`✓ Fallback detection for "${article.title?.substring(0, 40)}": ${detected.join(', ')}`);
-          article.fighter_tags = detected;
-        } else {
-          console.warn(`✗ No fighters detected, skipping: "${article.title?.substring(0, 50)}"`);
-          return null;
-        }
-      }
-      
-      return article;
-    }).filter((article: any) => article !== null);
 
-    console.log(`${validArticles.length} valid articles after URL recovery and validation`);
-
-    // Store articles in database with robust error handling
-    let storedCount = 0;
-    const errors = [];
-    
-    console.log(`========== STORING ${validArticles.length} ARTICLES ==========`);
-    
-    for (const article of validArticles) {
+      // Infer source_country from URL domain
+      let sourceCountry = null;
       try {
-        // Match to source and determine country
-        let sourceId = null;
-        let sourceCountry = 'INTERNATIONAL'; // Default
+        const url = new URL(originalArticle.url);
+        const hostname = url.hostname;
         
-        console.log(`Processing article: "${article.title?.substring(0, 60)}"`);
-        console.log(`  URL: ${article.url.substring(0, 100)}`);
-        console.log(`  AI-detected country: ${article.source_country}`);
-        console.log(`  Fighter tags: ${article.fighter_tags?.join(', ')}`);
-        
-        // First try to match against configured sources
-        if (sources) {
-          for (const source of sources) {
-            const sourceDomain = source.url.replace(/^https?:\/\//i, '').split('/')[0];
-            if (article.url.includes(sourceDomain)) {
-              sourceId = source.id;
-              sourceCountry = source.country;
-              console.log(`  ✓ Matched to configured source: ${source.name} (${source.country})`);
-              break;
-            }
-          }
-        }
-
-        // If no source match, detect from URL domain with improved local detection
-        if (!sourceId) {
+        // Check if matches any configured source
+        const matchedSource = sources?.find(s => {
           try {
-            const urlObj = new URL(article.url);
-            const hostname = urlObj.hostname.toLowerCase();
-            
-            // Enhanced local detection - check multiple patterns
-            const isLocalDomain = 
-              hostname.endsWith(domainSuffix) || // .pt, .es, etc.
-              hostname.endsWith(`.${country.toLowerCase()}.`) || // subdomain pattern
-              hostname.includes(`.${country.toLowerCase()}.`); // middle domain pattern
-            
-            // Additional manual checks for known local domains that might not follow TLD pattern
-            const knownLocalDomains: Record<string, string[]> = {
-              'PT': ['publico.pt', 'observador.pt', 'jornaldenegocios.pt', 'dn.pt', 'rtp.pt', 'sapo.pt'],
-              'ES': ['elpais.com', 'elmundo.es', 'lavanguardia.com', 'abc.es'],
-              'BR': ['globo.com', 'uol.com.br', 'folha.uol.com.br'],
-              // Add more as needed
-            };
-            
-            const localDomainsForCountry = knownLocalDomains[country] || [];
-            const isKnownLocal = localDomainsForCountry.some(domain => hostname.includes(domain));
-            
-            if (isLocalDomain || isKnownLocal) {
-              sourceCountry = country;
-              console.log(`  ✓ Detected LOCAL domain: ${hostname} -> ${sourceCountry}${isKnownLocal ? ' (known local)' : ''}`);
-            } else {
-              // International domain (.com, .org, .net, .co.uk, etc.)
-              sourceCountry = 'INTERNATIONAL';
-              console.log(`  ✓ Detected INTERNATIONAL domain: ${hostname} -> INTERNATIONAL`);
-            }
-          } catch (urlError) {
-            console.error('  ✗ Error parsing URL for country detection:', article.url, urlError);
-            sourceCountry = 'INTERNATIONAL'; // Fallback to international
+            const sourceHostname = new URL(s.url).hostname;
+            return hostname.includes(sourceHostname) || sourceHostname.includes(hostname);
+          } catch {
+            return false;
           }
+        });
+        
+        if (matchedSource) {
+          sourceCountry = matchedSource.country;
         }
-
-        // Try to extract or estimate publication date
-        let publishedAt = new Date().toISOString();
-        
-        // Distribute articles evenly across the FULL baseline period
-        const baselineStart = new Date(startDate);
-        const baselineEnd = new Date(endDate);
-        
-        // Distribute across the entire date range instead of just last 60 days
-        const distributionRange = baselineEnd.getTime() - baselineStart.getTime();
-        const randomOffset = Math.random() * distributionRange;
-        publishedAt = new Date(baselineStart.getTime() + randomOffset).toISOString();
-        
-        console.log(`  Published at: ${publishedAt.substring(0, 10)} (distributed across full ${daysDiff} day range)`);
-
-        // Validate fighter_tags before insert
-        if (!article.fighter_tags || !Array.isArray(article.fighter_tags) || article.fighter_tags.length === 0) {
-          console.error(`  ✗ SKIPPING: No valid fighter_tags for article`);
-          errors.push({ url: article.url, error: 'No fighter tags' });
-          continue;
-        }
-
-        // Prepare insert data
-        const insertData = {
-          url: article.url,
-          title_en: article.title || 'Untitled',
-          source_id: sourceId,
-          source_country: sourceCountry,
-          published_at: publishedAt,
-          fighter_tags: article.fighter_tags,
-          sentiment: typeof article.sentiment === 'number' ? article.sentiment : 0,
-          fetched_at: new Date().toISOString(),
-          user_id: userId,
-          tracking_country: country
-        };
-        
-        console.log(`  Inserting with data:`, JSON.stringify(insertData, null, 2));
-
-        // Store with all available data, using defaults for missing fields
-        const { data: insertedData, error: insertError } = await supabaseClient
-          .from('items')
-          .upsert(insertData, {
-            onConflict: 'url'
-          })
-          .select();
-
-        if (insertError) {
-          errors.push({ url: article.url, error: insertError.message, details: insertError });
-          console.error(`  ✗ INSERT ERROR:`, JSON.stringify(insertError, null, 2));
-          console.error(`  Insert data was:`, JSON.stringify(insertData, null, 2));
-        } else {
-          storedCount++;
-          console.log(`  ✓ STORED SUCCESSFULLY (ID: ${insertedData?.[0]?.id || 'unknown'})`);
-        }
-      } catch (e) {
-        errors.push({ url: article.url, error: e instanceof Error ? e.message : 'Unknown' });
-        console.error('  ✗ EXCEPTION storing article:', e);
+      } catch {
+        // Invalid URL, leave sourceCountry null
       }
-    }
-    
-    console.log(`========== STORAGE COMPLETE ==========`);
 
-    console.log(`Successfully stored ${storedCount}/${validArticles.length} articles`);
-    if (errors.length > 0) {
-      console.log(`Errors: ${errors.length}`, errors.slice(0, 5));
+      return {
+        user_id: userId,
+        tracking_country: country,
+        source_country: sourceCountry,
+        url: normalizeUrl(originalArticle.url),
+        title_en: originalArticle.title,
+        summary_en: originalArticle.snippet,
+        fighter_tags: article.fighter_tags || [],
+        sentiment: article.sentiment || 0,
+        published_at: originalArticle.publishedDate || new Date(
+          startDateObj.getTime() + Math.random() * (endDateObj.getTime() - startDateObj.getTime())
+        ).toISOString(),
+        fetched_at: new Date().toISOString()
+      };
+    }).filter(Boolean);
+
+    console.log(`Prepared ${articlesToStore.length} articles for storage`);
+
+    // ============ STORE IN DATABASE ============
+    if (articlesToStore.length > 0) {
+      console.log('Inserting articles into database...');
+      
+      const { error: insertError } = await supabaseClient
+        .from('items')
+        .upsert(articlesToStore, {
+          onConflict: 'url',
+          ignoreDuplicates: false
+        });
+
+      if (insertError) {
+        console.error('Error storing articles:', insertError);
+        throw insertError;
+      }
+
+      console.log(`✓ Successfully stored ${articlesToStore.length} articles`);
     }
 
+    // ============ RETURN SUCCESS ============
     return new Response(JSON.stringify({ 
       success: true,
       articlesFound: uniqueResults.length,
-      articlesStored: storedCount,
-      totalSaved: storedCount,
-      trackingPeriod: `${startDate} to ${endDate}`,
-      quotaExceeded,
+      articlesAnalyzed: preFilteredResults.length,
+      articlesStored: articlesToStore.length,
       searchStats: { 
-        total: allSearchQueries.length, 
-        success: successCount, 
-        failed: failCount 
+        total: allSearchQueries.length,
+        success: successCount,
+        failed: failCount,
+        rateLimitHit
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('Error in collect-articles-for-tracking:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
+    console.error('Function error:', error);
+    return new Response(JSON.stringify({ 
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
