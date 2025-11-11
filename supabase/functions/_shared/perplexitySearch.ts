@@ -1,6 +1,6 @@
 /**
  * Perplexity AI-powered search helper
- * Replaces Google Custom Search API with AI-powered search
+ * Uses sonar-pro model for real-time web search with citations
  */
 
 interface PerplexitySearchParams {
@@ -29,30 +29,17 @@ export async function perplexitySearch(
 ): Promise<SearchResult[]> {
   const { query, country, domains, recencyFilter = 'month' } = params;
 
-  // Build enhanced query with domain filtering and recency hints
+  // Build enhanced query with domain filtering
   let enhancedQuery = query;
   
   if (domains && domains.length > 0) {
-    enhancedQuery += ` site:${domains.join(' OR site:')}`;
+    const domainFilter = domains.slice(0, 5).map(d => `site:${d}`).join(' OR ');
+    enhancedQuery += ` (${domainFilter})`;
   }
   
   if (country) {
     enhancedQuery += ` ${country}`;
   }
-
-  const systemPrompt = `You are a news article search assistant. Search for recent news articles about the query and return ONLY articles that:
-1. Are from credible news sources
-2. Match the search criteria
-3. Are recent (within the specified timeframe)
-4. Contain substantive information about the topic
-
-For each article, extract:
-- Exact title as it appears on the source
-- Full URL
-- Brief snippet (1-2 sentences describing the content)
-- Publication date if available
-
-Return results in a structured format that can be parsed.`;
 
   try {
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -65,22 +52,16 @@ Return results in a structured format that can be parsed.`;
         model: 'sonar-pro',
         messages: [
           {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
             role: 'user',
-            content: `Search for: ${enhancedQuery}\n\nFind the most relevant recent news articles and provide their titles, URLs, and brief descriptions.`
+            content: enhancedQuery
           }
         ],
-        temperature: 0.2,
+        temperature: 0.0,
         top_p: 0.9,
-        max_tokens: 2000,
         return_images: false,
         return_related_questions: false,
         search_recency_filter: recencyFilter,
-        frequency_penalty: 1,
-        presence_penalty: 0
+        return_citations: true
       }),
     });
 
@@ -99,53 +80,45 @@ Return results in a structured format that can be parsed.`;
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
     const citations = data.citations || [];
-    const searchResults = data.search_results || [];
 
     // Parse the AI response to extract structured results
     const results: SearchResult[] = [];
 
-    // PRIMARY: Use search_results from Perplexity (most reliable)
-    if (searchResults && searchResults.length > 0) {
-      console.log(`✓ Found ${searchResults.length} search results from Perplexity API`);
-      
-      for (const result of searchResults) {
-        results.push({
-          title: result.title || 'Untitled',
-          url: result.url,
-          snippet: result.snippet || result.text || content.substring(0, 200),
-          publishedDate: result.date || result.published_date || undefined
-        });
-      }
-    } 
-    // FALLBACK: Try to extract from citations
-    else if (citations && citations.length > 0) {
-      console.log(`Using ${citations.length} citations as fallback`);
+    // Perplexity returns citations as an array of URLs
+    // We need to extract titles from the page using the URL or from AI response
+    if (citations && citations.length > 0) {
+      console.log(`✓ Found ${citations.length} search results from Perplexity API`);
       
       for (const url of citations) {
-        // Try to find corresponding info in content
-        const urlEscaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const linkPattern = new RegExp(`\\[([^\\]]+)\\]\\(${urlEscaped}\\)`, 'i');
-        const match = content.match(linkPattern);
-        
+        // Extract domain and create basic title from URL
         let title = 'Untitled';
-        let snippet = '';
-        
-        if (match) {
-          title = match[1].trim();
-          // Try to extract surrounding context as snippet
-          const contextStart = Math.max(0, match.index! - 100);
-          const contextEnd = Math.min(content.length, match.index! + match[0].length + 200);
-          snippet = content.substring(contextStart, contextEnd).trim();
-        } else {
-          snippet = content.substring(0, 200);
+        try {
+          const urlObj = new URL(url);
+          const pathname = urlObj.pathname;
+          // Try to create a readable title from the URL path
+          const pathParts = pathname.split('/').filter(p => p && p.length > 2);
+          if (pathParts.length > 0) {
+            title = pathParts[pathParts.length - 1]
+              .replace(/[-_]/g, ' ')
+              .replace(/\.(html|htm|php|asp|aspx)$/i, '')
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ')
+              .substring(0, 100);
+          }
+          
+          if (title === 'Untitled' || title.length < 5) {
+            title = urlObj.hostname.replace('www.', '') + ' article';
+          }
+        } catch {
+          title = 'News Article';
         }
 
         results.push({
           title,
           url,
-          snippet,
+          snippet: `Article from ${new URL(url).hostname}`,
           publishedDate: undefined
         });
       }
