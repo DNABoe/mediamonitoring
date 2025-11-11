@@ -56,10 +56,12 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const isServiceRole = token === SERVICE_ROLE_KEY;
     
+    // Read body ONCE at the start
+    const body = await req.json();
+    
     if (isServiceRole) {
       console.log('Authenticated as SERVICE ROLE');
       // For service role, user_id must be provided in request body
-      const body = await req.json();
       userId = body.userId;
       
       if (!userId) {
@@ -88,7 +90,6 @@ serve(async (req) => {
 
     // ============ REQUEST VALIDATION ============
     console.log('Step 2: Validating request body...');
-    const body = await req.json();
     const { country, competitors, startDate, endDate } = body;
     
     console.log('Request params:', { country, competitors, startDate, endDate });
