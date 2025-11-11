@@ -439,39 +439,43 @@ We are tracking these fighters: ${[...competitors, 'Gripen'].join(', ')}
 
 Post: "${content}"
 
-STRICT REQUIREMENTS - Only analyze if post discusses FIGHTER JET PROCUREMENT for ${country}:
-✅ INCLUDE if post discusses:
-- ${country}'s fighter procurement/acquisition decision
-- Comparisons between: ${[...competitors, 'Gripen'].join(', ')} for ${country}
-- Opinions/debates about which fighter ${country} should choose
-- News/rumors about ${country}'s fighter deals or negotiations
-- Political/economic factors affecting ${country}'s fighter choice
+CRITICAL FILTERING - Only include posts that are DIRECTLY about ${country}'s fighter procurement:
+
+✅ INCLUDE ONLY if post discusses:
+- ${country} actively considering/negotiating purchase of: ${[...competitors, 'Gripen'].join(', ')}
+- Direct comparisons between fighters specifically for ${country}'s procurement
+- Political/economic debates about which fighter ${country} should buy
+- Official announcements or credible rumors about ${country}'s fighter acquisition
+- ${country}'s defense budget/strategy related to fighter replacement
 
 ❌ REJECT if post is about:
-- General military news unrelated to ${country}'s procurement
-- Technical specs without procurement context for ${country}
-- Historical content or anniversaries
-- Other countries' purchases (unless directly comparing to ${country})
-- Military exercises or operations unrelated to procurement
+- General fighter specs or capabilities (without ${country} procurement context)
+- Other countries purchasing these fighters (unless comparing to ${country})
+- Military exercises, airshows, or demonstrations (not procurement)
+- Historical content or past purchases
+- Technical discussions without procurement decision context
+- Generic defense industry news
+- Any post that doesn't mention ${country} or its procurement
 
-CRITICAL: Tag ALL fighters mentioned from our tracking list: ${[...competitors, 'Gripen'].join(', ')}
+RELEVANCE SCORING (be STRICT):
+- 9-10: Official procurement announcement or major decision for ${country}
+- 7-8: Credible discussion of ${country}'s procurement options
+- 5-6: Tangential mention of ${country}'s potential purchase
+- 1-4: Weak connection or no procurement context
+- 0: Completely irrelevant
 
-If NOT relevant to ${country}'s fighter procurement, return:
+FIGHTER TAGS: Only tag fighters that are EXPLICITLY mentioned in the post from: ${[...competitors, 'Gripen'].join(', ')}
+
+If relevance < 7 OR post doesn't mention ${country}, return:
 { "sentiment": 0, "fighter_tags": [], "temperature": "cool", "relevance": 0, "procurement_related": false }
 
-If relevant, provide:
-1. Sentiment (-1.0 to 1.0): Overall tone about the procurement situation
-2. fighter_tags: Array of ALL fighters mentioned from: ${[...competitors, 'Gripen'].join(', ')}
-3. temperature: "hot" (passionate debate), "warm" (active discussion), "cool" (calm)
-4. relevance (1-10): How relevant to ${country}'s procurement decision
-5. sentiment_by_fighter: Object with sentiment for each fighter mentioned (optional)
-
-Return JSON: {
-  "sentiment": number,
-  "fighter_tags": string[],
+If relevant (relevance >= 7), provide:
+{
+  "sentiment": number (-1.0 to 1.0),
+  "fighter_tags": string[] (ONLY fighters explicitly mentioned),
   "temperature": "hot" | "warm" | "cool",
-  "relevance": number,
-  "procurement_related": boolean,
+  "relevance": number (7-10),
+  "procurement_related": true,
   "sentiment_by_fighter": { "fighter_name": number }
 }`
             }],
@@ -485,9 +489,9 @@ Return JSON: {
           try {
             const parsed = JSON.parse(responseText);
             
-            // Check relevance - skip if not procurement-related
-            if (parsed.procurement_related === false || (parsed.relevance && parsed.relevance < 5)) {
-              console.log(`  Skipped irrelevant post (relevance: ${parsed.relevance})`);
+            // STRICT relevance check - only posts with high relevance (>= 7)
+            if (parsed.procurement_related === false || !parsed.relevance || parsed.relevance < 7) {
+              console.log(`  Skipped low relevance post (relevance: ${parsed.relevance || 0})`);
               return; // Don't store irrelevant posts
             }
             
