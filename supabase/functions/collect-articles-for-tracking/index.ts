@@ -257,21 +257,47 @@ serve(async (req) => {
     }).filter(Boolean) as string[] || [];
 
     // Multi-language search terms based on country
-    const searchTermsByCountry: Record<string, { native: string[], countryName: string }> = {
+    const searchTermsByCountry: Record<string, { native: string[], english: string[], countryName: string }> = {
       PT: { 
-        native: ['caça', 'avião de combate', 'aquisição avião militar', 'Força Aérea Portuguesa'],
+        native: [
+          'caça Portugal aviões combate',
+          'Força Aérea Portuguesa F-16 substituição',
+          'Portugal aquisição caças',
+          'aviões militares Portugal'
+        ],
+        english: [
+          'Portugal fighter aircraft procurement',
+          'Portuguese Air Force F-16 replacement',
+          'Portugal military jets acquisition'
+        ],
         countryName: 'Portugal'
       },
       ES: {
-        native: ['caza', 'avión de combate', 'adquisición militar', 'Ejército del Aire'],
+        native: [
+          'caza España aviación combate',
+          'Ejército del Aire adquisición',
+          'España aviones militares'
+        ],
+        english: [
+          'Spain fighter aircraft procurement',
+          'Spanish Air Force acquisition'
+        ],
         countryName: 'Spain'
       },
       CO: {
-        native: ['caza', 'avión de combate', 'Fuerza Aérea Colombiana'],
+        native: [
+          'caza Colombia aviación',
+          'Fuerza Aérea Colombiana adquisición'
+        ],
+        english: [
+          'Colombia fighter jet procurement',
+          'Colombian Air Force acquisition'
+        ],
         countryName: 'Colombia'
       },
       DEFAULT: { 
-        native: ['fighter jet procurement', 'military aircraft acquisition'],
+        native: [],
+        english: ['fighter jet procurement', 'military aircraft acquisition'],
         countryName: 'Unknown'
       }
     };
@@ -295,46 +321,47 @@ serve(async (req) => {
       // INCREMENTAL: Focus on newest articles only
       console.log(`INCREMENTAL: Focusing on ${recencyFilter} recency`);
       
-      // Each fighter with country context
+      // Each fighter with native language
       for (const fighter of [...competitors, 'Gripen']) {
-        allSearchQueries.push({
-          query: `${fighter} ${countryName} procurement acquisition`,
-          country: countryName,
-          domains: sourceDomains.length > 0 ? sourceDomains.slice(0, 10) : undefined,
-          recencyFilter
-        });
+        for (const nativeTerm of searchConfig.native.slice(0, 2)) {
+          allSearchQueries.push({
+            query: `${fighter} ${nativeTerm}`,
+            country: countryName,
+            domains: sourceDomains.length > 0 ? sourceDomains : undefined,
+            recencyFilter
+          });
+        }
       }
       
     } else {
-      // FULL MODE: Comprehensive searches
+      // FULL MODE: Comprehensive searches in native language + English
       console.log(`FULL MODE: Comprehensive search across ${daysDiff} days`);
       
-      // Recent articles (last month) for each fighter
+      // Native language searches (PRIMARY for local coverage)
+      for (const nativeTerm of searchConfig.native) {
+        allSearchQueries.push({
+          query: `${nativeTerm} ${competitors.join(' ')} Gripen`,
+          country: countryName,
+          domains: sourceDomains.length > 0 ? sourceDomains : undefined,
+          recencyFilter: 'month'
+        });
+      }
+      
+      // Fighter-specific native searches
+      for (const fighter of [...competitors, 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} ${searchConfig.native[0]}`,
+          country: countryName,
+          recencyFilter: 'month'
+        });
+      }
+      
+      // English searches for international coverage
       for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
           query: `${fighter} ${countryName} fighter jet procurement`,
           country: countryName,
-          domains: sourceDomains.length > 0 ? sourceDomains.slice(0, 15) : undefined,
-          recencyFilter: 'month'
-        });
-      }
-      
-      // Broader search for full year
-      for (const fighter of [...competitors, 'Gripen']) {
-        allSearchQueries.push({
-          query: `${fighter} ${countryName} air force acquisition`,
-          country: countryName,
           recencyFilter: 'year'
-        });
-      }
-      
-      // Native language searches
-      for (const term of searchConfig.native.slice(0, 2)) {
-        allSearchQueries.push({
-          query: `${term} ${competitors.join(' ')} Gripen`,
-          country: countryName,
-          domains: sourceDomains.length > 0 ? sourceDomains.slice(0, 10) : undefined,
-          recencyFilter: 'month'
         });
       }
     }

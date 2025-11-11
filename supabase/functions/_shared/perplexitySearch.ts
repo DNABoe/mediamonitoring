@@ -101,44 +101,51 @@ Return results in a structured format that can be parsed.`;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
     const citations = data.citations || [];
+    const searchResults = data.search_results || [];
 
     // Parse the AI response to extract structured results
     const results: SearchResult[] = [];
 
-    // Try to extract URLs from citations first (most reliable)
-    if (citations && citations.length > 0) {
+    // PRIMARY: Use search_results from Perplexity (most reliable)
+    if (searchResults && searchResults.length > 0) {
+      console.log(`✓ Found ${searchResults.length} search results from Perplexity API`);
+      
+      for (const result of searchResults) {
+        results.push({
+          title: result.title || 'Untitled',
+          url: result.url,
+          snippet: result.snippet || result.text || content.substring(0, 200),
+          publishedDate: result.date || result.published_date || undefined
+        });
+      }
+    } 
+    // FALLBACK: Try to extract from citations
+    else if (citations && citations.length > 0) {
+      console.log(`Using ${citations.length} citations as fallback`);
+      
       for (const url of citations) {
-        // Try to find corresponding title/snippet in the content
-        const urlPattern = new RegExp(`\\[.*?\\]\\(${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`, 'i');
-        const match = content.match(urlPattern);
+        // Try to find corresponding info in content
+        const urlEscaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const linkPattern = new RegExp(`\\[([^\\]]+)\\]\\(${urlEscaped}\\)`, 'i');
+        const match = content.match(linkPattern);
         
         let title = 'Untitled';
+        let snippet = '';
+        
         if (match) {
-          title = match[0].replace(/\[|\]\(.*\)/g, '');
+          title = match[1].trim();
+          // Try to extract surrounding context as snippet
+          const contextStart = Math.max(0, match.index! - 100);
+          const contextEnd = Math.min(content.length, match.index! + match[0].length + 200);
+          snippet = content.substring(contextStart, contextEnd).trim();
+        } else {
+          snippet = content.substring(0, 200);
         }
 
         results.push({
           title,
           url,
-          snippet: content.substring(0, 200), // Use portion of content as snippet
-          publishedDate: undefined
-        });
-      }
-    }
-
-    // Also try to parse markdown-style links from content
-    const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
-    let linkMatch;
-    
-    while ((linkMatch = linkPattern.exec(content)) !== null) {
-      const [, title, url] = linkMatch;
-      
-      // Skip if already added from citations
-      if (!results.some(r => r.url === url)) {
-        results.push({
-          title: title.trim(),
-          url: url.trim(),
-          snippet: content.substring(Math.max(0, linkMatch.index - 100), linkMatch.index + 100),
+          snippet,
           publishedDate: undefined
         });
       }
