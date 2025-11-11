@@ -233,7 +233,19 @@ serve(async (req) => {
       console.log('No existing collection found - doing initial full collection');
     }
 
-    console.log('Step 6: Fetching enabled media sources...');
+    console.log('Step 6: Fetching enabled media sources and user preferences...');
+    
+    // Fetch user's prioritized outlets
+    const { data: userSettings } = await supabaseClient
+      .from('user_settings')
+      .select('prioritized_outlets')
+      .eq('user_id', userId)
+      .single();
+    
+    const prioritizedOutlets = (userSettings?.prioritized_outlets as any[]) || [];
+    console.log(`User has ${prioritizedOutlets.length} prioritized outlets configured`);
+    
+    // Fetch all enabled sources for the country
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('sources')
       .select('*')
@@ -244,17 +256,50 @@ serve(async (req) => {
       console.error('Step 6 FAILED: Error fetching sources:', sourcesError);
       throw sourcesError;
     }
+    
     console.log(`Step 6 SUCCESS: Found ${sources?.length || 0} enabled sources for ${country}`);
     
-    // Extract domains from sources for Perplexity domain filtering
-    const sourceDomains = sources?.map(s => {
+    // Filter and prioritize sources based on user's prioritized outlets
+    const activePrioritizedOutlets = prioritizedOutlets
+      .filter((outlet: any) => outlet.active)
+      .map((outlet: any) => outlet.name.toLowerCase());
+    
+    const prioritizedSources = sources?.filter(s => 
+      activePrioritizedOutlets.includes(s.name.toLowerCase())
+    ) || [];
+    
+    const otherSources = sources?.filter(s => 
+      !activePrioritizedOutlets.includes(s.name.toLowerCase())
+    ) || [];
+    
+    console.log(`  → ${prioritizedSources.length} prioritized sources (user preferences)`);
+    console.log(`  → ${otherSources.length} other enabled sources`);
+    
+    // Extract domains - prioritize user's preferred outlets
+    const prioritizedDomains = prioritizedSources.map(s => {
       try {
         const url = new URL(s.url);
         return url.hostname.replace('www.', '');
       } catch {
         return null;
       }
-    }).filter(Boolean) as string[] || [];
+    }).filter(Boolean) as string[];
+    
+    const otherDomains = otherSources.slice(0, 10).map(s => {
+      try {
+        const url = new URL(s.url);
+        return url.hostname.replace('www.', '');
+      } catch {
+        return null;
+      }
+    }).filter(Boolean) as string[];
+    
+    const allDomains = [...prioritizedDomains, ...otherDomains];
+    
+    console.log(`  → Using ${prioritizedDomains.length} prioritized domains + ${otherDomains.length} other domains`);
+    if (prioritizedDomains.length > 0) {
+      console.log(`  → Priority domains: ${prioritizedDomains.slice(0, 5).join(', ')}`);
+    }
 
     // Multi-language search terms based on country
     const searchTermsByCountry: Record<string, { native: string[], english: string[], countryName: string }> = {
@@ -318,48 +363,51 @@ serve(async (req) => {
     console.log(`Step 7: Building ${isIncrementalUpdate ? 'INCREMENTAL' : 'COMPREHENSIVE'} Perplexity search queries`);
     
     if (isIncrementalUpdate) {
-      // INCREMENTAL: Focus on newest articles only
+      // INCREMENTAL: Focus on newest articles from prioritized sources
       console.log(`INCREMENTAL: Focusing on ${recencyFilter} recency`);
       
-      // Each fighter with native language
+      // Each fighter with native language - prioritize local domains
       for (const fighter of [...competitors, 'Gripen']) {
         for (const nativeTerm of searchConfig.native.slice(0, 2)) {
           allSearchQueries.push({
             query: `${fighter} ${nativeTerm}`,
             country: countryName,
-            domains: sourceDomains.length > 0 ? sourceDomains : undefined,
+            domains: prioritizedDomains.length > 0 ? prioritizedDomains : allDomains.slice(0, 10),
             recencyFilter
           });
         }
       }
       
     } else {
-      // FULL MODE: Comprehensive searches in native language + English
+      // FULL MODE: Comprehensive searches - PRIORITIZE LOCAL SOURCES
       console.log(`FULL MODE: Comprehensive search across ${daysDiff} days`);
       
-      // Native language searches (PRIMARY for local coverage)
+      // PRIORITY 1: Native language searches with LOCAL DOMAINS ONLY
+      console.log(`  → Priority searches: ${searchConfig.native.length} native language queries on local domains`);
       for (const nativeTerm of searchConfig.native) {
         allSearchQueries.push({
           query: `${nativeTerm} ${competitors.join(' ')} Gripen`,
           country: countryName,
-          domains: sourceDomains.length > 0 ? sourceDomains : undefined,
+          domains: prioritizedDomains.length > 0 ? prioritizedDomains : allDomains,
           recencyFilter: 'month'
         });
       }
       
-      // Fighter-specific native searches
+      // PRIORITY 2: Fighter-specific native searches on local domains
       for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
           query: `${fighter} ${searchConfig.native[0]}`,
           country: countryName,
+          domains: allDomains.length > 0 ? allDomains : undefined,
           recencyFilter: 'month'
         });
       }
       
-      // English searches for international coverage
+      // PRIORITY 3: English searches for international coverage (no domain filter for broader reach)
+      console.log(`  → International searches: ${competitors.length + 1} English queries (broader reach)`);
       for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
-          query: `${fighter} ${countryName} fighter jet procurement`,
+          query: `${fighter} ${countryName} fighter procurement`,
           country: countryName,
           recencyFilter: 'year'
         });
@@ -560,14 +608,15 @@ ${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${
 
       // Infer source_country from URL domain
       let sourceCountry = null;
+      let sourceName = null;
       try {
         const url = new URL(originalArticle.url);
-        const hostname = url.hostname;
+        const hostname = url.hostname.replace('www.', '');
         
         // Check if matches any configured source
         const matchedSource = sources?.find(s => {
           try {
-            const sourceHostname = new URL(s.url).hostname;
+            const sourceHostname = new URL(s.url).hostname.replace('www.', '');
             return hostname.includes(sourceHostname) || sourceHostname.includes(hostname);
           } catch {
             return false;
@@ -576,6 +625,14 @@ ${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${
         
         if (matchedSource) {
           sourceCountry = matchedSource.country;
+          sourceName = matchedSource.name;
+          console.log(`  → Matched source: ${sourceName} (${sourceCountry})`);
+        } else {
+          // Try to infer country from domain TLD
+          const tldMatch = hostname.match(/\.([a-z]{2})$/);
+          if (tldMatch) {
+            sourceCountry = tldMatch[1].toUpperCase();
+          }
         }
       } catch {
         // Invalid URL, leave sourceCountry null
