@@ -170,7 +170,7 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
         <div className="space-y-2">
           <div>
             <h4 className="text-xs font-semibold mb-1.5">Platforms</h4>
-            <div className={`grid ${isMobile ? 'grid-cols-2' : 'flex flex-wrap'} gap-1.5`}>
+            <div className="flex flex-wrap gap-1.5">
               {['x', 'reddit', 'facebook', 'linkedin'].map(platform => (
                 <div key={platform} className="flex items-center gap-1.5">
                   <Checkbox
