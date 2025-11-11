@@ -59,86 +59,30 @@ AIRCRAFT BEING CONSIDERED:
 Generate detailed analysis in the following sections. Each section should be 3-5 paragraphs with specific, factual information:
 
 1. PROCUREMENT CONTEXT
-Analyze ${countryName}'s defense procurement process, requirements, and typical timelines. Include:
-- Current air force capabilities and gaps
-- Procurement budget and financing mechanisms
-- Decision-making process and key stakeholders
-- Technical requirements for the next-generation fighter
-- Industrial participation requirements (offset agreements, technology transfer)
+Analyze ${countryName}'s defense procurement process, requirements, and typical timelines. Include current air force capabilities, gaps, budget, decision-making process, technical requirements, and industrial participation requirements.
 
 2. GRIPEN OVERVIEW
-Provide comprehensive overview of Saab Gripen:
-- Technical specifications (variants: C/D, E/F)
-- Key capabilities and strengths
-- Operational costs and lifecycle economics
-- Current operators and combat experience
-- Industrial cooperation model
-- Weaknesses and limitations
+Provide comprehensive overview of Saab Gripen including technical specs, capabilities, operational costs, current operators, and industrial cooperation model.
 
 3. COMPETITOR OVERVIEW
-For each competitor aircraft (${competitorsList}), provide:
-- Technical specifications and capabilities
-- Strengths and unique selling points
-- Operational costs
-- Current operators
-- Political/geopolitical considerations
-- Weaknesses and limitations
+For each competitor aircraft (${competitorsList}), provide technical specs, strengths, costs, operators, political considerations, and limitations.
 
 4. POLITICAL CONTEXT
-Analyze ${countryName}'s political landscape:
-- Current government and defense priorities
-- Political parties' positions on defense procurement
-- Public opinion on defense spending
-- Key political figures influencing procurement
-- Upcoming elections or political transitions
+Analyze ${countryName}'s political landscape, government priorities, parties' positions, public opinion, key figures, and upcoming transitions.
 
 5. ECONOMIC FACTORS
-Examine economic considerations:
-- ${countryName}'s defense budget and constraints
-- Economic ties with supplier countries (Sweden, USA, France, etc.)
-- Industrial cooperation opportunities
-- Job creation and technology transfer expectations
-- Financing options and payment terms
+Examine economic considerations including defense budget, economic ties, industrial cooperation, job creation, and financing options.
 
 6. GEOPOLITICAL FACTORS
-Assess strategic and geopolitical context:
-- ${countryName}'s security threats and priorities
-- NATO/EU membership status and implications
-- Relations with supplier countries
-- Regional security dynamics
-- Interoperability requirements with allies
+Assess strategic context including security threats, NATO/EU status, relations with suppliers, regional dynamics, and interoperability requirements.
 
 7. HISTORICAL PROCUREMENT PATTERNS
-Review ${countryName}'s defense procurement history:
-- Previous fighter aircraft acquisitions
-- Typical procurement timelines
-- Preferred supplier countries
-- Past offset and industrial cooperation deals
-- Lessons from previous procurements
+Review ${countryName}'s procurement history, previous acquisitions, timelines, preferred suppliers, and past offset deals.
 
 8. INDUSTRY COOPERATION OPPORTUNITIES
-Analyze ${countryName}'s local defense industry and cooperation potential:
-- Key domestic aerospace and defense companies
-- Existing capabilities in aviation, electronics, and systems integration
-- Technology transfer priorities and requirements
-- Potential industrial participation agreements
-- Local manufacturing and assembly opportunities
-- Skills and workforce readiness
-- Research and development collaboration potential
+Analyze domestic defense industry, capabilities, technology transfer priorities, manufacturing opportunities, and R&D collaboration potential.
 
-Format your response as a JSON object with these keys:
-{
-  "procurement_context": "...",
-  "gripen_overview": "...",
-  "competitor_overview": "...",
-  "political_context": "...",
-  "economic_factors": "...",
-  "geopolitical_factors": "...",
-  "historical_patterns": "...",
-  "industry_cooperation": "..."
-}
-
-Be specific, factual, and comprehensive. Each section should provide actionable intelligence for understanding the procurement landscape.`;
+Be specific, factual, and comprehensive. Each section should provide actionable intelligence.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -154,7 +98,28 @@ Be specific, factual, and comprehensive. Each section should provide actionable 
             content: prompt
           }
         ],
-        temperature: 0.7,
+        tools: [{
+          type: "function",
+          function: {
+            name: "return_background_analysis",
+            description: "Returns structured background analysis for fighter aircraft procurement",
+            parameters: {
+              type: "object",
+              properties: {
+                procurement_context: { type: "string", description: "Analysis of procurement process and requirements" },
+                gripen_overview: { type: "string", description: "Comprehensive Gripen overview" },
+                competitor_overview: { type: "string", description: "Analysis of competitor aircraft" },
+                political_context: { type: "string", description: "Political landscape analysis" },
+                economic_factors: { type: "string", description: "Economic considerations" },
+                geopolitical_factors: { type: "string", description: "Geopolitical context" },
+                historical_patterns: { type: "string", description: "Historical procurement patterns" },
+                industry_cooperation: { type: "string", description: "Industry cooperation opportunities" }
+              },
+              required: ["procurement_context", "gripen_overview", "competitor_overview", "political_context", "economic_factors", "geopolitical_factors", "historical_patterns", "industry_cooperation"]
+            }
+          }
+        }],
+        tool_choice: { type: "function", function: { name: "return_background_analysis" } }
       }),
     });
 
@@ -165,24 +130,16 @@ Be specific, factual, and comprehensive. Each section should provide actionable 
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content;
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    if (!content) {
-      throw new Error("No content in AI response");
+    if (!toolCall) {
+      console.error('No tool call in AI response:', JSON.stringify(aiData));
+      throw new Error("AI did not return structured data");
     }
 
-    console.log('AI response received');
+    console.log('AI response received with tool call');
 
-    // Parse the JSON response
-    let analysisData;
-    try {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
-      analysisData = JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
-      throw new Error("Failed to parse AI response as JSON");
-    }
+    const analysisData = JSON.parse(toolCall.function.arguments);
 
     // Store in database
     const { data: insertData, error: insertError } = await supabase
