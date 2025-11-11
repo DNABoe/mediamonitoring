@@ -166,13 +166,13 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
       </Card>
 
       {/* Filters */}
-      <Card className="p-3 sm:p-4">
-        <div className="space-y-3 sm:space-y-4">
+      <Card className="p-2 sm:p-3">
+        <div className="space-y-2">
           <div>
-            <h4 className="text-sm font-semibold mb-2">Platforms</h4>
-            <div className={`grid ${isMobile ? 'grid-cols-2' : 'flex flex-wrap'} gap-2`}>
+            <h4 className="text-xs font-semibold mb-1.5">Platforms</h4>
+            <div className={`grid ${isMobile ? 'grid-cols-2' : 'flex flex-wrap'} gap-1.5`}>
               {['x', 'reddit', 'facebook', 'linkedin'].map(platform => (
-                <div key={platform} className="flex items-center gap-2">
+                <div key={platform} className="flex items-center gap-1.5">
                   <Checkbox
                     id={`platform-${platform}`}
                     checked={selectedPlatforms.includes(platform)}
@@ -184,7 +184,7 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
                       }
                     }}
                   />
-                  <label htmlFor={`platform-${platform}`} className="text-xs sm:text-sm capitalize cursor-pointer">
+                  <label htmlFor={`platform-${platform}`} className="text-xs capitalize cursor-pointer">
                     {platform === 'x' ? 'X' : platform}
                   </label>
                 </div>
@@ -193,15 +193,15 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-2">Sentiment</h4>
-            <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
+            <h4 className="text-xs font-semibold mb-1.5">Sentiment</h4>
+            <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-1.5`}>
               {(['all', 'positive', 'neutral', 'negative'] as const).map(filter => (
                 <Button
                   key={filter}
                   size="sm"
                   variant={sentimentFilter === filter ? 'default' : 'outline'}
                   onClick={() => setSentimentFilter(filter)}
-                  className={isMobile ? 'text-xs px-2' : ''}
+                  className="text-xs px-2 py-1 h-7"
                 >
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </Button>
