@@ -240,7 +240,7 @@ serve(async (req) => {
           dateRange: 'd7'
         });
         
-        // Recent broader search
+        // Recent broader search (30 days)
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} military aviation site:reddit.com`,
@@ -252,16 +252,23 @@ serve(async (req) => {
           dateRange: 'd30'
         });
         
+        // Extended 2-month coverage for historical context
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} ${country} site:reddit.com`,
+          dateRange: 'd60'
+        });
+        
         // Specific subreddits if country-specific
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} site:reddit.com/r/${country.toLowerCase()}`,
-          dateRange: 'd30'
+          dateRange: 'd60'
         });
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} defense site:reddit.com/r/defense`,
-          dateRange: 'd30'
+          dateRange: 'd60'
         });
         
         // X (TWITTER) - Multiple angles with more variations
@@ -298,6 +305,13 @@ serve(async (req) => {
           query: `${fighter} defense purchase site:x.com OR site:twitter.com`,
           dateRange: 'd30'
         });
+        
+        // Extended 2-month coverage for X
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} ${country} site:x.com OR site:twitter.com`,
+          dateRange: 'd60'
+        });
 
         // FACEBOOK - Local language focus with more queries
         searchQueries.push({
@@ -321,6 +335,13 @@ serve(async (req) => {
           query: `${fighter} contract ${localLanguage} site:facebook.com`,
           dateRange: 'd30'
         });
+        
+        // Extended 2-month coverage for Facebook
+        searchQueries.push({
+          platform: 'facebook',
+          query: `${fighter} ${country} site:facebook.com`,
+          dateRange: 'd60'
+        });
 
         // LINKEDIN - Professional discourse with more depth
         searchQueries.push({
@@ -343,6 +364,13 @@ serve(async (req) => {
           platform: 'linkedin',
           query: `${fighter} contract site:linkedin.com`,
           dateRange: 'd30'
+        });
+        
+        // Extended 2-month coverage for LinkedIn
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} ${country} site:linkedin.com`,
+          dateRange: 'd60'
         });
       }
     }
