@@ -25,15 +25,12 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors, star
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Use start tracking date if provided, otherwise default to 30 days ago
-      const cutoffDate = startTrackingDate || subDays(new Date(), 30);
-
+      // Fetch all posts for the tracking country to determine actual date range
       const { data: posts, error } = await supabase
         .from('social_media_posts')
         .select('*')
         .eq('user_id', user.id)
         .eq('tracking_country', activeCountry)
-        .gte('published_at', cutoffDate.toISOString())
         .order('published_at', { ascending: true });
 
       if (error) throw error;
@@ -44,10 +41,21 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors, star
         allCompetitors.some(comp => post.fighter_tags?.includes(comp))
       ) || [];
 
+      if (filteredPosts.length === 0) {
+        setTimelineData([]);
+        return;
+      }
+
+      // Use actual date range from data, or fall back to tracking date / 30 days
+      const earliestPost = new Date(filteredPosts[0].published_at);
+      const latestPost = new Date(filteredPosts[filteredPosts.length - 1].published_at);
+      const cutoffDate = startTrackingDate || subDays(new Date(), 30);
+      const startDate = earliestPost < cutoffDate ? earliestPost : cutoffDate;
+
       // Create daily buckets
       const days = eachDayOfInterval({
-        start: cutoffDate,
-        end: new Date()
+        start: startDate,
+        end: latestPost
       });
 
       const timeline = days.map(day => {
