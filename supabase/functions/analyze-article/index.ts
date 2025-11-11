@@ -172,8 +172,15 @@ IMPORTANT:
     );
 
   } catch (error) {
+    console.error('Error in analyze-article function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error details:', errorMessage);
+    
     return new Response(
-      JSON.stringify({ error: 'Failed to analyze article' }),
+      JSON.stringify({ 
+        error: 'Failed to analyze article',
+        details: errorMessage
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
