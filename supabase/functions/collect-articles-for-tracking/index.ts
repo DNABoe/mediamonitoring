@@ -305,44 +305,45 @@ serve(async (req) => {
     const searchTermsByCountry: Record<string, { native: string[], english: string[], countryName: string }> = {
       PT: { 
         native: [
-          'caça Portugal aviões combate',
-          'Força Aérea Portuguesa F-16 substituição',
-          'Portugal aquisição caças',
-          'aviões militares Portugal'
+          'caças aviões combate',
+          'Força Aérea F-16',
+          'aquisição aviões militares',
+          'defesa aeronáutica'
         ],
         english: [
-          'Portugal fighter aircraft procurement',
-          'Portuguese Air Force F-16 replacement',
-          'Portugal military jets acquisition'
+          'fighter jets aircraft',
+          'Air Force F-16',
+          'military aircraft purchase',
+          'defense aviation'
         ],
         countryName: 'Portugal'
       },
       ES: {
         native: [
-          'caza España aviación combate',
-          'Ejército del Aire adquisición',
-          'España aviones militares'
+          'caza aviación combate',
+          'Ejército del Aire',
+          'aviones militares'
         ],
         english: [
-          'Spain fighter aircraft procurement',
-          'Spanish Air Force acquisition'
+          'fighter aircraft',
+          'Air Force jets'
         ],
         countryName: 'Spain'
       },
       CO: {
         native: [
-          'caza Colombia aviación',
-          'Fuerza Aérea Colombiana adquisición'
+          'caza aviación',
+          'Fuerza Aérea'
         ],
         english: [
-          'Colombia fighter jet procurement',
-          'Colombian Air Force acquisition'
+          'fighter jets',
+          'Air Force'
         ],
         countryName: 'Colombia'
       },
       DEFAULT: { 
         native: [],
-        english: ['fighter jet procurement', 'military aircraft acquisition'],
+        english: ['fighter jets', 'military aircraft'],
         countryName: 'Unknown'
       }
     };
@@ -363,86 +364,92 @@ serve(async (req) => {
     console.log(`Step 7: Building ${isIncrementalUpdate ? 'INCREMENTAL' : 'COMPREHENSIVE'} Perplexity search queries`);
     
     if (isIncrementalUpdate) {
-      // INCREMENTAL: Focus on newest articles from prioritized sources
+      // INCREMENTAL: Recent breaking news - simple direct queries
       console.log(`INCREMENTAL: Focusing on ${recencyFilter} recency`);
       
-      // Each fighter with native language - prioritize local domains
+      // Simple direct queries for each fighter with local domains
       for (const fighter of [...competitors, 'Gripen']) {
-        for (const nativeTerm of searchConfig.native.slice(0, 2)) {
-          allSearchQueries.push({
-            query: `${fighter} ${nativeTerm}`,
-            country: countryName,
-            domains: prioritizedDomains.length > 0 ? prioritizedDomains : allDomains.slice(0, 10),
-            recencyFilter
-          });
-        }
+        // Native language search
+        allSearchQueries.push({
+          query: `${fighter} ${countryName}`,
+          country: countryName,
+          domains: prioritizedDomains.length > 0 ? prioritizedDomains : allDomains.slice(0, 15),
+          recencyFilter
+        });
       }
+      
+      // Broad procurement news
+      allSearchQueries.push({
+        query: `${searchConfig.native[0]} ${countryName}`,
+        country: countryName,
+        domains: prioritizedDomains.length > 0 ? prioritizedDomains : allDomains.slice(0, 15),
+        recencyFilter
+      });
       
     } else {
-      // FULL MODE: Comprehensive searches - PRIORITIZE LOCAL SOURCES
-      console.log(`FULL MODE: Comprehensive search across ${daysDiff} days`);
+      // FULL MODE: Comprehensive historical + recent - use Perplexity's time-travel capability
+      console.log(`FULL MODE: Comprehensive search - leveraging Perplexity's real-time access`);
       
-      // PRIORITY 1: Native language searches with LOCAL DOMAINS ONLY
-      console.log(`  → Priority searches: ${searchConfig.native.length} native language queries on local domains`);
-      for (const nativeTerm of searchConfig.native) {
+      // Strategy: Let Perplexity search the web directly without overly constraining it
+      // Use simple, effective queries that capture procurement discussions
+      
+      // PRIORITY 1: Direct fighter + country searches (most effective)
+      for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
-          query: `${nativeTerm} ${competitors.join(' ')} Gripen`,
+          query: `${fighter} ${countryName} news`,
           country: countryName,
-          domains: prioritizedDomains.length > 0 ? prioritizedDomains : allDomains,
-          recencyFilter: 'month'
+          domains: allDomains.slice(0, 20), // Allow more domains for comprehensive search
+          recencyFilter: 'year' // Last year for comprehensive coverage
         });
       }
       
-      // PRIORITY 2: Fighter-specific native searches on local domains
-      for (const fighter of [...competitors, 'Gripen']) {
+      // PRIORITY 2: Native language general procurement searches
+      for (const nativeTerm of searchConfig.native.slice(0, 2)) {
         allSearchQueries.push({
-          query: `${fighter} ${searchConfig.native[0]}`,
+          query: `${nativeTerm} ${countryName}`,
           country: countryName,
-          domains: allDomains.length > 0 ? allDomains : undefined,
-          recencyFilter: 'month'
+          domains: allDomains.slice(0, 20),
+          recencyFilter: 'year'
         });
       }
       
-      // PRIORITY 3: English searches for international coverage (no domain filter for broader reach)
-      console.log(`  → International searches: ${competitors.length + 1} English queries (broader reach)`);
-      for (const fighter of [...competitors, 'Gripen']) {
+      // PRIORITY 3: English searches for international coverage
+      for (const englishTerm of searchConfig.english.slice(0, 1)) {
         allSearchQueries.push({
-          query: `${fighter} ${countryName} fighter procurement`,
+          query: `${englishTerm} ${countryName}`,
           country: countryName,
           recencyFilter: 'year'
         });
       }
     }
-
+    
     console.log(`Step 7: Total of ${allSearchQueries.length} Perplexity searches prepared`);
-    console.log(`Sample queries:`, allSearchQueries.slice(0, 3).map(q => q.query));
+    console.log('Sample queries:', allSearchQueries.slice(0, 3).map(q => q.query));
 
-    // ============ EXECUTE PERPLEXITY SEARCHES ============
+    // ============ EXECUTE SEARCHES ============
+    console.log(`Starting ${allSearchQueries.length} Perplexity searches...`);
     console.log(`Executing ${allSearchQueries.length} Perplexity AI searches...`);
-
-    const { results: searchResults, successCount, failCount, rateLimitHit } = await batchPerplexitySearch(
+    
+    const { results, successCount, failCount, rateLimitHit } = await batchPerplexitySearch(
       allSearchQueries,
       PERPLEXITY_API_KEY,
       1000 // 1 second delay between searches
     );
+
+    console.log(`Found ${results.length} unique articles from Perplexity`);
+
+    // Deduplicate by normalized URL
+    const seenUrls = new Set<string>();
+    const uniqueResults = results.filter(r => {
+      const normalized = normalizeUrl(r.url);
+      if (seenUrls.has(normalized)) {
+        return false;
+      }
+      seenUrls.add(normalized);
+      return true;
+    });
     
-    // Deduplicate by URL
-    const uniqueResults = Array.from(
-      new Map(searchResults.map(r => [normalizeUrl(r.url), r])).values()
-    );
-
-    console.log(`Found ${uniqueResults.length} unique articles from Perplexity`);
-
-    if (uniqueResults.length === 0) {
-      return new Response(JSON.stringify({ 
-        articles: [],
-        message: 'No articles found via Perplexity',
-        rateLimitHit,
-        searchStats: { total: allSearchQueries.length, success: successCount, failed: failCount }
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    console.log(`Deduplicated to ${uniqueResults.length} unique articles`);
 
     // Pre-filter articles by fighter keywords
     const fighterKeywords = ['Gripen', 'F-35', 'F35', 'Rafale', 'F-16V', 'F16V', 'Eurofighter', 'Typhoon', 'F/A-50'];
