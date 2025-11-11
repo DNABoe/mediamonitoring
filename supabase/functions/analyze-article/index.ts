@@ -140,14 +140,20 @@ IMPORTANT:
     }
 
     const aiData = await aiResponse.json();
+    console.log('AI response received:', JSON.stringify(aiData).substring(0, 200));
+    
     let analysisText = aiData.choices[0].message.content;
+    console.log('Raw analysis text (first 300 chars):', analysisText.substring(0, 300));
     
     // Strip markdown code blocks if present (```json ... ```)
     if (analysisText.includes('```')) {
+      console.log('Stripping markdown code blocks...');
       analysisText = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      console.log('After stripping (first 300 chars):', analysisText.substring(0, 300));
     }
     
     const analysis = JSON.parse(analysisText);
+    console.log('Successfully parsed analysis');
 
     // Store analysis in database with sentiment details
     const { data: savedAnalysis, error: saveError } = await supabase

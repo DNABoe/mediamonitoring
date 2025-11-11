@@ -45,18 +45,27 @@ export const ArticleDetail = ({ article, isOpen, onClose, competitors }: Article
         body: { articleId: article.id, competitors }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Analysis invocation error:', error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error('Analysis returned error:', data);
+        throw new Error(data.error + (data.details ? `: ${data.details}` : ''));
+      }
 
       setAnalysis(data.analysis);
       toast({
         title: "Analysis Complete",
         description: "Article has been analyzed successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Analysis error:', error);
+      const errorMsg = error?.message || 'Could not analyze article. Please try again.';
       toast({
         title: "Analysis Failed",
-        description: "Could not analyze article. Please try again.",
+        description: errorMsg,
         variant: "destructive"
       });
     } finally {
