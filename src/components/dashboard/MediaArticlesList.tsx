@@ -47,11 +47,20 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
-  const { newArticlesCount, resetNewCount } = useRealtimeArticles({
+  const { newArticlesCount, lastCheckTime, resetNewCount } = useRealtimeArticles({
     activeCountry,
     activeCompetitors,
     autoRefreshEnabled
   });
+
+  // Re-fetch articles when realtime detects new ones
+  useEffect(() => {
+    if (newArticlesCount > 0) {
+      console.log(`Realtime detected ${newArticlesCount} new articles, refreshing...`);
+      fetchMediaArticles();
+      resetNewCount();
+    }
+  }, [newArticlesCount]);
 
   const {
     filters,
