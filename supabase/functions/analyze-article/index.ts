@@ -140,7 +140,13 @@ IMPORTANT:
     }
 
     const aiData = await aiResponse.json();
-    const analysisText = aiData.choices[0].message.content;
+    let analysisText = aiData.choices[0].message.content;
+    
+    // Strip markdown code blocks if present (```json ... ```)
+    if (analysisText.includes('```')) {
+      analysisText = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    }
+    
     const analysis = JSON.parse(analysisText);
 
     // Store analysis in database with sentiment details
