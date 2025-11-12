@@ -388,24 +388,38 @@ serve(async (req) => {
       });
       
     } else {
-      // FULL MODE: Comprehensive historical + recent - use Perplexity's time-travel capability
-      console.log(`FULL MODE: Comprehensive search - leveraging Perplexity's real-time access`);
+      // FULL MODE: Comprehensive historical coverage across ENTIRE tracking period
+      console.log(`FULL MODE: Comprehensive search covering full tracking period ${startDate} to ${endDate}`);
       
-      // Strategy: Let Perplexity search the web directly without overly constraining it
-      // Use simple, effective queries that capture procurement discussions
+      // Strategy: Multiple search queries across the full tracking period to ensure trend analysis
+      // We need articles from the ENTIRE tracking period, not just recent ones
       
-      // PRIORITY 1: Direct fighter + country searches (most effective)
+      // Calculate tracking period duration
+      const trackingDays = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`Tracking period: ${trackingDays} days (${startDate} to ${endDate})`);
+      
+      // PRIORITY 1: Direct fighter + country searches across full tracking period
+      // Use 'year' recency for comprehensive coverage - Perplexity will find historical articles
       for (const fighter of [...competitors, 'Gripen']) {
+        // Comprehensive search - no time restriction to get full historical coverage
         allSearchQueries.push({
           query: `${fighter} ${countryName} news`,
           country: countryName,
-          domains: allDomains.slice(0, 20), // Allow more domains for comprehensive search
-          recencyFilter: 'year' // Last year for comprehensive coverage
+          domains: allDomains.slice(0, 20),
+          recencyFilter: 'year' // Captures last 12 months
+        });
+        
+        // Add specific search for procurement/acquisition discussions
+        allSearchQueries.push({
+          query: `${fighter} ${countryName} procurement acquisition`,
+          country: countryName,
+          domains: allDomains.slice(0, 15),
+          recencyFilter: 'year'
         });
       }
       
       // PRIORITY 2: Native language general procurement searches
-      for (const nativeTerm of searchConfig.native.slice(0, 2)) {
+      for (const nativeTerm of searchConfig.native.slice(0, 3)) {
         allSearchQueries.push({
           query: `${nativeTerm} ${countryName}`,
           country: countryName,
@@ -415,13 +429,15 @@ serve(async (req) => {
       }
       
       // PRIORITY 3: English searches for international coverage
-      for (const englishTerm of searchConfig.english.slice(0, 1)) {
+      for (const englishTerm of searchConfig.english.slice(0, 2)) {
         allSearchQueries.push({
           query: `${englishTerm} ${countryName}`,
           country: countryName,
           recencyFilter: 'year'
         });
       }
+      
+      console.log(`FULL MODE: Created ${allSearchQueries.length} comprehensive search queries to ensure full historical coverage for trend analysis`);
     }
     
     console.log(`Step 7: Total of ${allSearchQueries.length} Perplexity searches prepared`);
