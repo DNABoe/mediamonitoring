@@ -433,72 +433,70 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
             </div>
           )}
 
-          {/* Thermometer Displays - More Compact */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
+          {/* Thermometer Displays - Horizontal */}
+          <div className="space-y-3 mb-6">
             {sortedScores.map((item, index) => {
               const percentage = (item.score / 10) * 100;
               const isLeader = index === 0;
               
               return (
-                <div key={item.name} className={`p-3 rounded-lg border ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1">
-                      {isLeader && <span className="text-lg">🥇</span>}
+                <div key={item.name} className={`p-4 rounded-lg border ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      {isLeader && <span className="text-xl">🥇</span>}
                       <div>
-                        <div className="text-xs font-bold" style={{ color: item.color }}>{item.name}</div>
-                        {isLeader && <div className="text-[10px] text-accent font-semibold">Leader</div>}
+                        <div className="text-sm font-bold" style={{ color: item.color }}>{item.name}</div>
+                        {isLeader && <div className="text-xs text-accent font-semibold">Current Leader</div>}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
-                      <div className="text-[10px] text-muted-foreground">/ 10</div>
+                      <div className="text-2xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
+                      <div className="text-xs text-muted-foreground">/ 10</div>
                     </div>
                   </div>
                   
-                  {/* Thermometer - Compact */}
-                  <div className="relative w-full h-32 flex justify-center">
-                    <div className="relative w-8">
-                      {/* Thermometer bulb */}
+                  {/* Horizontal Thermometer */}
+                  <div className="relative w-full h-12 flex items-center">
+                    {/* Scale labels - Left side */}
+                    <div className="flex flex-col justify-between h-full text-xs text-muted-foreground mr-2">
+                      <span>10</span>
+                      <span>0</span>
+                    </div>
+                    
+                    {/* Thermometer container */}
+                    <div className="relative flex-1 h-8 flex items-center">
+                      {/* Thermometer bulb - Left side */}
                       <div 
-                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full border-2"
+                        className="w-8 h-8 rounded-full border-2 flex-shrink-0 z-10"
                         style={{ 
                           backgroundColor: item.color,
                           borderColor: item.color,
-                          boxShadow: `0 0 8px ${item.color}66`
+                          boxShadow: `0 0 10px ${item.color}66`
                         }}
                       />
                       
                       {/* Thermometer tube */}
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-5 h-28 bg-muted rounded-t-full border-2 border-border overflow-hidden">
+                      <div className="flex-1 h-6 bg-muted rounded-r-full border-2 border-l-0 border-border overflow-hidden relative -ml-1">
                         {/* Fill */}
                         <div 
-                          className="absolute bottom-0 left-0 right-0 transition-all duration-500 rounded-t-full"
+                          className="absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-r-full"
                           style={{ 
-                            height: `${percentage}%`,
-                            background: `linear-gradient(to top, ${item.color}, ${item.color}cc)`,
+                            width: `${percentage}%`,
+                            background: `linear-gradient(to right, ${item.color}, ${item.color}cc)`,
                           }}
                         />
                         
                         {/* Scale markers */}
-                        <div className="absolute inset-0 flex flex-col justify-between py-1">
-                          {[10, 8, 6, 4, 2, 0].map((val) => (
-                            <div key={val} className="h-px bg-border/50" />
+                        <div className="absolute inset-0 flex justify-between items-center px-2">
+                          {[0, 2, 4, 6, 8, 10].map((val) => (
+                            <div key={val} className="w-px h-full bg-border/50" />
                           ))}
                         </div>
                       </div>
-                      
-                      {/* Scale labels */}
-                      <div className="absolute bottom-4 -right-6 h-28 flex flex-col justify-between text-[10px] text-muted-foreground">
-                        {[10, 8, 6, 4, 2, 0].map((val) => (
-                          <span key={val}>{val}</span>
-                        ))}
-                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Performance indicator */}
-                  <div className="mt-1 text-center">
-                    <div className="text-[10px] font-medium" style={{ color: item.color }}>
+                    
+                    {/* Performance indicator */}
+                    <div className="ml-3 text-xs font-medium whitespace-nowrap" style={{ color: item.color }}>
                       {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
                     </div>
                   </div>
