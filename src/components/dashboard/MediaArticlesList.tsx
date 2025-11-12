@@ -234,6 +234,35 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
     }
   };
 
+  const translateExistingArticles = async () => {
+    try {
+      setLoading(true);
+      toast({
+        title: "Translating existing articles...",
+        description: "This may take a minute.",
+      });
+
+      const { data, error } = await supabase.functions.invoke('translate-existing-articles');
+
+      if (error) throw error;
+
+      toast({
+        title: "Translation complete",
+        description: `Translated ${data?.translated || 0} articles.`,
+      });
+
+      await fetchMediaArticles();
+    } catch (error: any) {
+      toast({
+        title: "Translation failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchMediaArticles = async () => {
     try {
       setLoading(true);
@@ -512,7 +541,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                   </>
                 )}
               </Button>
-              <Button
+              <Button 
                 onClick={fetchMediaArticles} 
                 variant="ghost" 
                 size="sm"
@@ -520,6 +549,16 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                 className={isMobile ? 'px-3' : ''}
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button 
+                onClick={translateExistingArticles}
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                className={isMobile ? 'hidden' : ''}
+                title="Translate existing articles"
+              >
+                Translate
               </Button>
             </div>
           </div>
