@@ -267,6 +267,9 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
 
       if (error) throw error;
 
+      // Fetch the updated scores immediately after generation
+      await fetchDimensionScores();
+      
       toast.success('Research complete - scores updated');
     } catch (error: any) {
       console.error('Error generating research:', error);

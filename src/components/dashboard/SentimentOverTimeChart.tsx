@@ -37,5 +37,38 @@ export const SentimentOverTimeChart = ({
     }
     return value;
   };
-  return;
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">Sentiment Over Time</h3>
+        <TrendingUp className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="date" 
+            tickFormatter={(value) => format(new Date(value), 'MMM dd')}
+          />
+          <YAxis tickFormatter={formatYAxis} domain={[-1, 1]} />
+          <Tooltip 
+            labelFormatter={(value) => format(new Date(value), 'MMM dd, yyyy')}
+            formatter={formatTooltip}
+          />
+          <Legend />
+          {fighters.map((fighter) => (
+            <Line
+              key={fighter}
+              type="monotone"
+              dataKey={fighter}
+              stroke={COLORS[fighter as keyof typeof COLORS] || '#6366f1'}
+              strokeWidth={2}
+              dot={{ r: 4 }}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </Card>
+  );
 };
