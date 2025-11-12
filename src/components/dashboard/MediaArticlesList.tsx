@@ -375,12 +375,12 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         <div className="flex-1">
           {article.titleOriginal ? (
             <>
-              <p className="text-sm text-muted-foreground mb-1">
+              <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug mb-1.5">
                 {article.titleOriginal}
-              </p>
-              <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug">
-                {article.title}
               </h3>
+              <p className="text-sm text-muted-foreground/80 italic leading-snug">
+                {article.title}
+              </p>
             </>
           ) : (
             <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug">
