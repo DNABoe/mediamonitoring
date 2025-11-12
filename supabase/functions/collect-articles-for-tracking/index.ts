@@ -721,7 +721,8 @@ ${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${
         tracking_country: country,
         source_country: sourceCountry,
         url: normalizeUrl(originalArticle.url),
-        title_en: originalArticle.title,
+        title_pt: originalArticle.title, // Store original title (often in Portuguese for PT sources)
+        title_en: originalArticle.title, // Store same as English for now - will be translated later if needed
         summary_en: originalArticle.snippet,
         fighter_tags: article.fighter_tags || [],
         sentiment: article.sentiment || 0,
@@ -733,6 +734,55 @@ ${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${
     }).filter(Boolean);
 
     console.log(`Prepared ${articlesToStore.length} articles for storage`);
+
+    // ============ TRANSLATE TITLES TO ENGLISH ============
+    if (articlesToStore.length > 0) {
+      console.log('Translating Portuguese titles to English...');
+      
+      try {
+        const titlesToTranslate = articlesToStore.map((a: any) => a.title_pt).join('\n---\n');
+        
+        const translationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a translator. Translate Portuguese article titles to English. Preserve fighter aircraft names and technical terms. Return ONLY the translations, one per line, in the same order, separated by newlines.'
+              },
+              {
+                role: 'user',
+                content: `Translate these Portuguese article titles to English:\n\n${titlesToTranslate}`
+              }
+            ]
+          })
+        });
+
+        if (translationResponse.ok) {
+          const translationData = await translationResponse.json();
+          const translations = translationData.choices[0].message.content.split('\n').filter((t: string) => t.trim());
+          
+          // Update articles with translations
+          articlesToStore.forEach((article: any, index: number) => {
+            if (translations[index]) {
+              article.title_en = translations[index].trim();
+            }
+          });
+          
+          console.log(`✓ Translated ${translations.length} titles`);
+        } else {
+          console.warn('Translation failed, using original titles');
+        }
+      } catch (translationError) {
+        console.warn('Translation error:', translationError);
+        // Continue without translations
+      }
+    }
 
     // ============ STORE IN DATABASE ============
     if (articlesToStore.length > 0) {
