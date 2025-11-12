@@ -96,6 +96,13 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     loadWeights();
     fetchDimensionScores();
 
+    // Auto-fetch AI suggestions on component mount
+    setTimeout(() => {
+      if (!aiSuggestion) {
+        fetchAiSuggestion();
+      }
+    }, 1000);
+
     const settingsChannel = supabase
       .channel('settings-changes')
       .on(
@@ -250,6 +257,24 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
   const sortedScores = [...allScores].sort((a, b) => b.score - a.score);
   const topCompetitor = sortedScores[0];
 
+  // Show loading or empty state
+  if (!hasScores) {
+    return (
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-xl font-bold">Competitor Analysis - Weighted Scores</h3>
+            <p className="text-sm text-muted-foreground mt-1">AI-powered multi-dimensional assessment</p>
+          </div>
+        </div>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground mb-4">No analysis data available yet</p>
+          <p className="text-sm text-muted-foreground">Run a research analysis to see competitor scores</p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -283,80 +308,78 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
       )}
 
       {/* Thermometer Displays */}
-      {hasScores && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {sortedScores.map((item, index) => {
-            const percentage = (item.score / 10) * 100;
-            const isLeader = index === 0;
-            
-            return (
-              <div key={item.name} className={`p-4 rounded-lg border-2 ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {isLeader && <span className="text-xl">🥇</span>}
-                    <div>
-                      <div className="text-sm font-bold" style={{ color: item.color }}>{item.name}</div>
-                      {isLeader && <div className="text-xs text-accent font-semibold">Current Leader</div>}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
-                    <div className="text-xs text-muted-foreground">/ 10</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {sortedScores.map((item, index) => {
+          const percentage = (item.score / 10) * 100;
+          const isLeader = index === 0;
+          
+          return (
+            <div key={item.name} className={`p-4 rounded-lg border-2 ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {isLeader && <span className="text-xl">🥇</span>}
+                  <div>
+                    <div className="text-sm font-bold" style={{ color: item.color }}>{item.name}</div>
+                    {isLeader && <div className="text-xs text-accent font-semibold">Current Leader</div>}
                   </div>
                 </div>
-                
-                {/* Thermometer */}
-                <div className="relative w-full h-48 flex justify-center">
-                  <div className="relative w-12">
-                    {/* Thermometer bulb */}
+                <div className="text-right">
+                  <div className="text-2xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
+                  <div className="text-xs text-muted-foreground">/ 10</div>
+                </div>
+              </div>
+              
+              {/* Thermometer */}
+              <div className="relative w-full h-48 flex justify-center">
+                <div className="relative w-12">
+                  {/* Thermometer bulb */}
+                  <div 
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full border-2"
+                    style={{ 
+                      backgroundColor: item.color,
+                      borderColor: item.color,
+                      boxShadow: `0 0 10px ${item.color}66`
+                    }}
+                  />
+                  
+                  {/* Thermometer tube */}
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-6 h-40 bg-muted rounded-t-full border-2 border-border overflow-hidden">
+                    {/* Fill */}
                     <div 
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full border-2"
+                      className="absolute bottom-0 left-0 right-0 transition-all duration-500 rounded-t-full"
                       style={{ 
-                        backgroundColor: item.color,
-                        borderColor: item.color,
-                        boxShadow: `0 0 10px ${item.color}66`
+                        height: `${percentage}%`,
+                        background: `linear-gradient(to top, ${item.color}, ${item.color}cc)`,
                       }}
                     />
                     
-                    {/* Thermometer tube */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-6 h-40 bg-muted rounded-t-full border-2 border-border overflow-hidden">
-                      {/* Fill */}
-                      <div 
-                        className="absolute bottom-0 left-0 right-0 transition-all duration-500 rounded-t-full"
-                        style={{ 
-                          height: `${percentage}%`,
-                          background: `linear-gradient(to top, ${item.color}, ${item.color}cc)`,
-                        }}
-                      />
-                      
-                      {/* Scale markers */}
-                      <div className="absolute inset-0 flex flex-col justify-between py-2">
-                        {[10, 8, 6, 4, 2, 0].map((val) => (
-                          <div key={val} className="h-px bg-border" />
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Scale labels */}
-                    <div className="absolute bottom-6 -right-8 h-40 flex flex-col justify-between text-xs text-muted-foreground">
+                    {/* Scale markers */}
+                    <div className="absolute inset-0 flex flex-col justify-between py-2">
                       {[10, 8, 6, 4, 2, 0].map((val) => (
-                        <span key={val}>{val}</span>
+                        <div key={val} className="h-px bg-border" />
                       ))}
                     </div>
                   </div>
-                </div>
-                
-                {/* Performance indicator */}
-                <div className="mt-2 text-center">
-                  <div className="text-xs font-medium" style={{ color: item.color }}>
-                    {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
+                  
+                  {/* Scale labels */}
+                  <div className="absolute bottom-6 -right-8 h-40 flex flex-col justify-between text-xs text-muted-foreground">
+                    {[10, 8, 6, 4, 2, 0].map((val) => (
+                      <span key={val}>{val}</span>
+                    ))}
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+              
+              {/* Performance indicator */}
+              <div className="mt-2 text-center">
+                <div className="text-xs font-medium" style={{ color: item.color }}>
+                  {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Weight Adjustment Section */}
       <div className="space-y-3 mb-4">
@@ -448,7 +471,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
                     <div key={`${key}-scores`} className="text-xs space-y-1">
                       <div className="flex justify-between">
                         <span style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen:</span>
-                        <span className="font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>{dimensionScores.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
+                        <span className="font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>{dimensionScores?.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
                       </div>
                       {allCompetitors.map(comp => {
                         const compKey = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -456,7 +479,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
                         return (
                           <div key={comp} className="flex justify-between">
                             <span style={{ color }}>{comp}:</span>
-                            <span className="font-semibold" style={{ color }}>{dimensionScores[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
+                            <span className="font-semibold" style={{ color }}>{dimensionScores?.[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
                           </div>
                         );
                       })}
