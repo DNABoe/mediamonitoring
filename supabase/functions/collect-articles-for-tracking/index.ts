@@ -737,7 +737,7 @@ ${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${
 
     // ============ TRANSLATE TITLES TO ENGLISH ============
     if (articlesToStore.length > 0) {
-      console.log('Translating Portuguese titles to English...');
+      console.log('Translating article titles to English...');
       
       try {
         const titlesToTranslate = articlesToStore.map((a: any) => a.title_pt).join('\n---\n');
@@ -753,11 +753,11 @@ ${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${
             messages: [
               {
                 role: 'system',
-                content: 'You are a translator. Translate Portuguese article titles to English. Preserve fighter aircraft names and technical terms. Return ONLY the translations, one per line, in the same order, separated by newlines.'
+                content: 'You are a professional translator. Translate article titles from any language to English. Preserve proper nouns, fighter aircraft names (F-35, Rafale, Gripen, Eurofighter, etc.), and technical terms. Return ONLY the English translations, one per line, in the same order, separated by newlines. If a title is already in English, return it unchanged.'
               },
               {
                 role: 'user',
-                content: `Translate these Portuguese article titles to English:\n\n${titlesToTranslate}`
+                content: `Translate these article titles to English:\n\n${titlesToTranslate}`
               }
             ]
           })
@@ -774,7 +774,7 @@ ${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${
             }
           });
           
-          console.log(`✓ Translated ${translations.length} titles`);
+          console.log(`✓ Translated ${translations.length} titles to English`);
         } else {
           console.warn('Translation failed, using original titles');
         }
