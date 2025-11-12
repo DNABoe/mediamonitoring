@@ -493,9 +493,26 @@ Use the dimension_scoring tool to return structured scores.`;
     const dimensionScores = JSON.parse(scoringCall.function.arguments);
     console.log('Dimension scores generated:', JSON.stringify(dimensionScores, null, 2));
 
+    // Build comprehensive intelligence summary for storage
+    const intelligenceSummary = {
+      perplexity_intel: perplexityIntel,
+      background_available: !!backgroundData,
+      articles_analyzed: realArticles?.length || 0,
+      tracking_period: `${trackingStartDate} to ${today}`,
+      data_sources: {
+        background_analysis: backgroundData ? 'Available' : 'Not available',
+        perplexity_political: perplexityIntel.political ? 'Retrieved' : 'Unavailable',
+        perplexity_industrial: perplexityIntel.industrial ? 'Retrieved' : 'Unavailable',
+        perplexity_cost: perplexityIntel.cost ? 'Retrieved' : 'Unavailable',
+        perplexity_capabilities: perplexityIntel.capabilities ? 'Retrieved' : 'Unavailable',
+        media_articles: realArticles?.length || 0
+      }
+    };
+
     // Build media_tonality object with sentiment scores AND dimension scores
     const mediaTonality: any = {
       dimension_scores: dimensionScores,
+      intelligence_summary: intelligenceSummary,
       Gripen: {
         sentiment: analysis.gripen_sentiment || 0,
         mentions: analysis.gripen_mentions || 0,
@@ -503,7 +520,7 @@ Use the dimension_scoring tool to return structured scores.`;
       }
     };
 
-    console.log('Media tonality with dimension_scores:', JSON.stringify(mediaTonality, null, 2));
+    console.log('Media tonality with dimension_scores and intelligence:', JSON.stringify(mediaTonality, null, 2));
 
     competitors.forEach((comp: string) => {
       const safeName = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');

@@ -22,7 +22,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     'F/A-50': '#ec4899'
   };
   const [showSettings, setShowSettings] = useState(false);
-  const [showScores, setShowScores] = useState(false);
+  const [showIntelligence, setShowIntelligence] = useState(false);
   const [weights, setWeights] = useState({
     media: 35,
     political: 25,
@@ -31,6 +31,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     capabilities: 10,
   });
   const [dimensionScores, setDimensionScores] = useState<Record<string, Record<string, number>> | null>(null);
+  const [intelligenceSummary, setIntelligenceSummary] = useState<any>(null);
   const [competitorScores, setCompetitorScores] = useState<Record<string, number>>({});
   const [aiSuggestion, setAiSuggestion] = useState<{
     rationale: string;
@@ -38,6 +39,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
   } | null>(null);
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
   const [isGeneratingResearch, setIsGeneratingResearch] = useState(false);
+  const [showScores, setShowScores] = useState(false);
   const { settings: userSettings } = useUserSettings();
 
   const calculateWeightedScores = (currentWeights: typeof weights) => {
@@ -76,12 +78,15 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
       const tonality = report.media_tonality as any;
       console.log('Tonality object:', tonality);
       console.log('Looking for dimension_scores:', tonality.dimension_scores);
+      console.log('Intelligence summary:', tonality.intelligence_summary);
       
       const scores = tonality.dimension_scores;
+      const intelSummary = tonality.intelligence_summary;
       
       if (scores) {
         console.log('Found dimension scores:', scores);
         setDimensionScores(scores);
+        setIntelligenceSummary(intelSummary || null);
         
         // Calculate initial weighted scores
         const weighted = calculateWeightedScores(weights);
@@ -99,6 +104,8 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
           const convertedScores: Record<string, Record<string, number>> = {};
           
           Object.keys(tonality).forEach(fighter => {
+            if (fighter === 'intelligence_summary' || fighter === 'dimension_scores') return;
+            
             const fighterKey = fighter.toLowerCase().replace(/[^a-z0-9]/g, '_');
             const sentiment = tonality[fighter].sentiment || 0;
             
@@ -534,6 +541,83 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
               </div>
             )}
           </div>
+
+          {/* Intelligence Sources Section */}
+          {intelligenceSummary && (
+            <div className="mt-4 mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full flex items-center justify-between text-xs"
+                onClick={() => setShowIntelligence(!showIntelligence)}
+              >
+                <span className="text-muted-foreground">
+                  {showIntelligence ? 'Hide' : 'View'} Intelligence Sources Used
+                </span>
+                {showIntelligence ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </Button>
+              
+              {showIntelligence && (
+                <div className="mt-3 p-4 bg-muted/20 border border-border rounded-lg space-y-3">
+                  <div className="text-xs font-semibold text-foreground mb-2">
+                    Analysis Period: {intelligenceSummary.tracking_period}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className={intelligenceSummary.background_available ? 'text-green-600' : 'text-red-600'}>
+                        {intelligenceSummary.background_available ? '✓' : '✗'}
+                      </span>
+                      <span>Background Analysis</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600">✓</span>
+                      <span>{intelligenceSummary.articles_analyzed} Articles</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={intelligenceSummary.data_sources?.perplexity_political === 'Retrieved' ? 'text-green-600' : 'text-yellow-600'}>
+                        {intelligenceSummary.data_sources?.perplexity_political === 'Retrieved' ? '✓' : '○'}
+                      </span>
+                      <span>Political Intel</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={intelligenceSummary.data_sources?.perplexity_industrial === 'Retrieved' ? 'text-green-600' : 'text-yellow-600'}>
+                        {intelligenceSummary.data_sources?.perplexity_industrial === 'Retrieved' ? '✓' : '○'}
+                      </span>
+                      <span>Industrial Intel</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={intelligenceSummary.data_sources?.perplexity_cost === 'Retrieved' ? 'text-green-600' : 'text-yellow-600'}>
+                        {intelligenceSummary.data_sources?.perplexity_cost === 'Retrieved' ? '✓' : '○'}
+                      </span>
+                      <span>Cost Intel</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={intelligenceSummary.data_sources?.perplexity_capabilities === 'Retrieved' ? 'text-green-600' : 'text-yellow-600'}>
+                        {intelligenceSummary.data_sources?.perplexity_capabilities === 'Retrieved' ? '✓' : '○'}
+                      </span>
+                      <span>Capabilities Intel</span>
+                    </div>
+                  </div>
+
+                  {intelligenceSummary.perplexity_intel && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold text-foreground">Real-Time Intelligence Findings:</div>
+                      
+                      {Object.entries(intelligenceSummary.perplexity_intel).map(([key, value]: [string, any]) => (
+                        value && value !== 'No recent intelligence' && value !== 'Intelligence unavailable' && (
+                          <div key={key} className="bg-background/50 p-2 rounded border border-border">
+                            <div className="text-xs font-medium capitalize mb-1">{key}:</div>
+                            <div className="text-xs text-muted-foreground whitespace-pre-wrap">{value}</div>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Detailed Scores Section - Collapsible */}
           <div className="mt-4">
