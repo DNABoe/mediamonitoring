@@ -223,7 +223,9 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
     setActionLoading(true);
 
     try {
-      const { error } = await supabase.functions.invoke('trigger-agent-run');
+      const { data, error } = await supabase.functions.invoke('trigger-agent-run', {
+        body: {}
+      });
 
       if (error) throw error;
 
