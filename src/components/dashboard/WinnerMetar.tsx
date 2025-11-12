@@ -395,43 +395,43 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
         </div>
       )}
 
-      {/* Thermometer Displays */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      {/* Thermometer Displays - More Compact */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
         {sortedScores.map((item, index) => {
           const percentage = (item.score / 10) * 100;
           const isLeader = index === 0;
           
           return (
-            <div key={item.name} className={`p-4 rounded-lg border-2 ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {isLeader && <span className="text-xl">🥇</span>}
+            <div key={item.name} className={`p-3 rounded-lg border ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1">
+                  {isLeader && <span className="text-lg">🥇</span>}
                   <div>
-                    <div className="text-sm font-bold" style={{ color: item.color }}>{item.name}</div>
-                    {isLeader && <div className="text-xs text-accent font-semibold">Current Leader</div>}
+                    <div className="text-xs font-bold" style={{ color: item.color }}>{item.name}</div>
+                    {isLeader && <div className="text-[10px] text-accent font-semibold">Leader</div>}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
-                  <div className="text-xs text-muted-foreground">/ 10</div>
+                  <div className="text-xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
+                  <div className="text-[10px] text-muted-foreground">/ 10</div>
                 </div>
               </div>
               
-              {/* Thermometer */}
-              <div className="relative w-full h-48 flex justify-center">
-                <div className="relative w-12">
+              {/* Thermometer - Compact */}
+              <div className="relative w-full h-32 flex justify-center">
+                <div className="relative w-8">
                   {/* Thermometer bulb */}
                   <div 
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full border-2"
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full border-2"
                     style={{ 
                       backgroundColor: item.color,
                       borderColor: item.color,
-                      boxShadow: `0 0 10px ${item.color}66`
+                      boxShadow: `0 0 8px ${item.color}66`
                     }}
                   />
                   
                   {/* Thermometer tube */}
-                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-6 h-40 bg-muted rounded-t-full border-2 border-border overflow-hidden">
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-5 h-28 bg-muted rounded-t-full border-2 border-border overflow-hidden">
                     {/* Fill */}
                     <div 
                       className="absolute bottom-0 left-0 right-0 transition-all duration-500 rounded-t-full"
@@ -442,15 +442,15 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
                     />
                     
                     {/* Scale markers */}
-                    <div className="absolute inset-0 flex flex-col justify-between py-2">
+                    <div className="absolute inset-0 flex flex-col justify-between py-1">
                       {[10, 8, 6, 4, 2, 0].map((val) => (
-                        <div key={val} className="h-px bg-border" />
+                        <div key={val} className="h-px bg-border/50" />
                       ))}
                     </div>
                   </div>
                   
                   {/* Scale labels */}
-                  <div className="absolute bottom-6 -right-8 h-40 flex flex-col justify-between text-xs text-muted-foreground">
+                  <div className="absolute bottom-4 -right-6 h-28 flex flex-col justify-between text-[10px] text-muted-foreground">
                     {[10, 8, 6, 4, 2, 0].map((val) => (
                       <span key={val}>{val}</span>
                     ))}
@@ -459,8 +459,8 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
               </div>
               
               {/* Performance indicator */}
-              <div className="mt-2 text-center">
-                <div className="text-xs font-medium" style={{ color: item.color }}>
+              <div className="mt-1 text-center">
+                <div className="text-[10px] font-medium" style={{ color: item.color }}>
                   {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
                 </div>
               </div>

@@ -325,23 +325,86 @@ TOTAL MENTIONS:
     const analysis = JSON.parse(toolCall.function.arguments);
     console.log('Tool call extracted successfully');
 
-    // Fetch weights from settings
-    const { data: weightsData } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', 'winner_weights')
-      .maybeSingle();
+    // NOW CALL AI TO GENERATE MULTI-DIMENSIONAL SCORES (0-10 scale)
+    console.log('Generating multi-dimensional scores...');
+    
+    const dimensionPrompt = `Based on the sentiment analysis, generate comprehensive dimension scores (0-10 scale) for each fighter in the context of ${countryName}'s procurement decision.
 
-    const weights = weightsData?.value || {
-      media: 5,
-      political: 25,
-      capabilities: 10,
-      cost: 30,
-      industrial: 30
-    };
+FIGHTERS: ${allFighters}
 
-    // Build media_tonality object with sentiment scores
+DIMENSIONS TO SCORE (0-10):
+1. MEDIA - Media sentiment and tonality (use sentiment data from analysis)
+2. POLITICAL - Political support and government backing signals
+3. INDUSTRIAL - Industrial cooperation and technology transfer prospects
+4. COST - Cost-effectiveness and value for money perception
+5. CAPABILITIES - Technical capabilities and operational fit
+
+For each fighter, provide a score 0-10 for each dimension based on the analysis.
+
+Use the dimension_scoring tool to return structured scores.`;
+
+    const scoringResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: 'You are a defense analyst scoring fighters across multiple dimensions. Use the dimension_scoring function.' },
+          { role: 'user', content: dimensionPrompt + '\n\nSentiment data:\n' + JSON.stringify(analysis, null, 2) }
+        ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'dimension_scoring',
+            description: 'Submit dimension scores for all fighters',
+            parameters: {
+              type: 'object',
+              properties: Object.fromEntries(
+                ['gripen', ...competitors.map((c: string) => c.toLowerCase().replace(/[^a-z0-9]/g, '_'))].map(f => [
+                  f,
+                  {
+                    type: 'object',
+                    properties: {
+                      media: { type: 'number', minimum: 0, maximum: 10 },
+                      political: { type: 'number', minimum: 0, maximum: 10 },
+                      industrial: { type: 'number', minimum: 0, maximum: 10 },
+                      cost: { type: 'number', minimum: 0, maximum: 10 },
+                      capabilities: { type: 'number', minimum: 0, maximum: 10 }
+                    },
+                    required: ['media', 'political', 'industrial', 'cost', 'capabilities']
+                  }
+                ])
+              ),
+              required: ['gripen', ...competitors.map((c: string) => c.toLowerCase().replace(/[^a-z0-9]/g, '_'))]
+            }
+          }
+        }],
+        tool_choice: { type: 'function', function: { name: 'dimension_scoring' } }
+      }),
+    });
+
+    if (!scoringResponse.ok) {
+      console.error('Scoring AI error:', scoringResponse.status);
+      throw new Error('Failed to generate dimension scores');
+    }
+
+    const scoringData = await scoringResponse.json();
+    const scoringCall = scoringData.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (!scoringCall) {
+      console.error('AI did not return dimension scores');
+      throw new Error('Failed to get dimension scores');
+    }
+
+    const dimensionScores = JSON.parse(scoringCall.function.arguments);
+    console.log('Dimension scores generated:', dimensionScores);
+
+    // Build media_tonality object with sentiment scores AND dimension scores
     const mediaTonality: any = {
+      dimension_scores: dimensionScores,
       Gripen: {
         sentiment: analysis.gripen_sentiment || 0,
         mentions: analysis.gripen_mentions || 0,
