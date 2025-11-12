@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { perplexitySearch } from '../_shared/perplexitySearch.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +31,10 @@ serve(async (req) => {
     );
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+    
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+    if (!PERPLEXITY_API_KEY) throw new Error('PERPLEXITY_API_KEY not configured');
 
     // Get user from request
     const authHeader = req.headers.get('Authorization');
@@ -158,10 +162,22 @@ Return structured data using the sentiment_analysis tool.`;
       requiredFields.push(`${safeName}_mentions`, `${safeName}_sentiment`, `${safeName}_tonality`);
     });
 
+    // ========== GATHER COMPREHENSIVE INTELLIGENCE DATA ==========
+    
+    // Fetch background analysis
+    const { data: backgroundData } = await supabase
+      .from('background_analysis')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('country', country)
+      .maybeSingle();
+
+    console.log(`Background analysis: ${backgroundData ? 'Available' : 'Not available'}`);
+
     // Fetch ALL articles from database since baseline for this user and country
     const { data: realArticles } = await supabase
       .from('items')
-      .select('title_en, url, published_at, fighter_tags, sentiment')
+      .select('title_en, summary_en, url, published_at, fighter_tags, sentiment')
       .eq('user_id', user.id)
       .eq('tracking_country', country)
       .not('fighter_tags', 'is', null)
@@ -169,6 +185,53 @@ Return structured data using the sentiment_analysis tool.`;
       .order('published_at', { ascending: false });
 
     console.log(`Fetched ${realArticles?.length || 0} real articles from database for analysis`);
+
+    // USE PERPLEXITY FOR REAL-TIME INTELLIGENCE
+    console.log('Gathering real-time intelligence via Perplexity...');
+    const perplexityIntel: Record<string, string> = {};
+    
+    const perplexityQueries = [
+      {
+        key: 'political',
+        query: `${countryName} fighter jet procurement political support government statements ${allFighters} last 30 days`
+      },
+      {
+        key: 'industrial',
+        query: `${allFighters} technology transfer industrial cooperation ${countryName} latest announcements`
+      },
+      {
+        key: 'cost',
+        query: `${allFighters} fighter jets acquisition cost lifecycle costs comparison ${countryName}`
+      },
+      {
+        key: 'capabilities',
+        query: `${allFighters} technical capabilities performance comparison NATO interoperability`
+      }
+    ];
+
+    for (const pq of perplexityQueries) {
+      try {
+        const results = await perplexitySearch(
+          { query: pq.query, country: countryName, recencyFilter: 'month' },
+          PERPLEXITY_API_KEY
+        );
+        
+        if (results.length > 0) {
+          perplexityIntel[pq.key] = results.slice(0, 3).map(r => 
+            `- ${r.title}: ${r.snippet || ''}`
+          ).join('\n');
+          console.log(`✓ Perplexity ${pq.key}: ${results.length} results`);
+        } else {
+          perplexityIntel[pq.key] = 'No recent intelligence';
+        }
+      } catch (error) {
+        console.error(`Perplexity error for ${pq.key}:`, error);
+        perplexityIntel[pq.key] = 'Intelligence unavailable';
+      }
+      
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    }
 
     let collectedSources: string[] = [];
     let articleContext = '';
@@ -325,21 +388,49 @@ TOTAL MENTIONS:
     const analysis = JSON.parse(toolCall.function.arguments);
     console.log('Tool call extracted successfully');
 
-    // NOW CALL AI TO GENERATE MULTI-DIMENSIONAL SCORES (0-10 scale)
-    console.log('Generating multi-dimensional scores...');
+    // NOW CALL AI TO GENERATE MULTI-DIMENSIONAL SCORES (0-10 scale) WITH ALL INTELLIGENCE
+    console.log('Generating comprehensive multi-dimensional scores...');
     
-    const dimensionPrompt = `Based on the sentiment analysis, generate comprehensive dimension scores (0-10 scale) for each fighter in the context of ${countryName}'s procurement decision.
+    // Build comprehensive intelligence context
+    const comprehensiveContext = `
+=== BACKGROUND INTELLIGENCE ===
+${backgroundData ? `
+Procurement Context: ${backgroundData.procurement_context || 'N/A'}
+Political Context: ${backgroundData.political_context || 'N/A'}
+Economic Factors: ${backgroundData.economic_factors || 'N/A'}
+Geopolitical Factors: ${backgroundData.geopolitical_factors || 'N/A'}
+Industrial Cooperation: ${backgroundData.industry_cooperation || 'N/A'}
+` : 'No background analysis available'}
 
-FIGHTERS: ${allFighters}
+=== REAL-TIME PERPLEXITY INTELLIGENCE ===
+POLITICAL DIMENSION:
+${perplexityIntel.political || 'No data'}
 
-DIMENSIONS TO SCORE (0-10):
-1. MEDIA - Media sentiment and tonality (use sentiment data from analysis)
-2. POLITICAL - Political support and government backing signals
-3. INDUSTRIAL - Industrial cooperation and technology transfer prospects
-4. COST - Cost-effectiveness and value for money perception
-5. CAPABILITIES - Technical capabilities and operational fit
+INDUSTRIAL DIMENSION:
+${perplexityIntel.industrial || 'No data'}
 
-For each fighter, provide a score 0-10 for each dimension based on the analysis.
+COST DIMENSION:
+${perplexityIntel.cost || 'No data'}
+
+CAPABILITIES DIMENSION:
+${perplexityIntel.capabilities || 'No data'}
+
+=== MEDIA SENTIMENT DATA ===
+${JSON.stringify(analysis, null, 2)}
+`;
+    
+    const dimensionPrompt = `You are analyzing fighter jet procurement for ${countryName}. Score each fighter (${allFighters}) across 5 dimensions on a 0-10 scale.
+
+DIMENSIONS (0=very poor, 5=neutral/average, 10=excellent):
+1. MEDIA - Media sentiment, tonality, and public perception
+2. POLITICAL - Political support, government backing, parliamentary support
+3. INDUSTRIAL - Technology transfer, industrial cooperation, local production benefits
+4. COST - Cost-effectiveness, lifecycle costs, value for money
+5. CAPABILITIES - Technical performance, NATO interoperability, operational fit
+
+Use ALL the intelligence data provided below to make informed, nuanced scores. Vary the scores meaningfully based on each fighter's actual strengths and weaknesses in each dimension.
+
+${comprehensiveContext}
 
 Use the dimension_scoring tool to return structured scores.`;
 
@@ -350,7 +441,7 @@ Use the dimension_scoring tool to return structured scores.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-pro',
         messages: [
           { role: 'system', content: 'You are a defense analyst scoring fighters across multiple dimensions. Use the dimension_scoring function.' },
           { role: 'user', content: dimensionPrompt + '\n\nSentiment data:\n' + JSON.stringify(analysis, null, 2) }
