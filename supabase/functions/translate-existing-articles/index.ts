@@ -57,18 +57,17 @@ serve(async (req) => {
 
     console.log(`Found ${articles.length} articles to process`);
 
-    // Process in batches of 20 to avoid token limits
-    const batchSize = 20;
+    // Translate each article individually
     let totalTranslated = 0;
 
-    for (let i = 0; i < articles.length; i += batchSize) {
-      const batch = articles.slice(i, i + batchSize);
-      const titlesToTranslate = batch.map(a => a.title_en).join('\n---\n');
+    for (let i = 0; i < articles.length; i++) {
+      const article = articles[i];
       
-      console.log(`Translating batch ${Math.floor(i/batchSize) + 1} (${batch.length} articles)...`);
+      console.log(`Translating article ${i + 1}/${articles.length}: ${article.title_en.substring(0, 50)}...`);
 
       try {
-        const translationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        // Translate to English
+        const translateResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -79,78 +78,46 @@ serve(async (req) => {
             messages: [
               {
                 role: 'system',
-                content: 'You are analyzing article titles. For each title, determine: 1) Is it already in English? 2) What is the original language? Return a JSON array with objects containing: {"isEnglish": boolean, "originalLanguage": "en"|"pt"|"es"|"fr"|etc}. Return ONLY the JSON array, one object per line.'
+                content: 'You are a professional translator. If the article title is already in English, return it unchanged. Otherwise, translate it to English while preserving fighter aircraft names (F-35, Gripen, Rafale, Eurofighter, F-16, etc.) and technical terms. Return ONLY the English title, nothing else - no quotes, no explanations.'
               },
               {
                 role: 'user',
-                content: `Analyze these article titles:\n\n${titlesToTranslate}`
+                content: article.title_en
               }
             ]
           })
         });
 
-        if (!translationResponse.ok) {
-          console.warn(`Translation API failed for batch ${Math.floor(i/batchSize) + 1}`);
-          continue;
-        }
+        if (translateResponse.ok) {
+          const translateData = await translateResponse.json();
+          const englishTitle = translateData.choices[0].message.content.trim()
+            .replace(/^["']|["']$/g, ''); // Remove quotes if present
+          
+          // Update the article with both original and translation
+          const { error: updateError } = await supabaseClient
+            .from('items')
+            .update({
+              title_pt: article.title_en,  // Store original
+              title_en: englishTitle        // Store English translation
+            })
+            .eq('id', article.id);
 
-        const analysisData = await translationResponse.json();
-        const analysisText = analysisData.choices[0].message.content;
-        
-        console.log('Analysis response:', analysisText);
-
-        // Update articles - translate each one individually for better accuracy
-        for (let j = 0; j < batch.length; j++) {
-          const article = batch[j];
-
-          try {
-            // Translate to English
-            const translateResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'google/gemini-2.5-flash',
-                messages: [
-                  {
-                    role: 'system',
-                    content: 'You are a professional translator. If the article title is already in English, return it as-is. Otherwise, translate it to English while preserving fighter aircraft names (F-35, Gripen, Rafale, Eurofighter, etc.) and technical terms. Return ONLY the title, nothing else.'
-                  },
-                  {
-                    role: 'user',
-                    content: article.title_en
-                  }
-                ]
-              })
-            });
-
-            if (translateResponse.ok) {
-              const translateData = await translateResponse.json();
-              const translatedTitle = translateData.choices[0].message.content.trim();
-              
-              // Update the article with both original and translation
-              const { error: updateError } = await supabaseClient
-                .from('items')
-                .update({
-                  title_pt: article.title_en, // Original title
-                  title_en: translatedTitle    // English translation
-                })
-                .eq('id', article.id);
-
-              if (!updateError) {
-                totalTranslated++;
-                console.log(`✓ Translated article ${j + 1}: ${translatedTitle}`);
-              }
-            }
-          } catch (error) {
-            console.error(`Error translating article ${article.id}:`, error);
+          if (!updateError) {
+            totalTranslated++;
+            console.log(`✓ Translated: "${article.title_en.substring(0, 40)}..." -> "${englishTitle.substring(0, 40)}..."`);
+          } else {
+            console.error(`Failed to update article ${article.id}:`, updateError);
           }
+        } else {
+          console.warn(`Translation API failed for article ${article.id}: ${translateResponse.status}`);
         }
-
       } catch (error) {
-        console.error(`Error processing batch ${Math.floor(i/batchSize) + 1}:`, error);
+        console.error(`Error translating article ${article.id}:`, error);
+      }
+
+      // Small delay to avoid rate limiting
+      if (i < articles.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
