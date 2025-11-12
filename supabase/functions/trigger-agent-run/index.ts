@@ -12,8 +12,17 @@ serve(async (req) => {
   }
 
   try {
-    const { mode } = await req.json();
-    console.log(`Manual collection trigger requested with mode: ${mode || 'full'}`);
+    // Try to parse JSON body, default to empty object if body is empty
+    let mode = 'full';
+    try {
+      const body = await req.json();
+      mode = body.mode || 'full';
+    } catch (e) {
+      // Request has no body or invalid JSON, use default
+      console.log('No body provided, using default mode: full');
+    }
+    
+    console.log(`Manual collection trigger requested with mode: ${mode}`);
     
     // Get the authenticated user
     const authHeader = req.headers.get('Authorization');
