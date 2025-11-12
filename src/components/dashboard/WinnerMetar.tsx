@@ -1,11 +1,12 @@
 import { Card } from "@/components/ui/card";
-import { TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, ChevronDown, ChevronUp, Brain, Loader2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { useUserSettings } from "@/hooks/useUserSettings";
 
 interface WinnerMetarProps {
   activeCompetitors: string[];
@@ -36,6 +37,8 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     weights: typeof weights;
   } | null>(null);
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+  const [isGeneratingResearch, setIsGeneratingResearch] = useState(false);
+  const { settings: userSettings } = useUserSettings();
 
   const calculateWeightedScores = (currentWeights: typeof weights) => {
     if (!dimensionScores) return {};
@@ -225,6 +228,30 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     }
   };
 
+  const handleGenerateResearch = async () => {
+    setIsGeneratingResearch(true);
+    
+    try {
+      toast.success('Research started - AI is analyzing fighter comparison data...');
+
+      const { error } = await supabase.functions.invoke('research-fighter-comparison', {
+        body: {
+          country: userSettings.activeCountry,
+          competitors: userSettings.activeCompetitors
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success('Research complete - scores updated');
+    } catch (error: any) {
+      console.error('Error generating research:', error);
+      toast.error(error.message || 'Failed to generate research');
+    } finally {
+      setIsGeneratingResearch(false);
+    }
+  };
+
   // Prepare radar chart data
   const radarData = dimensionOrder.map(dimension => {
     const dataPoint: any = { dimension: dimension.charAt(0).toUpperCase() + dimension.slice(1) };
@@ -267,9 +294,29 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
             <p className="text-sm text-muted-foreground mt-1">AI-powered multi-dimensional assessment</p>
           </div>
         </div>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">No analysis data available yet</p>
-          <p className="text-sm text-muted-foreground">Run a research analysis to see competitor scores</p>
+        <div className="flex flex-col items-center justify-center py-12 gap-4">
+          <Brain className="h-16 w-16 text-muted-foreground/50" />
+          <div className="text-center">
+            <p className="text-lg font-medium mb-2">No analysis data available yet</p>
+            <p className="text-sm text-muted-foreground mb-6">Generate a research analysis to see AI-powered competitor scores</p>
+          </div>
+          <Button 
+            onClick={handleGenerateResearch}
+            disabled={isGeneratingResearch}
+            size="lg"
+          >
+            {isGeneratingResearch ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Brain className="mr-2 h-4 w-4" />
+                Generate Research Analysis
+              </>
+            )}
+          </Button>
         </div>
       </Card>
     );
