@@ -275,8 +275,8 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       // Transform database items to MediaArticle format
       const fetchedArticles: MediaArticle[] = (items || []).map(item => ({
         id: item.id,
-        title: item.title_en || item.title_pt || 'Untitled',
-        titleOriginal: item.title_pt && item.title_en ? item.title_pt : undefined,
+        title: item.title_en || item.title_pt || 'Untitled', // English translation
+        titleOriginal: item.title_pt || undefined, // Portuguese original
         url: item.url,
         source: extractSourceFromUrl(item.url),
         published_at: item.published_at,
@@ -373,7 +373,7 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1">
-          {article.titleOriginal ? (
+          {article.titleOriginal && article.title !== article.titleOriginal ? (
             <>
               <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug mb-1.5">
                 {article.titleOriginal}
