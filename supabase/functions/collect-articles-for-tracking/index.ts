@@ -90,9 +90,9 @@ serve(async (req) => {
 
     // ============ REQUEST VALIDATION ============
     console.log('Step 2: Validating request body...');
-    const { country, competitors, startDate, endDate } = body;
+    const { country, competitors, startDate, endDate, mode = 'full' } = body;
     
-    console.log('Request params:', { country, competitors, startDate, endDate });
+    console.log('Request params:', { country, competitors, startDate, endDate, mode });
 
     // Validate country code
     if (!country || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) {
@@ -387,6 +387,60 @@ serve(async (req) => {
         recencyFilter
       });
       
+    } else if (mode === 'recent') {
+      // RECENT MODE: Deep dive search for last 3 months with maximum thoroughness
+      console.log(`RECENT MODE: Deep dive search for breaking news and recent developments`);
+      
+      // Strategy: Exhaustive search with multiple date ranges and query variations
+      // Focus on capturing every recent article with high relevance
+      
+      // PRIORITY 1: Breaking news (last 24-48 hours) - all fighters
+      for (const fighter of [...competitors, 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} ${countryName} news`,
+          country: countryName,
+          domains: allDomains.slice(0, 25),
+          recencyFilter: 'day'
+        });
+        
+        allSearchQueries.push({
+          query: `${fighter} ${countryName} procurement decision`,
+          country: countryName,
+          domains: allDomains.slice(0, 20),
+          recencyFilter: 'day'
+        });
+      }
+      
+      // PRIORITY 2: Last week searches with native terms
+      for (const nativeTerm of searchConfig.native.slice(0, 4)) {
+        allSearchQueries.push({
+          query: `${nativeTerm} ${countryName}`,
+          country: countryName,
+          domains: allDomains.slice(0, 20),
+          recencyFilter: 'week'
+        });
+      }
+      
+      // PRIORITY 3: Last month comprehensive
+      for (const fighter of [...competitors, 'Gripen']) {
+        allSearchQueries.push({
+          query: `${fighter} ${countryName} acquisition`,
+          country: countryName,
+          domains: allDomains.slice(0, 20),
+          recencyFilter: 'month'
+        });
+      }
+      
+      // PRIORITY 4: English international coverage (last month)
+      for (const englishTerm of searchConfig.english.slice(0, 3)) {
+        allSearchQueries.push({
+          query: `${englishTerm} ${countryName}`,
+          country: countryName,
+          recencyFilter: 'month'
+        });
+      }
+      
+      console.log(`RECENT MODE: Created ${allSearchQueries.length} deep dive queries for thorough recent coverage`);
     } else {
       // FULL MODE: Comprehensive historical coverage across ENTIRE tracking period
       console.log(`FULL MODE: Comprehensive search covering full tracking period ${startDate} to ${endDate}`);

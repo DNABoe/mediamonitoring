@@ -12,7 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Manual agent trigger requested');
+    const { mode } = await req.json();
+    console.log(`Manual collection trigger requested with mode: ${mode || 'full'}`);
     
     // Get the authenticated user
     const authHeader = req.headers.get('Authorization');
@@ -44,7 +45,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`User ${user.id} triggering agent run`);
+    console.log(`User ${user.id} triggering collection with mode: ${mode}`);
 
     // Create service role client to trigger the monitoring function
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -53,6 +54,7 @@ serve(async (req) => {
     const { data, error } = await serviceClient.functions.invoke(
       'agent-monitor-news',
       {
+        body: { mode: mode || 'full' },
         headers: {
           Authorization: `Bearer ${supabaseServiceKey}`,
         }
@@ -72,7 +74,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Agent run triggered successfully',
+        message: 'Collection triggered successfully',
         data 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

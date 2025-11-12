@@ -121,19 +121,13 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
     return () => clearInterval(interval);
   }, [activeCountry, activeCompetitors, autoRefreshEnabled]);
 
-  const collectNewArticles = async () => {
+  const collectWholeTrackingPeriod = async () => {
     try {
       setLoading(true);
-      console.log('=== COLLECT ARTICLES START ===');
-      console.log('Active country:', activeCountry);
-      console.log('Active competitors:', activeCompetitors);
+      console.log('=== COLLECT WHOLE TRACKING PERIOD START ===');
 
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('User authenticated:', !!user);
-      console.log('User ID:', user?.id);
-      
       if (!user) {
-        console.error('No user authenticated');
         toast({
           title: "Authentication required",
           description: "Please log in to collect articles",
@@ -142,100 +136,98 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         return;
       }
 
-      // Use filter dates if set, otherwise use start tracking date to today
-      let startDate: Date;
-      let endDate: Date;
-      
-      if (filters.dateFrom && filters.dateTo) {
-        startDate = filters.dateFrom;
-        endDate = filters.dateTo;
-        console.log('Using filter date range:', filters.dateFrom, 'to', filters.dateTo);
-        toast({
-          title: "Collecting articles...",
-          description: `Collecting from ${format(startDate, 'MMM d, yyyy')} to ${format(endDate, 'MMM d, yyyy')}. This may take a few minutes.`,
-        });
-      } else if (startTrackingDate) {
-        endDate = new Date();
-        startDate = startTrackingDate;
-        console.log('Using start tracking date:', startTrackingDate);
-        toast({
-          title: "Collecting articles...",
-          description: `Collecting from ${format(startDate, 'MMM d, yyyy')} to today. This may take a few minutes.`,
-        });
-      } else {
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setFullYear(startDate.getFullYear() - 1);
-        console.log('Using default 1-year range');
-        toast({
-          title: "Collecting articles...",
-          description: "Using default 1-year range. Set date filters to customize. This may take a few minutes.",
-        });
-      }
+      const endDate = new Date();
+      const startDate = startTrackingDate || (() => {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - 1);
+        return d;
+      })();
 
-      const requestBody = {
-        country: activeCountry,
-        competitors: activeCompetitors,
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0]
-      };
-      
-      console.log('Request body being sent:', JSON.stringify(requestBody, null, 2));
-      console.log('Function URL:', `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/collect-articles-for-tracking`);
-
-      const { data, error } = await supabase.functions.invoke('collect-articles-for-tracking', {
-        body: requestBody
+      toast({
+        title: "Collecting full period...",
+        description: `Comprehensive collection from ${format(startDate, 'MMM d, yyyy')} to today. This will take several minutes.`,
+        duration: 5000,
       });
 
-      console.log('Function response data:', data);
-      console.log('Function response error:', error);
+      const { data, error } = await supabase.functions.invoke('collect-articles-for-tracking', {
+        body: {
+          country: activeCountry,
+          competitors: activeCompetitors,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          mode: 'full'
+        }
+      });
 
-      if (error) {
-        console.error('Function invocation error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Collection successful. Total saved:', data?.totalSaved);
-      
-      // Check for quota issues
-      if (data?.quotaExceeded) {
-        toast({
-          title: "Quota limit reached",
-          description: `Collected ${data?.totalSaved || 0} articles before hitting Google API quota. ${data?.searchStats?.success || 0}/${data?.searchStats?.total || 0} searches completed. Try again tomorrow.`,
-          variant: "destructive",
-          duration: 8000,
-        });
-      } else {
-        toast({
-          title: "Collection complete",
-          description: `Collected ${data?.totalSaved || 0} new articles. ${data?.searchStats?.success || 0}/${data?.searchStats?.total || 0} searches successful.`,
-          duration: 5000,
-        });
-      }
-
-      // Refresh the list
-      console.log('Refreshing article list...');
-      await fetchMediaArticles();
-      console.log('=== COLLECT ARTICLES END ===');
-    } catch (error: any) {
-      console.error('=== COLLECT ARTICLES ERROR ===');
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Error details:', error);
-      console.error('Error stack:', error.stack);
-      
-      // Check if it's a quota error
-      const isQuotaError = error.message?.toLowerCase().includes('quota') || 
-                          error.message?.toLowerCase().includes('429') ||
-                          error.message?.toLowerCase().includes('rate limit');
-      
       toast({
-        title: isQuotaError ? "Google API Quota Exceeded" : "Collection failed",
-        description: isQuotaError 
-          ? "Daily Google API quota limit reached (100 searches/day). Try again tomorrow or upgrade your Google API key."
-          : error.message || "Failed to collect articles. Please try again.",
+        title: "Full period collection complete",
+        description: `Collected ${data?.totalSaved || 0} articles across entire tracking period.`,
+        duration: 5000,
+      });
+
+      await fetchMediaArticles();
+    } catch (error: any) {
+      toast({
+        title: "Collection failed",
+        description: error.message || "Failed to collect articles. Please try again.",
         variant: "destructive",
-        duration: isQuotaError ? 10000 : 5000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateRecentArticles = async () => {
+    try {
+      setLoading(true);
+      console.log('=== UPDATE RECENT ARTICLES START ===');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to collect articles",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 3);
+
+      toast({
+        title: "Deep dive search in progress...",
+        description: "Thoroughly searching last 3 months for recent developments. This may take several minutes.",
+        duration: 5000,
+      });
+
+      const { data, error } = await supabase.functions.invoke('collect-articles-for-tracking', {
+        body: {
+          country: activeCountry,
+          competitors: activeCompetitors,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          mode: 'recent'
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Recent update complete",
+        description: `Found ${data?.totalSaved || 0} new articles from the last 3 months.`,
+        duration: 5000,
+      });
+
+      await fetchMediaArticles();
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update recent articles. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -381,13 +373,19 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1">
-          <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug mb-1">
-            {article.title}
-          </h3>
-          {article.titleOriginal && (
-            <p className="text-sm text-muted-foreground italic">
-              Original: {article.titleOriginal}
-            </p>
+          {article.titleOriginal ? (
+            <>
+              <p className="text-sm text-muted-foreground mb-1">
+                {article.titleOriginal}
+              </p>
+              <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug">
+                {article.title}
+              </h3>
+            </>
+          ) : (
+            <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug">
+              {article.title}
+            </h3>
           )}
         </div>
         <Button
@@ -475,20 +473,48 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
               </div>
             </div>
             
-            <div className={`flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}>
-              <Button 
-                onClick={collectNewArticles} 
-                variant="default" 
-                size="sm"
+            <div className={`flex items-center gap-2 ${isMobile ? 'w-full flex-col' : ''}`}>
+              <Button
+                onClick={collectWholeTrackingPeriod}
                 disabled={loading}
-                className={isMobile ? 'flex-1' : ''}
+                variant="default"
+                size={isMobile ? "sm" : "default"}
+                className={isMobile ? 'w-full' : ''}
               >
-                <RefreshCw className={`h-4 w-4 ${isMobile ? '' : 'mr-2'} ${loading ? 'animate-spin' : ''}`} />
-                {!isMobile && 'Collect'}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Collecting...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    {isMobile ? "Full Period" : "Collect Full Period"}
+                  </>
+                )}
               </Button>
               <Button 
+                onClick={updateRecentArticles}
+                disabled={loading}
+                variant="outline"
+                size={isMobile ? "sm" : "default"}
+                className={isMobile ? 'w-full' : ''}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    {isMobile ? "Recent" : "Update Recent (3mo)"}
+                  </>
+                )}
+              </Button>
+              <Button
                 onClick={fetchMediaArticles} 
-                variant="outline" 
+                variant="ghost" 
                 size="sm"
                 disabled={loading}
                 className={isMobile ? 'px-3' : ''}
