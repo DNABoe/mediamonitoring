@@ -14,7 +14,6 @@ import { useRealtimeArticles } from "@/hooks/useRealtimeArticles";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
-
 interface MediaArticle {
   id: string;
   title: string;
@@ -26,15 +25,21 @@ interface MediaArticle {
   source_country: string;
   sentiment?: number;
 }
-
 interface MediaArticlesListProps {
   activeCountry: string;
   activeCompetitors: string[];
-  prioritizedOutlets?: Array<{ name: string; active: boolean }>;
+  prioritizedOutlets?: Array<{
+    name: string;
+    active: boolean;
+  }>;
   startTrackingDate?: Date;
 }
-
-export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritizedOutlets = [], startTrackingDate }: MediaArticlesListProps) => {
+export const MediaArticlesList = ({
+  activeCountry,
+  activeCompetitors,
+  prioritizedOutlets = [],
+  startTrackingDate
+}: MediaArticlesListProps) => {
   const [mediaArticles, setMediaArticles] = useState<MediaArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
@@ -44,10 +49,15 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const [agentStatus, setAgentStatus] = useState<any>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const articlesPerPage = 30;
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const isMobile = useIsMobile();
-  
-  const { newArticlesCount, lastCheckTime, resetNewCount } = useRealtimeArticles({
+  const {
+    newArticlesCount,
+    lastCheckTime,
+    resetNewCount
+  } = useRealtimeArticles({
     activeCountry,
     activeCompetitors,
     autoRefreshEnabled
@@ -61,7 +71,6 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       resetNewCount();
     }
   }, [newArticlesCount]);
-
   const {
     filters,
     filteredArticles,
@@ -84,27 +93,24 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       return 'Unknown Source';
     }
   };
-
   useEffect(() => {
     fetchMediaArticles();
     fetchAgentStatus();
   }, [activeCountry, activeCompetitors]);
-
   useEffect(() => {
     const interval = setInterval(fetchAgentStatus, 30000);
     return () => clearInterval(interval);
   }, []);
-
   const fetchAgentStatus = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: {
+        user
+      }
+    } = await supabase.auth.getUser();
     if (!user) return;
-
-    const { data } = await supabase
-      .from('agent_status')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
+    const {
+      data
+    } = await supabase.from('agent_status').select('*').eq('user_id', user.id).single();
     if (data) {
       setAgentStatus(data);
     }
@@ -113,43 +119,43 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   // Auto-refresh every 5 minutes
   useEffect(() => {
     if (!autoRefreshEnabled) return;
-
     const interval = setInterval(() => {
       fetchMediaArticles();
     }, 5 * 60 * 1000);
-
     return () => clearInterval(interval);
   }, [activeCountry, activeCompetitors, autoRefreshEnabled]);
-
   const collectWholeTrackingPeriod = async () => {
     try {
       setLoading(true);
       console.log('=== COLLECT WHOLE TRACKING PERIOD START ===');
-
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) {
         toast({
           title: "Authentication required",
           description: "Please log in to collect articles",
-          variant: "destructive",
+          variant: "destructive"
         });
         return;
       }
-
       const endDate = new Date();
       const startDate = startTrackingDate || (() => {
         const d = new Date();
         d.setFullYear(d.getFullYear() - 1);
         return d;
       })();
-
       toast({
         title: "Collecting full period...",
         description: `Comprehensive collection from ${format(startDate, 'MMM d, yyyy')} to today. This will take several minutes.`,
-        duration: 5000,
+        duration: 5000
       });
-
-      const { data, error } = await supabase.functions.invoke('collect-articles-for-tracking', {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('collect-articles-for-tracking', {
         body: {
           country: activeCountry,
           competitors: activeCompetitors,
@@ -158,53 +164,52 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
           mode: 'full'
         }
       });
-
       if (error) throw error;
-
       toast({
         title: "Full period collection complete",
         description: `Collected ${data?.totalSaved || 0} articles across entire tracking period.`,
-        duration: 5000,
+        duration: 5000
       });
-
       await fetchMediaArticles();
     } catch (error: any) {
       toast({
         title: "Collection failed",
         description: error.message || "Failed to collect articles. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const updateRecentArticles = async () => {
     try {
       setLoading(true);
       console.log('=== UPDATE RECENT ARTICLES START ===');
-
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) {
         toast({
           title: "Authentication required",
           description: "Please log in to collect articles",
-          variant: "destructive",
+          variant: "destructive"
         });
         return;
       }
-
       const endDate = new Date();
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 3);
-
       toast({
         title: "Deep dive search in progress...",
         description: "Thoroughly searching last 3 months for recent developments. This may take several minutes.",
-        duration: 5000,
+        duration: 5000
       });
-
-      const { data, error } = await supabase.functions.invoke('collect-articles-for-tracking', {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('collect-articles-for-tracking', {
         body: {
           country: activeCountry,
           competitors: activeCompetitors,
@@ -213,67 +218,64 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
           mode: 'recent'
         }
       });
-
       if (error) throw error;
-
       toast({
         title: "Recent update complete",
         description: `Found ${data?.totalSaved || 0} new articles from the last 3 months.`,
-        duration: 5000,
+        duration: 5000
       });
-
       await fetchMediaArticles();
     } catch (error: any) {
       toast({
         title: "Update failed",
         description: error.message || "Failed to update recent articles. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const translateExistingArticles = async () => {
     try {
       setLoading(true);
       toast({
         title: "Translating existing articles...",
-        description: "This may take a minute.",
+        description: "This may take a minute."
       });
-
-      const { data, error } = await supabase.functions.invoke('translate-existing-articles');
-
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('translate-existing-articles');
       if (error) throw error;
-
       toast({
         title: "Translation complete",
-        description: `Translated ${data?.translated || 0} articles.`,
+        description: `Translated ${data?.translated || 0} articles.`
       });
-
       await fetchMediaArticles();
     } catch (error: any) {
       toast({
         title: "Translation failed",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const fetchMediaArticles = async () => {
     try {
       setLoading(true);
       console.log('Fetching recent media articles from database...');
-
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) {
         toast({
           title: "Authentication required",
           description: "Please log in to view articles",
-          variant: "destructive",
+          variant: "destructive"
         });
         return;
       }
@@ -291,14 +293,12 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       }
 
       // Fetch articles from database from start tracking date for this user and country
-      const { data: items, error } = await supabase
-        .from('items')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('tracking_country', activeCountry)
-        .gte('published_at', queryStartDate)
-        .order('published_at', { ascending: false });
-
+      const {
+        data: items,
+        error
+      } = await supabase.from('items').select('*').eq('user_id', user.id).eq('tracking_country', activeCountry).gte('published_at', queryStartDate).order('published_at', {
+        ascending: false
+      });
       if (error) throw error;
 
       // Transform database items to MediaArticle format
@@ -306,19 +306,18 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         // Smart logic: if title_en is "---" or empty, use title_pt as both
         let englishTitle = item.title_en;
         let originalTitle = item.title_pt;
-        
         if (!englishTitle || englishTitle.trim() === '---' || englishTitle.trim() === '') {
           englishTitle = originalTitle || 'Untitled';
         }
-        
         if (!originalTitle || originalTitle.trim() === '---' || originalTitle.trim() === '') {
           originalTitle = englishTitle;
         }
-        
         return {
           id: item.id,
-          title: englishTitle || 'Untitled', // English translation
-          titleOriginal: originalTitle !== englishTitle ? originalTitle : undefined, // Only show if different
+          title: englishTitle || 'Untitled',
+          // English translation
+          titleOriginal: originalTitle !== englishTitle ? originalTitle : undefined,
+          // Only show if different
           url: item.url,
           source: extractSourceFromUrl(item.url),
           published_at: item.published_at,
@@ -331,23 +330,17 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       // Filter by active competitors + Gripen
       const filteredArticles = fetchedArticles.filter(article => {
         const fightersToTrack = [...activeCompetitors, 'Gripen'];
-        return article.fighter_tags.some(tag => 
-          fightersToTrack.some(fighter => 
-            tag.toLowerCase().includes(fighter.toLowerCase())
-          )
-        );
+        return article.fighter_tags.some(tag => fightersToTrack.some(fighter => tag.toLowerCase().includes(fighter.toLowerCase())));
       });
-
       setMediaArticles(filteredArticles);
       setLastFetchTime(new Date());
       resetNewCount();
       console.log(`Loaded ${filteredArticles.length} recent articles from database`);
-      
       if (filteredArticles.length === 0) {
         toast({
           title: "No articles found",
           description: "Click 'Collect Articles' to gather recent media coverage.",
-          duration: 5000,
+          duration: 5000
         });
       }
     } catch (error) {
@@ -356,44 +349,31 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         title: "Error",
         description: "Failed to load articles. Please try again.",
         variant: "destructive",
-        duration: 3000,
+        duration: 3000
       });
     } finally {
       setLoading(false);
     }
   };
-
   if (loading) {
-    return (
-      <Card className="p-6">
+    return <Card className="p-6">
         <div className="flex items-center justify-center h-32">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </Card>
-    );
+      </Card>;
   }
 
   // Separate articles by local vs international
-  const activePrioritizedOutlets = prioritizedOutlets
-    .filter(outlet => outlet.active)
-    .map(outlet => outlet.name.toLowerCase());
-  
+  const activePrioritizedOutlets = prioritizedOutlets.filter(outlet => outlet.active).map(outlet => outlet.name.toLowerCase());
   const localArticles = filteredArticles.filter(article => {
     if (activePrioritizedOutlets.length > 0) {
-      return activePrioritizedOutlets.some(outlet => 
-        article.source.toLowerCase().includes(outlet) || 
-        article.url.toLowerCase().includes(outlet)
-      );
+      return activePrioritizedOutlets.some(outlet => article.source.toLowerCase().includes(outlet) || article.url.toLowerCase().includes(outlet));
     }
     return article.source_country === activeCountry;
   });
-  
   const internationalArticles = filteredArticles.filter(article => {
     if (activePrioritizedOutlets.length > 0) {
-      return !activePrioritizedOutlets.some(outlet => 
-        article.source.toLowerCase().includes(outlet) || 
-        article.url.toLowerCase().includes(outlet)
-      );
+      return !activePrioritizedOutlets.some(outlet => article.source.toLowerCase().includes(outlet) || article.url.toLowerCase().includes(outlet));
     }
     return article.source_country !== activeCountry;
   });
@@ -404,41 +384,32 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
   const startIndex = (currentPage - 1) * articlesPerPage;
   const endIndex = startIndex + articlesPerPage;
   const paginatedArticles = allArticles.slice(startIndex, endIndex);
-  
   const paginatedLocal = paginatedArticles.filter(a => localArticles.includes(a));
   const paginatedInternational = paginatedArticles.filter(a => internationalArticles.includes(a));
-
-  const ArticleCard = ({ article, index }: { article: MediaArticle; index: number }) => (
-    <div 
-      key={`${article.url}-${index}`}
-      className="p-3 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors cursor-pointer"
-      onClick={() => setSelectedArticle(article)}
-    >
+  const ArticleCard = ({
+    article,
+    index
+  }: {
+    article: MediaArticle;
+    index: number;
+  }) => <div key={`${article.url}-${index}`} className="p-3 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setSelectedArticle(article)}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1">
-          {article.titleOriginal && article.title !== article.titleOriginal ? (
-            <>
+          {article.titleOriginal && article.title !== article.titleOriginal ? <>
               <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug mb-1.5">
                 {article.titleOriginal}
               </h3>
               <p className="text-sm text-muted-foreground/80 italic leading-snug">
                 {article.title}
               </p>
-            </>
-          ) : (
-            <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug">
+            </> : <h3 className="font-semibold text-base text-foreground hover:text-primary transition-colors leading-snug">
               {article.title}
-            </h3>
-          )}
+            </h3>}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(article.url, '_blank');
-          }}
-        >
+        <Button variant="ghost" size="sm" onClick={e => {
+        e.stopPropagation();
+        window.open(article.url, '_blank');
+      }}>
           <ExternalLink className="h-4 w-4" />
         </Button>
       </div>
@@ -452,28 +423,19 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
         <span>•</span>
         <span className="font-medium">
           {(() => {
-            const date = new Date(article.published_at);
-            return isNaN(date.getTime()) ? 'Recent' : format(date, 'MMM d, yyyy');
-          })()}
+          const date = new Date(article.published_at);
+          return isNaN(date.getTime()) ? 'Recent' : format(date, 'MMM d, yyyy');
+        })()}
         </span>
       </div>
       
       <div className="flex flex-wrap gap-1">
-        {article.fighter_tags.map((fighter) => (
-          <Badge 
-            key={fighter} 
-            variant="secondary" 
-            className="text-xs py-0 h-5"
-          >
+        {article.fighter_tags.map(fighter => <Badge key={fighter} variant="secondary" className="text-xs py-0 h-5">
             {fighter}
-          </Badge>
-        ))}
+          </Badge>)}
       </div>
-    </div>
-  );
-
-  return (
-    <>
+    </div>;
+  return <>
       <Card className="p-3 sm:p-6">
         <div className="space-y-4">
           {/* Compact Header with Agent Status */}
@@ -484,14 +446,10 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                 <h2 className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>
                   {isMobile ? "Media Monitoring" : "Media Monitoring - Fighter Procurement"}
                 </h2>
-                {agentStatus?.status === 'running' && (
-                  <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                )}
-                {newArticlesCount > 0 && (
-                  <Badge variant="default" className="animate-pulse text-xs">
+                {agentStatus?.status === 'running' && <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />}
+                {newArticlesCount > 0 && <Badge variant="default" className="animate-pulse text-xs">
                     {newArticlesCount} new
-                  </Badge>
-                )}
+                  </Badge>}
               </div>
               
               <div className={`flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground flex-wrap ${isMobile ? 'hidden' : ''}`}>
@@ -499,79 +457,42 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                   Monitoring Gripen vs {activeCompetitors.join(', ')} in {activeCountry}
                   {startTrackingDate && ` • Since ${format(startTrackingDate, 'MMM d, yyyy')}`}
                 </span>
-                {agentStatus && (
-                  <>
+                {agentStatus && <>
                     <span className="flex items-center gap-1">
                       <TrendingUp className="h-3 w-3" />
                       {agentStatus.articles_collected_total || 0} articles
                     </span>
-                    {agentStatus.next_run_at && (
-                      <span className="flex items-center gap-1">
+                    {agentStatus.next_run_at && <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Next {formatDistanceToNow(new Date(agentStatus.next_run_at), { addSuffix: true })}
-                      </span>
-                    )}
-                  </>
-                )}
+                        Next {formatDistanceToNow(new Date(agentStatus.next_run_at), {
+                    addSuffix: true
+                  })}
+                      </span>}
+                  </>}
               </div>
             </div>
             
             <div className={`flex items-center gap-2 ${isMobile ? 'w-full flex-col' : ''}`}>
-              <Button
-                onClick={collectWholeTrackingPeriod}
-                disabled={loading}
-                variant="default"
-                size={isMobile ? "sm" : "default"}
-                className={isMobile ? 'w-full' : ''}
-              >
-                {loading ? (
-                  <>
+              <Button onClick={collectWholeTrackingPeriod} disabled={loading} variant="default" size={isMobile ? "sm" : "default"} className={isMobile ? 'w-full' : ''}>
+                {loading ? <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Collecting...
-                  </>
-                ) : (
-                  <>
+                  </> : <>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     {isMobile ? "Full Period" : "Collect Full Period"}
-                  </>
-                )}
+                  </>}
               </Button>
-              <Button 
-                onClick={updateRecentArticles}
-                disabled={loading}
-                variant="outline"
-                size={isMobile ? "sm" : "default"}
-                className={isMobile ? 'w-full' : ''}
-              >
-                {loading ? (
-                  <>
+              <Button onClick={updateRecentArticles} disabled={loading} variant="outline" size={isMobile ? "sm" : "default"} className={isMobile ? 'w-full' : ''}>
+                {loading ? <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Updating...
-                  </>
-                ) : (
-                  <>
+                  </> : <>
                     <TrendingUp className="h-4 w-4 mr-2" />
                     {isMobile ? "Recent" : "Update Recent (3mo)"}
-                  </>
-                )}
+                  </>}
               </Button>
-              <Button 
-                onClick={fetchMediaArticles} 
-                variant="ghost" 
-                size="sm"
-                disabled={loading}
-                className={isMobile ? 'px-3' : ''}
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-              <Button 
-                onClick={translateExistingArticles}
-                variant="outline"
-                size="sm"
-                disabled={loading}
-                className={isMobile ? 'hidden' : ''}
-                title="Translate existing articles"
-              >
+              
+              <Button onClick={translateExistingArticles} variant="outline" size="sm" disabled={loading} className={isMobile ? 'hidden' : ''} title="Translate existing articles">
                 Translate
               </Button>
             </div>
@@ -588,26 +509,14 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3 space-y-3">
-              <ArticleFilters
-                filters={filters}
-                onSearchChange={setSearchText}
-                onDateRangeChange={setDateRange}
-                onSentimentChange={setSentiment}
-                onSourceTypeChange={setSourceType}
-                onCompetitorsChange={setCompetitors}
-                onClearFilters={clearFilters}
-                activeFilterCount={activeFilterCount}
-                availableCompetitors={['Gripen', ...activeCompetitors]}
-              />
+              <ArticleFilters filters={filters} onSearchChange={setSearchText} onDateRangeChange={setDateRange} onSentimentChange={setSentiment} onSourceTypeChange={setSourceType} onCompetitorsChange={setCompetitors} onClearFilters={clearFilters} activeFilterCount={activeFilterCount} availableCompetitors={['Gripen', ...activeCompetitors]} />
               
-              {filters.dateFrom && filters.dateTo && (
-                <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
+              {filters.dateFrom && filters.dateTo && <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
                   <p className="text-sm">
                     <strong>Collection Date Range Set:</strong> When you click "Collect", 
                     it will fetch articles from <strong>{format(filters.dateFrom, 'MMM d, yyyy')}</strong> to <strong>{format(filters.dateTo, 'MMM d, yyyy')}</strong>.
                   </p>
-                </div>
-              )}
+                </div>}
             </CollapsibleContent>
           </Collapsible>
 
@@ -618,16 +527,15 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
               {activeFilterCount > 0 && ` (filtered from ${mediaArticles.length} total)`}
             </span>
             <span className="text-xs text-muted-foreground">
-              Updated {formatDistanceToNow(lastFetchTime, { addSuffix: true })}
+              Updated {formatDistanceToNow(lastFetchTime, {
+              addSuffix: true
+            })}
             </span>
           </div>
 
-          {allArticles.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+          {allArticles.length === 0 ? <div className="text-center py-8 text-muted-foreground">
               No media articles found
-            </div>
-          ) : (
-            <>
+            </div> : <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Local Media Column */}
                 <div className="space-y-3">
@@ -635,19 +543,13 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                     <h3 className="text-lg font-semibold">Local Media</h3>
                     <Badge variant="secondary">{localArticles.length}</Badge>
                   </div>
-                  {paginatedLocal.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
+                  {paginatedLocal.length === 0 ? <div className="text-center py-8 text-muted-foreground text-sm">
                       No local articles on this page
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[600px] pr-4">
+                    </div> : <ScrollArea className="h-[600px] pr-4">
                       <div className="space-y-2">
-                        {paginatedLocal.map((article, index) => (
-                          <ArticleCard key={`local-${article.id}-${index}`} article={article} index={index} />
-                        ))}
+                        {paginatedLocal.map((article, index) => <ArticleCard key={`local-${article.id}-${index}`} article={article} index={index} />)}
                       </div>
-                    </ScrollArea>
-                  )}
+                    </ScrollArea>}
                 </div>
 
                 {/* International Media Column */}
@@ -656,77 +558,50 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
                     <h3 className="text-lg font-semibold">International Media</h3>
                     <Badge variant="secondary">{internationalArticles.length}</Badge>
                   </div>
-                  {paginatedInternational.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
+                  {paginatedInternational.length === 0 ? <div className="text-center py-8 text-muted-foreground text-sm">
                       No international articles on this page
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[600px] pr-4">
+                    </div> : <ScrollArea className="h-[600px] pr-4">
                       <div className="space-y-2">
-                        {paginatedInternational.map((article, index) => (
-                          <ArticleCard key={`intl-${article.id}-${index}`} article={article} index={index} />
-                        ))}
+                        {paginatedInternational.map((article, index) => <ArticleCard key={`intl-${article.id}-${index}`} article={article} index={index} />)}
                       </div>
-                    </ScrollArea>
-                  )}
+                    </ScrollArea>}
                 </div>
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <Pagination>
+              {totalPages > 1 && <Pagination>
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
+                      <PaginationPrevious onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'} />
                     </PaginationItem>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            onClick={() => setCurrentPage(pageNum)}
-                            isActive={currentPage === pageNum}
-                            className="cursor-pointer"
-                          >
+                    {Array.from({
+                length: Math.min(5, totalPages)
+              }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return <PaginationItem key={pageNum}>
+                          <PaginationLink onClick={() => setCurrentPage(pageNum)} isActive={currentPage === pageNum} className="cursor-pointer">
                             {pageNum}
                           </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
+                        </PaginationItem>;
+              })}
                     <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
+                      <PaginationNext onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'} />
                     </PaginationItem>
                   </PaginationContent>
-                </Pagination>
-              )}
-            </>
-          )}
+                </Pagination>}
+            </>}
         </div>
       </Card>
 
-      {selectedArticle && (
-        <ArticleDetail
-          article={selectedArticle}
-          isOpen={!!selectedArticle}
-          onClose={() => setSelectedArticle(null)}
-          competitors={['Gripen', ...activeCompetitors]}
-        />
-      )}
-    </>
-  );
+      {selectedArticle && <ArticleDetail article={selectedArticle} isOpen={!!selectedArticle} onClose={() => setSelectedArticle(null)} competitors={['Gripen', ...activeCompetitors]} />}
+    </>;
 };
