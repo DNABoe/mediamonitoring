@@ -64,49 +64,68 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
   };
 
   const fetchDimensionScores = async () => {
-    const { data: report } = await supabase
-      .from('research_reports')
-      .select('media_tonality')
-      .order('report_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    console.log('Fetched report:', report);
-    console.log('Media tonality:', report?.media_tonality);
-
-    if (report?.media_tonality) {
-      const tonality = report.media_tonality as any;
-      console.log('Tonality object:', tonality);
-      
-      // The dimension_scores and intelligence_summary are at the root level of media_tonality
-      const scores = tonality.dimension_scores;
-      const intelSummary = tonality.intelligence_summary;
-      
-      console.log('Raw dimension_scores from DB:', scores);
-      console.log('Raw intelligence_summary from DB:', intelSummary);
-      
-      if (scores && typeof scores === 'object' && Object.keys(scores).length > 0) {
-        console.log('✓ Found dimension scores:', scores);
-        
-        // Scores are already normalized in the database (f_35, eurofighter, gripen, rafale)
-        console.log('Setting dimension scores:', scores);
-        setDimensionScores(scores);
-        setIntelligenceSummary(intelSummary || null);
-        
-        // Calculate initial weighted scores
-        const weighted = calculateWeightedScores(weights);
-        setCompetitorScores(weighted);
-        
-        toast.success('Dimension scores loaded successfully');
-      } else {
-        console.error('No dimension_scores found in media_tonality! Full object:', tonality);
-        console.error('Type of scores:', typeof scores);
-        console.error('Keys in tonality:', Object.keys(tonality));
-        toast.error('No analysis data found. Please generate a new analysis.');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user');
+        return;
       }
-    } else {
-      console.error('No research report found in database');
-      toast.error('No research report found. Please generate an analysis.');
+
+      const { data: report, error } = await supabase
+        .from('research_reports')
+        .select('media_tonality')
+        .eq('user_id', user.id)
+        .eq('country', userSettings.activeCountry)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching report:', error);
+        toast.error('Failed to load analysis data');
+        return;
+      }
+
+      console.log('Fetched report:', report);
+      console.log('Media tonality:', report?.media_tonality);
+
+      if (report?.media_tonality) {
+        const tonality = report.media_tonality as any;
+        console.log('Tonality object:', tonality);
+        
+        // The dimension_scores and intelligence_summary are at the root level of media_tonality
+        const scores = tonality.dimension_scores;
+        const intelSummary = tonality.intelligence_summary;
+        
+        console.log('Raw dimension_scores from DB:', scores);
+        console.log('Raw intelligence_summary from DB:', intelSummary);
+        
+        if (scores && typeof scores === 'object' && Object.keys(scores).length > 0) {
+          console.log('✓ Found dimension scores:', scores);
+          
+          // Scores are already normalized in the database (f_35, eurofighter, gripen, rafale)
+          console.log('Setting dimension scores:', scores);
+          setDimensionScores(scores);
+          setIntelligenceSummary(intelSummary || null);
+          
+          // Calculate initial weighted scores
+          const weighted = calculateWeightedScores(weights);
+          setCompetitorScores(weighted);
+          
+          toast.success('Dimension scores loaded successfully');
+        } else {
+          console.error('No dimension_scores found in media_tonality! Full object:', tonality);
+          console.error('Type of scores:', typeof scores);
+          console.error('Keys in tonality:', Object.keys(tonality));
+          toast.error('No analysis data found. Please generate a new analysis.');
+        }
+      } else {
+        console.error('No research report found in database');
+        toast.error('No research report found. Please generate an analysis.');
+      }
+    } catch (error) {
+      console.error('Error in fetchDimensionScores:', error);
+      toast.error('Failed to load dimension scores');
     }
   };
 
