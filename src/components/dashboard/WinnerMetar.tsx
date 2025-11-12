@@ -370,214 +370,236 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
           <h3 className="text-xl font-bold">Competitor Analysis - Weighted Scores</h3>
           <p className="text-sm text-muted-foreground mt-1">AI-powered multi-dimensional assessment</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1 bg-accent/20 rounded-full">
-          <TrendingUp className="h-4 w-4 text-accent" />
-          <span className="text-sm font-semibold">Leader: {topCompetitor?.name || 'N/A'}</span>
+        <div className="flex items-center gap-3">
+          {hasScores && topCompetitor && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-accent/20 rounded-full">
+              <TrendingUp className="h-4 w-4 text-accent" />
+              <span className="text-sm font-semibold">Leader: {topCompetitor.name}</span>
+            </div>
+          )}
+          <Button
+            onClick={handleGenerateResearch}
+            disabled={isGeneratingResearch}
+            size="sm"
+            variant="outline"
+          >
+            {isGeneratingResearch ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Brain className="mr-2 h-4 w-4" />
+                Generate Analysis
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      {/* AI Analysis Weights Info */}
-      {aiSuggestion && (
-        <div className="mb-4 p-3 bg-accent/10 border border-accent/30 rounded-lg">
-          <div className="flex items-start gap-2">
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-foreground mb-1">AI-Suggested Weights Used:</div>
-              <div className="flex gap-2 flex-wrap">
-                {dimensionOrder.map((key) => (
-                  <span key={key} className="text-xs px-2 py-1 bg-accent/20 rounded">
-                    <span className="capitalize font-medium">{key}:</span> {aiSuggestion.weights[key]}%
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2 italic">{aiSuggestion.rationale}</p>
+      {!hasScores && !isGeneratingResearch && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>Click "Generate Analysis" to see AI-powered competitor scores</p>
+          <p className="text-sm mt-2">Based on multi-dimensional assessment</p>
         </div>
       )}
 
-      {/* Thermometer Displays - More Compact */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
-        {sortedScores.map((item, index) => {
-          const percentage = (item.score / 10) * 100;
-          const isLeader = index === 0;
-          
-          return (
-            <div key={item.name} className={`p-3 rounded-lg border ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1">
-                  {isLeader && <span className="text-lg">🥇</span>}
-                  <div>
-                    <div className="text-xs font-bold" style={{ color: item.color }}>{item.name}</div>
-                    {isLeader && <div className="text-[10px] text-accent font-semibold">Leader</div>}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
-                  <div className="text-[10px] text-muted-foreground">/ 10</div>
-                </div>
-              </div>
-              
-              {/* Thermometer - Compact */}
-              <div className="relative w-full h-32 flex justify-center">
-                <div className="relative w-8">
-                  {/* Thermometer bulb */}
-                  <div 
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full border-2"
-                    style={{ 
-                      backgroundColor: item.color,
-                      borderColor: item.color,
-                      boxShadow: `0 0 8px ${item.color}66`
-                    }}
-                  />
-                  
-                  {/* Thermometer tube */}
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-5 h-28 bg-muted rounded-t-full border-2 border-border overflow-hidden">
-                    {/* Fill */}
-                    <div 
-                      className="absolute bottom-0 left-0 right-0 transition-all duration-500 rounded-t-full"
-                      style={{ 
-                        height: `${percentage}%`,
-                        background: `linear-gradient(to top, ${item.color}, ${item.color}cc)`,
-                      }}
-                    />
-                    
-                    {/* Scale markers */}
-                    <div className="absolute inset-0 flex flex-col justify-between py-1">
-                      {[10, 8, 6, 4, 2, 0].map((val) => (
-                        <div key={val} className="h-px bg-border/50" />
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Scale labels */}
-                  <div className="absolute bottom-4 -right-6 h-28 flex flex-col justify-between text-[10px] text-muted-foreground">
-                    {[10, 8, 6, 4, 2, 0].map((val) => (
-                      <span key={val}>{val}</span>
+      {isGeneratingResearch && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+
+      {hasScores && (
+        <>
+          {/* AI Analysis Weights Info */}
+          {aiSuggestion && (
+            <div className="mb-4 p-3 bg-accent/10 border border-accent/30 rounded-lg">
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-foreground mb-1">AI-Suggested Weights Used:</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {dimensionOrder.map((key) => (
+                      <span key={key} className="text-xs px-2 py-1 bg-accent/20 rounded">
+                        <span className="capitalize font-medium">{key}:</span> {aiSuggestion.weights[key]}%
+                      </span>
                     ))}
                   </div>
                 </div>
               </div>
-              
-              {/* Performance indicator */}
-              <div className="mt-1 text-center">
-                <div className="text-[10px] font-medium" style={{ color: item.color }}>
-                  {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Weight Adjustment Section */}
-      <div className="space-y-3 mb-4">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-muted-foreground">Dimension Weights</h4>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setShowSettings(!showSettings)}
-            className="h-7 text-xs"
-          >
-            {showSettings ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
-            {showSettings ? 'Hide' : 'Adjust'}
-          </Button>
-        </div>
-        
-        {showSettings && (
-          <div className="space-y-4 p-4 bg-card border border-border rounded-lg shadow-sm">
-            <div className="text-sm text-muted-foreground mb-2 flex items-center justify-between">
-              <span>Total: {totalWeight}%</span>
-              {totalWeight !== 100 && (
-                <span className="text-xs text-warning">Must equal 100%</span>
-              )}
-            </div>
-            {dimensionOrder.map((key) => (
-              <div key={key} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="capitalize font-medium">{key}</span>
-                  <span className="font-semibold text-primary">{weights[key]}%</span>
-                </div>
-                <Slider
-                  value={[weights[key]]}
-                  onValueChange={(val) => handleWeightChange(key, val)}
-                  max={100}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* AI Suggestions */}
-
-      {hasScores && !aiSuggestion && (
-        <div className="mt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={fetchAiSuggestion}
-            disabled={loadingSuggestion}
-          >
-            {loadingSuggestion ? 'Analyzing...' : 'Generate AI Weight Suggestions'}
-          </Button>
-        </div>
-      )}
-
-      {/* Detailed Scores Section - Collapsible */}
-      {hasScores && (
-        <div className="mt-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full flex items-center justify-between text-xs"
-            onClick={() => setShowScores(!showScores)}
-          >
-            <span className="text-muted-foreground">
-              {showScores ? 'Hide' : 'View'} Detailed Dimension Scores
-            </span>
-            {showScores ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </Button>
-          
-          {showScores && (
-            <div className="mt-3 p-4 bg-muted/20 border border-border rounded-lg">
-              <div className="text-xs font-semibold text-muted-foreground mb-3">
-                Raw AI Analysis Scores (0-10 scale)
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="font-medium text-muted-foreground">Dimension</div>
-                <div className="font-medium text-center">Scores</div>
-                
-                {dimensionOrder.map((key) => (
-                  <>
-                    <div key={`${key}-label`} className="capitalize text-foreground">
-                      {key}
-                    </div>
-                    <div key={`${key}-scores`} className="text-xs space-y-1">
-                      <div className="flex justify-between">
-                        <span style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen:</span>
-                        <span className="font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>{dimensionScores?.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
-                      </div>
-                      {allCompetitors.map(comp => {
-                        const compKey = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                        const color = FIGHTER_COLORS[comp] || '#6b7280';
-                        return (
-                          <div key={comp} className="flex justify-between">
-                            <span style={{ color }}>{comp}:</span>
-                            <span className="font-semibold" style={{ color }}>{dimensionScores?.[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                ))}
-              </div>
+              <p className="text-xs text-muted-foreground mt-2 italic">{aiSuggestion.rationale}</p>
             </div>
           )}
-        </div>
+
+          {/* Thermometer Displays - More Compact */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
+            {sortedScores.map((item, index) => {
+              const percentage = (item.score / 10) * 100;
+              const isLeader = index === 0;
+              
+              return (
+                <div key={item.name} className={`p-3 rounded-lg border ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1">
+                      {isLeader && <span className="text-lg">🥇</span>}
+                      <div>
+                        <div className="text-xs font-bold" style={{ color: item.color }}>{item.name}</div>
+                        {isLeader && <div className="text-[10px] text-accent font-semibold">Leader</div>}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
+                      <div className="text-[10px] text-muted-foreground">/ 10</div>
+                    </div>
+                  </div>
+                  
+                  {/* Thermometer - Compact */}
+                  <div className="relative w-full h-32 flex justify-center">
+                    <div className="relative w-8">
+                      {/* Thermometer bulb */}
+                      <div 
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full border-2"
+                        style={{ 
+                          backgroundColor: item.color,
+                          borderColor: item.color,
+                          boxShadow: `0 0 8px ${item.color}66`
+                        }}
+                      />
+                      
+                      {/* Thermometer tube */}
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-5 h-28 bg-muted rounded-t-full border-2 border-border overflow-hidden">
+                        {/* Fill */}
+                        <div 
+                          className="absolute bottom-0 left-0 right-0 transition-all duration-500 rounded-t-full"
+                          style={{ 
+                            height: `${percentage}%`,
+                            background: `linear-gradient(to top, ${item.color}, ${item.color}cc)`,
+                          }}
+                        />
+                        
+                        {/* Scale markers */}
+                        <div className="absolute inset-0 flex flex-col justify-between py-1">
+                          {[10, 8, 6, 4, 2, 0].map((val) => (
+                            <div key={val} className="h-px bg-border/50" />
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Scale labels */}
+                      <div className="absolute bottom-4 -right-6 h-28 flex flex-col justify-between text-[10px] text-muted-foreground">
+                        {[10, 8, 6, 4, 2, 0].map((val) => (
+                          <span key={val}>{val}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Performance indicator */}
+                  <div className="mt-1 text-center">
+                    <div className="text-[10px] font-medium" style={{ color: item.color }}>
+                      {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Weight Adjustment Section */}
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-muted-foreground">Dimension Weights</h4>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowSettings(!showSettings)}
+                className="h-7 text-xs"
+              >
+                {showSettings ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+                {showSettings ? 'Hide' : 'Adjust'}
+              </Button>
+            </div>
+            
+            {showSettings && (
+              <div className="space-y-4 p-4 bg-card border border-border rounded-lg shadow-sm">
+                <div className="text-sm text-muted-foreground mb-2 flex items-center justify-between">
+                  <span>Total: {totalWeight}%</span>
+                  {totalWeight !== 100 && (
+                    <span className="text-xs text-warning">Must equal 100%</span>
+                  )}
+                </div>
+                {dimensionOrder.map((key) => (
+                  <div key={key} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="capitalize font-medium">{key}</span>
+                      <span className="font-semibold text-primary">{weights[key]}%</span>
+                    </div>
+                    <Slider
+                      value={[weights[key]]}
+                      onValueChange={(val) => handleWeightChange(key, val)}
+                      max={100}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Scores Section - Collapsible */}
+          <div className="mt-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full flex items-center justify-between text-xs"
+              onClick={() => setShowScores(!showScores)}
+            >
+              <span className="text-muted-foreground">
+                {showScores ? 'Hide' : 'View'} Detailed Dimension Scores
+              </span>
+              {showScores ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </Button>
+            
+            {showScores && (
+              <div className="mt-3 p-4 bg-muted/20 border border-border rounded-lg">
+                <div className="text-xs font-semibold text-muted-foreground mb-3">
+                  Raw AI Analysis Scores (0-10 scale)
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="font-medium text-muted-foreground">Dimension</div>
+                  <div className="font-medium text-center">Scores</div>
+                  
+                  {dimensionOrder.map((key) => (
+                    <>
+                      <div key={`${key}-label`} className="capitalize text-foreground">
+                        {key}
+                      </div>
+                      <div key={`${key}-scores`} className="text-xs space-y-1">
+                        <div className="flex justify-between">
+                          <span style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen:</span>
+                          <span className="font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>{dimensionScores?.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
+                        </div>
+                        {allCompetitors.map(comp => {
+                          const compKey = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                          const color = FIGHTER_COLORS[comp] || '#6b7280';
+                          return (
+                            <div key={comp} className="flex justify-between">
+                              <span style={{ color }}>{comp}:</span>
+                              <span className="font-semibold" style={{ color }}>{dimensionScores?.[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </Card>
   );

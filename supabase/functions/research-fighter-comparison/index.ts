@@ -400,7 +400,7 @@ Use the dimension_scoring tool to return structured scores.`;
     }
 
     const dimensionScores = JSON.parse(scoringCall.function.arguments);
-    console.log('Dimension scores generated:', dimensionScores);
+    console.log('Dimension scores generated:', JSON.stringify(dimensionScores, null, 2));
 
     // Build media_tonality object with sentiment scores AND dimension scores
     const mediaTonality: any = {
@@ -411,6 +411,8 @@ Use the dimension_scoring tool to return structured scores.`;
         tonality: analysis.gripen_tonality || 'neutral'
       }
     };
+
+    console.log('Media tonality with dimension_scores:', JSON.stringify(mediaTonality, null, 2));
 
     competitors.forEach((comp: string) => {
       const safeName = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
