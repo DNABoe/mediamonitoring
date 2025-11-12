@@ -83,50 +83,26 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
       const scores = tonality.dimension_scores;
       const intelSummary = tonality.intelligence_summary;
       
-      if (scores) {
+      if (scores && Object.keys(scores).length > 0) {
         console.log('Found dimension scores:', scores);
-        setDimensionScores(scores);
+        
+        // Normalize fighter keys to match expected format
+        const normalizedScores: Record<string, Record<string, number>> = {};
+        Object.keys(scores).forEach(fighter => {
+          const fighterKey = fighter.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          normalizedScores[fighterKey] = scores[fighter];
+        });
+        
+        console.log('Normalized dimension scores:', normalizedScores);
+        setDimensionScores(normalizedScores);
         setIntelligenceSummary(intelSummary || null);
         
         // Calculate initial weighted scores
         const weighted = calculateWeightedScores(weights);
         setCompetitorScores(weighted);
       } else {
-        console.log('No dimension_scores found in tonality - trying alternative structure...');
-        // The data might be directly in tonality with fighter names as keys
-        console.log('Tonality keys:', Object.keys(tonality));
-        
-        // Check if tonality has fighter data directly
-        if (tonality.Gripen || tonality['F-35']) {
-          console.log('Found fighter data in tonality root');
-          // Data is structured as { Gripen: {...}, F-35: {...}, etc }
-          // We need to convert sentiment to dimension scores
-          const convertedScores: Record<string, Record<string, number>> = {};
-          
-          Object.keys(tonality).forEach(fighter => {
-            if (fighter === 'intelligence_summary' || fighter === 'dimension_scores') return;
-            
-            const fighterKey = fighter.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            const sentiment = tonality[fighter].sentiment || 0;
-            
-            // Convert sentiment (-1 to 1) to a 0-10 scale for media dimension
-            const mediaScore = ((sentiment + 1) / 2) * 10;
-            
-            convertedScores[fighterKey] = {
-              media: mediaScore,
-              political: 5, // Default neutral scores for other dimensions
-              industrial: 5,
-              cost: 5,
-              capabilities: 5
-            };
-          });
-          
-          console.log('Converted scores:', convertedScores);
-          setDimensionScores(convertedScores);
-          
-          const weighted = calculateWeightedScores(weights);
-          setCompetitorScores(weighted);
-        }
+        console.error('No dimension_scores found! Analysis may not have been generated properly.');
+        toast.error('No analysis data found. Please generate a new analysis.');
       }
     }
   };
