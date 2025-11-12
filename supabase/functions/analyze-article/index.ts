@@ -22,14 +22,38 @@ serve(async (req) => {
     // Get user from auth header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      console.error('No authorization header provided');
+      return new Response(
+        JSON.stringify({ error: 'Authentication required', details: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const token = authHeader.replace('Bearer ', '');
+    console.log('Attempting to authenticate user...');
+    
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) {
-      throw new Error('Unauthorized');
+    
+    if (userError) {
+      console.error('Authentication error:', userError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Authentication failed', 
+          details: userError.message || 'Invalid or expired token. Please log out and log in again.' 
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+    
+    if (!user) {
+      console.error('No user found in token');
+      return new Response(
+        JSON.stringify({ error: 'Authentication failed', details: 'User not found. Please log out and log in again.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Authenticated user: ${user.id}`);
 
     const { articleId, competitors } = await req.json();
 
