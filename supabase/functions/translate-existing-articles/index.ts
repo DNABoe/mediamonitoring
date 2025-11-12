@@ -97,39 +97,14 @@ serve(async (req) => {
         const analysisData = await translationResponse.json();
         const analysisText = analysisData.choices[0].message.content;
         
-        // Parse the analysis results
-        let analysisResults;
-        try {
-          analysisResults = JSON.parse(analysisText);
-        } catch {
-          // If not valid JSON, try to extract JSON from text
-          const jsonMatch = analysisText.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            analysisResults = JSON.parse(jsonMatch[0]);
-          } else {
-            console.warn('Could not parse analysis results');
-            continue;
-          }
-        }
+        console.log('Analysis response:', analysisText);
 
-        // Update articles based on analysis
+        // Update articles - translate each one individually for better accuracy
         for (let j = 0; j < batch.length; j++) {
           const article = batch[j];
-          const analysis = analysisResults[j];
 
-          if (!analysis) continue;
-
-          let updateData: any = {};
-
-          if (analysis.isEnglish) {
-            // Article is already in English - copy title_en to title_pt
-            updateData.title_pt = article.title_en;
-            updateData.title_en = article.title_en;
-          } else {
-            // Article is in another language - store original and translate
-            updateData.title_pt = article.title_en; // Current title is the original
-            
-            // Now translate to English
+          try {
+            // Translate to English
             const translateResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
               method: 'POST',
               headers: {
@@ -141,7 +116,7 @@ serve(async (req) => {
                 messages: [
                   {
                     role: 'system',
-                    content: 'Translate the following article title to English. Preserve fighter aircraft names and technical terms. Return ONLY the English translation, nothing else.'
+                    content: 'You are a professional translator. If the article title is already in English, return it as-is. Otherwise, translate it to English while preserving fighter aircraft names (F-35, Gripen, Rafale, Eurofighter, etc.) and technical terms. Return ONLY the title, nothing else.'
                   },
                   {
                     role: 'user',
@@ -153,18 +128,24 @@ serve(async (req) => {
 
             if (translateResponse.ok) {
               const translateData = await translateResponse.json();
-              updateData.title_en = translateData.choices[0].message.content.trim();
+              const translatedTitle = translateData.choices[0].message.content.trim();
+              
+              // Update the article with both original and translation
+              const { error: updateError } = await supabaseClient
+                .from('items')
+                .update({
+                  title_pt: article.title_en, // Original title
+                  title_en: translatedTitle    // English translation
+                })
+                .eq('id', article.id);
+
+              if (!updateError) {
+                totalTranslated++;
+                console.log(`✓ Translated article ${j + 1}: ${translatedTitle}`);
+              }
             }
-          }
-
-          // Update the article
-          const { error: updateError } = await supabaseClient
-            .from('items')
-            .update(updateData)
-            .eq('id', article.id);
-
-          if (!updateError) {
-            totalTranslated++;
+          } catch (error) {
+            console.error(`Error translating article ${article.id}:`, error);
           }
         }
 

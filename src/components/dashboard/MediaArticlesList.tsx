@@ -302,17 +302,31 @@ export const MediaArticlesList = ({ activeCountry, activeCompetitors, prioritize
       if (error) throw error;
 
       // Transform database items to MediaArticle format
-      const fetchedArticles: MediaArticle[] = (items || []).map(item => ({
-        id: item.id,
-        title: item.title_en || item.title_pt || 'Untitled', // English translation
-        titleOriginal: item.title_pt || undefined, // Portuguese original
-        url: item.url,
-        source: extractSourceFromUrl(item.url),
-        published_at: item.published_at,
-        fighter_tags: item.fighter_tags || [],
-        source_country: item.source_country || 'INTERNATIONAL',
-        sentiment: item.sentiment || 0
-      }));
+      const fetchedArticles: MediaArticle[] = (items || []).map(item => {
+        // Smart logic: if title_en is "---" or empty, use title_pt as both
+        let englishTitle = item.title_en;
+        let originalTitle = item.title_pt;
+        
+        if (!englishTitle || englishTitle.trim() === '---' || englishTitle.trim() === '') {
+          englishTitle = originalTitle || 'Untitled';
+        }
+        
+        if (!originalTitle || originalTitle.trim() === '---' || originalTitle.trim() === '') {
+          originalTitle = englishTitle;
+        }
+        
+        return {
+          id: item.id,
+          title: englishTitle || 'Untitled', // English translation
+          titleOriginal: originalTitle !== englishTitle ? originalTitle : undefined, // Only show if different
+          url: item.url,
+          source: extractSourceFromUrl(item.url),
+          published_at: item.published_at,
+          fighter_tags: item.fighter_tags || [],
+          source_country: item.source_country || 'INTERNATIONAL',
+          sentiment: item.sentiment || 0
+        };
+      });
 
       // Filter by active competitors + Gripen
       const filteredArticles = fetchedArticles.filter(article => {
