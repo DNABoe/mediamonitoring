@@ -69,16 +69,57 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
       .limit(1)
       .maybeSingle();
 
+    console.log('Fetched report:', report);
+    console.log('Media tonality:', report?.media_tonality);
+
     if (report?.media_tonality) {
       const tonality = report.media_tonality as any;
+      console.log('Tonality object:', tonality);
+      console.log('Looking for dimension_scores:', tonality.dimension_scores);
+      
       const scores = tonality.dimension_scores;
       
       if (scores) {
+        console.log('Found dimension scores:', scores);
         setDimensionScores(scores);
         
         // Calculate initial weighted scores
         const weighted = calculateWeightedScores(weights);
         setCompetitorScores(weighted);
+      } else {
+        console.log('No dimension_scores found in tonality - trying alternative structure...');
+        // The data might be directly in tonality with fighter names as keys
+        console.log('Tonality keys:', Object.keys(tonality));
+        
+        // Check if tonality has fighter data directly
+        if (tonality.Gripen || tonality['F-35']) {
+          console.log('Found fighter data in tonality root');
+          // Data is structured as { Gripen: {...}, F-35: {...}, etc }
+          // We need to convert sentiment to dimension scores
+          const convertedScores: Record<string, Record<string, number>> = {};
+          
+          Object.keys(tonality).forEach(fighter => {
+            const fighterKey = fighter.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const sentiment = tonality[fighter].sentiment || 0;
+            
+            // Convert sentiment (-1 to 1) to a 0-10 scale for media dimension
+            const mediaScore = ((sentiment + 1) / 2) * 10;
+            
+            convertedScores[fighterKey] = {
+              media: mediaScore,
+              political: 5, // Default neutral scores for other dimensions
+              industrial: 5,
+              cost: 5,
+              capabilities: 5
+            };
+          });
+          
+          console.log('Converted scores:', convertedScores);
+          setDimensionScores(convertedScores);
+          
+          const weighted = calculateWeightedScores(weights);
+          setCompetitorScores(weighted);
+        }
       }
     }
   };
