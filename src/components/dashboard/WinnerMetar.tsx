@@ -234,19 +234,84 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     return dataPoint;
   });
 
+  // Calculate chance to win for all competitors
+  const allScores = [
+    { name: 'Gripen', score: gripenScore, color: FIGHTER_COLORS['Gripen'] },
+    ...allCompetitors.map(comp => {
+      const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      return {
+        name: comp,
+        score: competitorScores[key] || 0,
+        color: FIGHTER_COLORS[comp] || '#6b7280'
+      };
+    })
+  ];
+  
+  const totalScore = allScores.reduce((sum, item) => sum + item.score, 0);
+  const chances = allScores.map(item => ({
+    ...item,
+    chance: totalScore > 0 ? (item.score / totalScore) * 100 : 0
+  })).sort((a, b) => b.chance - a.chance);
+
+  const topCompetitor = chances[0];
+
   return (
     <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold">Multi-Competitor Analysis</h3>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-xl font-bold">Chance to Win Analysis</h3>
+          <p className="text-sm text-muted-foreground mt-1">Probability based on weighted dimension scores</p>
+        </div>
         <div className="flex items-center gap-2 px-3 py-1 bg-accent/20 rounded-full">
           <TrendingUp className="h-4 w-4 text-accent" />
-          <span className="text-sm font-semibold">Leader: {leader}</span>
+          <span className="text-sm font-semibold">Leader: {topCompetitor?.name || 'N/A'}</span>
         </div>
       </div>
 
+      {/* Chance to Win - Main Display */}
+      {hasScores && (
+        <div className="space-y-4 mb-6 pb-6 border-b">
+          <div className="grid grid-cols-1 gap-4">
+            {chances.map((item, index) => (
+              <div key={item.name} className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊'}</span>
+                    <div>
+                      <div className="text-base font-bold" style={{ color: item.color }}>{item.name}</div>
+                      <div className="text-xs text-muted-foreground">Score: {item.score.toFixed(1)}/10</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold" style={{ color: item.color }}>{item.chance.toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground">win probability</div>
+                  </div>
+                </div>
+                <div className="relative h-10 rounded-full overflow-hidden bg-muted">
+                  <div 
+                    className="absolute top-0 left-0 h-full transition-all duration-500 flex items-center justify-end pr-4"
+                    style={{ 
+                      width: `${item.chance}%`,
+                      background: `linear-gradient(to right, ${item.color}dd, ${item.color})`
+                    }}
+                  >
+                    {item.chance > 10 && (
+                      <span className="text-sm font-bold text-white drop-shadow-lg">
+                        {item.chance.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Radar Chart */}
       {hasScores && (
-        <div className="mb-6">
+        <div className="mb-6 pb-6 border-b">
+          <h4 className="text-sm font-semibold text-muted-foreground mb-4">Performance Across Dimensions</h4>
           <div className="h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
@@ -299,110 +364,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
         </div>
       )}
 
-      {/* Chance to Win */}
-      {hasScores && (() => {
-        const allScores = [
-          { name: 'Gripen', score: gripenScore, color: FIGHTER_COLORS['Gripen'] },
-          ...allCompetitors.map(comp => {
-            const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            return {
-              name: comp,
-              score: competitorScores[key] || 0,
-              color: FIGHTER_COLORS[comp] || '#6b7280'
-            };
-          })
-        ];
-        
-        const totalScore = allScores.reduce((sum, item) => sum + item.score, 0);
-        const chances = allScores.map(item => ({
-          ...item,
-          chance: totalScore > 0 ? (item.score / totalScore) * 100 : 0
-        })).sort((a, b) => b.chance - a.chance);
-        
-        return (
-          <div className="space-y-3 mb-6 pb-6 border-b">
-            <h4 className="text-sm font-semibold text-muted-foreground">Chance to Win</h4>
-            <div className="space-y-3">
-              {chances.map((item, index) => (
-                <div key={item.name} className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊'}</span>
-                      <span className="text-sm font-semibold" style={{ color: item.color }}>{item.name}</span>
-                    </div>
-                    <span className="text-lg font-bold" style={{ color: item.color }}>{item.chance.toFixed(1)}%</span>
-                  </div>
-                  <div className="relative h-6 rounded-full overflow-hidden bg-muted">
-                    <div 
-                      className="absolute top-0 left-0 h-full transition-all duration-500 flex items-center justify-end pr-2"
-                      style={{ 
-                        width: `${item.chance}%`,
-                        background: `linear-gradient(to right, ${item.color}, ${item.color}cc)`
-                      }}
-                    >
-                      {item.chance > 15 && (
-                        <span className="text-xs font-semibold text-white drop-shadow">
-                          {item.chance.toFixed(0)}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Win probability based on weighted dimension scores
-            </p>
-          </div>
-        );
-      })()}
-
-      {/* Weighted Score Bars */}
-      <div className="space-y-3 mb-6 pb-6 border-b">
-        <h4 className="text-sm font-semibold text-muted-foreground">Weighted Total Scores</h4>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen</span>
-            <span className="text-sm font-bold">{gripenScore.toFixed(1)}</span>
-          </div>
-          <div className="relative h-8 rounded-full overflow-hidden bg-muted">
-            <div 
-              className="absolute top-0 left-0 h-full transition-all duration-500"
-              style={{ 
-                width: `${Math.min(100, (gripenScore / 10) * 100)}%`,
-                background: `linear-gradient(to right, ${FIGHTER_COLORS['Gripen']}, ${FIGHTER_COLORS['Gripen']}cc)`
-              }}
-            />
-          </div>
-        </div>
-
-        {allCompetitors.map(comp => {
-          const key = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
-          const score = competitorScores[key] || 0;
-          const color = FIGHTER_COLORS[comp] || '#6b7280';
-          return (
-            <div key={comp} className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold" style={{ color }}>{comp}</span>
-                <span className="text-sm font-bold">{score.toFixed(1)}</span>
-              </div>
-              <div className="relative h-8 rounded-full overflow-hidden bg-muted">
-                <div 
-                  className="absolute top-0 left-0 h-full transition-all duration-500"
-                  style={{ 
-                    width: `${Math.min(100, (score / 10) * 100)}%`,
-                    background: `linear-gradient(to right, ${color}, ${color}cc)`
-                  }}
-                />
-              </div>
-            </div>
-          );
-        })}
-        <p className="text-xs text-muted-foreground mt-3">
-          Total scores based on weighted analysis across all dimensions
-        </p>
-      </div>
-
+      {/* Dimension Weight Controls */}
       <div className="space-y-3">
         <Button
           variant="outline"
