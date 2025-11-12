@@ -433,71 +433,59 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
             </div>
           )}
 
-          {/* Thermometer Displays - Horizontal */}
-          <div className="space-y-3 mb-6">
+          {/* Thermometer Displays - Compact Horizontal */}
+          <div className="space-y-2 mb-4">
             {sortedScores.map((item, index) => {
               const percentage = (item.score / 10) * 100;
               const isLeader = index === 0;
               
               return (
-                <div key={item.name} className={`p-4 rounded-lg border ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {isLeader && <span className="text-xl">🥇</span>}
-                      <div>
-                        <div className="text-sm font-bold" style={{ color: item.color }}>{item.name}</div>
-                        {isLeader && <div className="text-xs text-accent font-semibold">Current Leader</div>}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
-                      <div className="text-xs text-muted-foreground">/ 10</div>
-                    </div>
-                  </div>
-                  
-                  {/* Horizontal Thermometer */}
-                  <div className="relative w-full h-12 flex items-center">
-                    {/* Scale labels - Left side */}
-                    <div className="flex flex-col justify-between h-full text-xs text-muted-foreground mr-2">
-                      <span>10</span>
-                      <span>0</span>
+                <div key={item.name} className={`p-2 rounded border ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
+                  <div className="flex items-center gap-3">
+                    {/* Name and Score */}
+                    <div className="flex items-center gap-1 min-w-[100px]">
+                      {isLeader && <span className="text-sm">🥇</span>}
+                      <div className="text-xs font-bold" style={{ color: item.color }}>{item.name}</div>
                     </div>
                     
-                    {/* Thermometer container */}
-                    <div className="relative flex-1 h-8 flex items-center">
-                      {/* Thermometer bulb - Left side */}
+                    {/* Horizontal Thermometer */}
+                    <div className="flex-1 flex items-center gap-2">
+                      {/* Thermometer bulb */}
                       <div 
-                        className="w-8 h-8 rounded-full border-2 flex-shrink-0 z-10"
+                        className="w-5 h-5 rounded-full border flex-shrink-0"
                         style={{ 
                           backgroundColor: item.color,
                           borderColor: item.color,
-                          boxShadow: `0 0 10px ${item.color}66`
+                          boxShadow: `0 0 6px ${item.color}66`
                         }}
                       />
                       
                       {/* Thermometer tube */}
-                      <div className="flex-1 h-6 bg-muted rounded-r-full border-2 border-l-0 border-border overflow-hidden relative -ml-1">
+                      <div className="flex-1 h-4 bg-muted rounded-r-full border border-l-0 border-border overflow-hidden relative">
                         {/* Fill */}
                         <div 
-                          className="absolute left-0 top-0 bottom-0 transition-all duration-500 rounded-r-full"
+                          className="absolute left-0 top-0 bottom-0 transition-all duration-500"
                           style={{ 
                             width: `${percentage}%`,
-                            background: `linear-gradient(to right, ${item.color}, ${item.color}cc)`,
+                            background: `linear-gradient(to right, ${item.color}, ${item.color}dd)`,
                           }}
                         />
                         
                         {/* Scale markers */}
-                        <div className="absolute inset-0 flex justify-between items-center px-2">
+                        <div className="absolute inset-0 flex justify-between items-center px-1">
                           {[0, 2, 4, 6, 8, 10].map((val) => (
-                            <div key={val} className="w-px h-full bg-border/50" />
+                            <div key={val} className="w-px h-full bg-border/30" />
                           ))}
                         </div>
                       </div>
                     </div>
                     
-                    {/* Performance indicator */}
-                    <div className="ml-3 text-xs font-medium whitespace-nowrap" style={{ color: item.color }}>
-                      {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
+                    {/* Score and Performance */}
+                    <div className="flex items-center gap-2 min-w-[80px]">
+                      <div className="text-lg font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
+                      <div className="text-[10px] font-medium text-muted-foreground">
+                        {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
+                      </div>
                     </div>
                   </div>
                 </div>
