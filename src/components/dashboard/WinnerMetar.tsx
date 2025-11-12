@@ -247,20 +247,15 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     })
   ];
   
-  const totalScore = allScores.reduce((sum, item) => sum + item.score, 0);
-  const chances = allScores.map(item => ({
-    ...item,
-    chance: totalScore > 0 ? (item.score / totalScore) * 100 : 0
-  })).sort((a, b) => b.chance - a.chance);
-
-  const topCompetitor = chances[0];
+  const sortedScores = [...allScores].sort((a, b) => b.score - a.score);
+  const topCompetitor = sortedScores[0];
 
   return (
     <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-xl font-bold">Chance to Win Analysis</h3>
-          <p className="text-sm text-muted-foreground mt-1">Probability based on weighted dimension scores</p>
+          <h3 className="text-xl font-bold">Competitor Analysis - Weighted Scores</h3>
+          <p className="text-sm text-muted-foreground mt-1">AI-powered multi-dimensional assessment</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1 bg-accent/20 rounded-full">
           <TrendingUp className="h-4 w-4 text-accent" />
@@ -268,115 +263,115 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
         </div>
       </div>
 
-      {/* Chance to Win - Main Display */}
+      {/* AI Analysis Weights Info */}
+      {aiSuggestion && (
+        <div className="mb-4 p-3 bg-accent/10 border border-accent/30 rounded-lg">
+          <div className="flex items-start gap-2">
+            <div className="flex-1">
+              <div className="text-xs font-semibold text-foreground mb-1">AI-Suggested Weights Used:</div>
+              <div className="flex gap-2 flex-wrap">
+                {dimensionOrder.map((key) => (
+                  <span key={key} className="text-xs px-2 py-1 bg-accent/20 rounded">
+                    <span className="capitalize font-medium">{key}:</span> {aiSuggestion.weights[key]}%
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2 italic">{aiSuggestion.rationale}</p>
+        </div>
+      )}
+
+      {/* Thermometer Displays */}
       {hasScores && (
-        <div className="space-y-4 mb-6 pb-6 border-b">
-          <div className="grid grid-cols-1 gap-4">
-            {chances.map((item, index) => (
-              <div key={item.name} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊'}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          {sortedScores.map((item, index) => {
+            const percentage = (item.score / 10) * 100;
+            const isLeader = index === 0;
+            
+            return (
+              <div key={item.name} className={`p-4 rounded-lg border-2 ${isLeader ? 'border-accent bg-accent/5' : 'border-border'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    {isLeader && <span className="text-xl">🥇</span>}
                     <div>
-                      <div className="text-base font-bold" style={{ color: item.color }}>{item.name}</div>
-                      <div className="text-xs text-muted-foreground">Score: {item.score.toFixed(1)}/10</div>
+                      <div className="text-sm font-bold" style={{ color: item.color }}>{item.name}</div>
+                      {isLeader && <div className="text-xs text-accent font-semibold">Current Leader</div>}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold" style={{ color: item.color }}>{item.chance.toFixed(1)}%</div>
-                    <div className="text-xs text-muted-foreground">win probability</div>
+                    <div className="text-2xl font-bold" style={{ color: item.color }}>{item.score.toFixed(1)}</div>
+                    <div className="text-xs text-muted-foreground">/ 10</div>
                   </div>
                 </div>
-                <div className="relative h-10 rounded-full overflow-hidden bg-muted">
-                  <div 
-                    className="absolute top-0 left-0 h-full transition-all duration-500 flex items-center justify-end pr-4"
-                    style={{ 
-                      width: `${item.chance}%`,
-                      background: `linear-gradient(to right, ${item.color}dd, ${item.color})`
-                    }}
-                  >
-                    {item.chance > 10 && (
-                      <span className="text-sm font-bold text-white drop-shadow-lg">
-                        {item.chance.toFixed(1)}%
-                      </span>
-                    )}
+                
+                {/* Thermometer */}
+                <div className="relative w-full h-48 flex justify-center">
+                  <div className="relative w-12">
+                    {/* Thermometer bulb */}
+                    <div 
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full border-2"
+                      style={{ 
+                        backgroundColor: item.color,
+                        borderColor: item.color,
+                        boxShadow: `0 0 10px ${item.color}66`
+                      }}
+                    />
+                    
+                    {/* Thermometer tube */}
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-6 h-40 bg-muted rounded-t-full border-2 border-border overflow-hidden">
+                      {/* Fill */}
+                      <div 
+                        className="absolute bottom-0 left-0 right-0 transition-all duration-500 rounded-t-full"
+                        style={{ 
+                          height: `${percentage}%`,
+                          background: `linear-gradient(to top, ${item.color}, ${item.color}cc)`,
+                        }}
+                      />
+                      
+                      {/* Scale markers */}
+                      <div className="absolute inset-0 flex flex-col justify-between py-2">
+                        {[10, 8, 6, 4, 2, 0].map((val) => (
+                          <div key={val} className="h-px bg-border" />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Scale labels */}
+                    <div className="absolute bottom-6 -right-8 h-40 flex flex-col justify-between text-xs text-muted-foreground">
+                      {[10, 8, 6, 4, 2, 0].map((val) => (
+                        <span key={val}>{val}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Performance indicator */}
+                <div className="mt-2 text-center">
+                  <div className="text-xs font-medium" style={{ color: item.color }}>
+                    {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Strong' : percentage >= 40 ? 'Moderate' : 'Weak'}
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Radar Chart */}
-      {hasScores && (
-        <div className="mb-6 pb-6 border-b">
-          <h4 className="text-sm font-semibold text-muted-foreground mb-4">Performance Across Dimensions</h4>
-          <div className="h-[400px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData}>
-                <PolarGrid stroke="hsl(var(--border))" />
-                <PolarAngleAxis 
-                  dataKey="dimension" 
-                  tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
-                />
-                <PolarRadiusAxis 
-                  angle={90} 
-                  domain={[0, 10]} 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                />
-                <Radar
-                  name="Gripen"
-                  dataKey="Gripen"
-                  stroke={FIGHTER_COLORS['Gripen']}
-                  fill={FIGHTER_COLORS['Gripen']}
-                  fillOpacity={0.3}
-                  strokeWidth={2}
-                />
-                {allCompetitors.map(comp => (
-                  <Radar
-                    key={comp}
-                    name={comp}
-                    dataKey={comp}
-                    stroke={FIGHTER_COLORS[comp] || '#6b7280'}
-                    fill={FIGHTER_COLORS[comp] || '#6b7280'}
-                    fillOpacity={0.2}
-                    strokeWidth={2}
-                  />
-                ))}
-                <Legend 
-                  wrapperStyle={{ fontSize: '12px' }}
-                  iconType="circle"
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="text-xs text-center text-muted-foreground mt-2">
-            Performance across all analysis dimensions (0-10 scale)
-          </p>
+      {/* Weight Adjustment Section */}
+      <div className="space-y-3 mb-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-muted-foreground">Dimension Weights</h4>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowSettings(!showSettings)}
+            className="h-7 text-xs"
+          >
+            {showSettings ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+            {showSettings ? 'Hide' : 'Adjust'}
+          </Button>
         </div>
-      )}
-
-      {/* Dimension Weight Controls */}
-      <div className="space-y-3">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full flex items-center justify-between"
-          onClick={() => setShowSettings(!showSettings)}
-        >
-          <span className="text-sm font-medium">
-            {showSettings ? 'Hide' : 'Adjust'} Dimension Weights
-          </span>
-          {showSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </Button>
         
         {showSettings && (
           <div className="space-y-4 p-4 bg-card border border-border rounded-lg shadow-sm">
@@ -405,8 +400,25 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
         )}
       </div>
 
-      {hasScores && (
+      {/* AI Suggestions */}
+
+      {hasScores && !aiSuggestion && (
         <div className="mt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={fetchAiSuggestion}
+            disabled={loadingSuggestion}
+          >
+            {loadingSuggestion ? 'Analyzing...' : 'Generate AI Weight Suggestions'}
+          </Button>
+        </div>
+      )}
+
+      {/* Detailed Scores Section - Collapsible */}
+      {hasScores && (
+        <div className="mt-4">
           <Button
             variant="ghost"
             size="sm"
@@ -414,93 +426,43 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
             onClick={() => setShowScores(!showScores)}
           >
             <span className="text-muted-foreground">
-              {showScores ? 'Hide' : 'View'} AI Analysis Scores
+              {showScores ? 'Hide' : 'View'} Detailed Dimension Scores
             </span>
             {showScores ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </Button>
           
           {showScores && (
-            <div className="mt-3 space-y-3">
-              <div className="p-4 bg-muted/20 border border-border rounded-lg">
-                <div className="text-xs font-semibold text-muted-foreground mb-3">
-                  Raw AI Analysis Scores (0-10 scale)
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="font-medium text-muted-foreground">Dimension</div>
-                  <div className="font-medium text-center">Scores</div>
-                  
-                  {dimensionOrder.map((key) => (
-                    <>
-                      <div key={`${key}-label`} className="capitalize text-foreground">
-                        {key}
-                      </div>
-                      <div key={`${key}-scores`} className="text-xs space-y-1">
-                        <div className="flex justify-between">
-                          <span style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen:</span>
-                          <span className="font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>{dimensionScores.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
-                        </div>
-                        {allCompetitors.map(comp => {
-                          const compKey = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                          const color = FIGHTER_COLORS[comp] || '#6b7280';
-                          return (
-                            <div key={comp} className="flex justify-between">
-                              <span style={{ color }}>{comp}:</span>
-                              <span className="font-semibold" style={{ color }}>{dimensionScores[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  ))}
-                </div>
+            <div className="mt-3 p-4 bg-muted/20 border border-border rounded-lg">
+              <div className="text-xs font-semibold text-muted-foreground mb-3">
+                Raw AI Analysis Scores (0-10 scale)
               </div>
-
-              <div className="p-4 bg-accent/10 border border-accent/30 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold text-foreground">
-                    AI Weight Suggestions
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={fetchAiSuggestion}
-                    disabled={loadingSuggestion}
-                    className="h-7 text-xs"
-                  >
-                    {loadingSuggestion ? 'Analyzing...' : 'Generate'}
-                  </Button>
-                </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="font-medium text-muted-foreground">Dimension</div>
+                <div className="font-medium text-center">Scores</div>
                 
-                {aiSuggestion && (
-                  <div className="space-y-3 mt-3">
-                    <p className="text-xs text-muted-foreground italic">
-                      {aiSuggestion.rationale}
-                    </p>
-                    
-                    <div className="grid grid-cols-5 gap-2 text-xs">
-                      {dimensionOrder.map((key) => (
-                        <div key={key} className="text-center">
-                          <div className="capitalize text-muted-foreground mb-1">{key}</div>
-                          <div className="font-bold text-accent">{aiSuggestion.weights[key]}%</div>
-                        </div>
-                      ))}
+                {dimensionOrder.map((key) => (
+                  <>
+                    <div key={`${key}-label`} className="capitalize text-foreground">
+                      {key}
                     </div>
-                    
-                    <Button
-                      size="sm"
-                      onClick={applyAiSuggestion}
-                      className="w-full h-7 text-xs"
-                    >
-                      Apply These Weights
-                    </Button>
-                  </div>
-                )}
-                
-                {!aiSuggestion && !loadingSuggestion && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Click Generate to get AI-powered weight recommendations based on the research analysis.
-                  </p>
-                )}
+                    <div key={`${key}-scores`} className="text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span style={{ color: FIGHTER_COLORS['Gripen'] }}>Gripen:</span>
+                        <span className="font-semibold" style={{ color: FIGHTER_COLORS['Gripen'] }}>{dimensionScores.gripen?.[key]?.toFixed(1) || 'N/A'}</span>
+                      </div>
+                      {allCompetitors.map(comp => {
+                        const compKey = comp.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                        const color = FIGHTER_COLORS[comp] || '#6b7280';
+                        return (
+                          <div key={comp} className="flex justify-between">
+                            <span style={{ color }}>{comp}:</span>
+                            <span className="font-semibold" style={{ color }}>{dimensionScores[compKey]?.[key]?.toFixed(1) || 'N/A'}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ))}
               </div>
             </div>
           )}
