@@ -116,19 +116,6 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
 
-  const saveSettings = useCallback(async () => {
-    console.log('💾 Saving settings...', { activeCountry, activeCompetitors });
-    
-    if (!activeCountry) {
-      toast.error('Please select a country');
-      return false;
-    }
-    
-    if (activeCompetitors.length === 0) {
-      toast.error('Please select at least one competitor');
-      return false;
-    }
-
   useEffect(() => {
     loadSettings();
   }, []);
@@ -192,6 +179,19 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
       setLoading(false);
     }
   };
+
+  const saveSettings = useCallback(async () => {
+    console.log('💾 Saving settings...', { activeCountry, activeCompetitors });
+    
+    if (!activeCountry) {
+      toast.error('Please select a country');
+      return false;
+    }
+    
+    if (activeCompetitors.length === 0) {
+      toast.error('Please select at least one competitor');
+      return false;
+    }
 
     setSaving(true);
     try {
