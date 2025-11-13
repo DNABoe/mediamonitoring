@@ -88,7 +88,7 @@ Based on this comprehensive analysis, suggest weights for these 5 dimensions:
 Consider:
 1. Which factors appear most decisive in the analysis
 2. Which dimensions show the clearest differentiation between options
-3. Portugal's strategic context and priorities as discussed
+3. ${report.country || 'The country'}'s strategic context and priorities as discussed
 4. The relative emphasis given to each dimension in the analysis
 
 Provide a brief rationale (2-3 sentences) and then the weights. The weights MUST sum to exactly 100.`;
