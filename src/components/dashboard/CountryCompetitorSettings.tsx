@@ -152,6 +152,11 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
   };
 
   const saveSettings = async () => {
+    if (!activeCountry) {
+      toast.error('Please select a country');
+      return;
+    }
+    
     if (activeCompetitors.length === 0) {
       toast.error('Please select at least one competitor');
       return;
@@ -363,6 +368,21 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
           Please select at least one competitor
         </p>
       )}
+
+      <Button 
+        onClick={saveSettings} 
+        disabled={saving || !activeCountry || activeCompetitors.length === 0}
+        className="w-full"
+      >
+        {saving ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Saving...
+          </>
+        ) : (
+          'Save Changes'
+        )}
+      </Button>
     </div>
   );
 };
