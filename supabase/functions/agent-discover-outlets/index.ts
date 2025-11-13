@@ -14,6 +14,10 @@ serve(async (req) => {
   try {
     const { country, countryName } = await req.json();
     
+    if (!country || !countryName) {
+      throw new Error('Country and countryName are required');
+    }
+    
     console.log(`Discovering media outlets for ${countryName} (${country})`);
 
     const authHeader = req.headers.get('Authorization');
@@ -106,20 +110,23 @@ Return ONLY the JSON array, no markdown formatting.`;
 
     console.log(`Discovered ${outlets.length} outlets`);
 
-    // Save to user settings - fetch current settings first
+    // Save to user settings - fetch current settings first to preserve fields
     const { data: currentSettings } = await supabaseClient
       .from('user_settings')
       .select('active_country, active_competitors')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    // Update only prioritized_outlets, preserve other fields
+    console.log('Current settings:', currentSettings);
+    console.log('Will set active_country to:', currentSettings?.active_country || country);
+
+    // Update prioritized_outlets while preserving or setting active_country
     const { error: updateError } = await supabaseClient
       .from('user_settings')
       .upsert({
         user_id: user.id,
-        active_country: currentSettings?.active_country || country,
-        active_competitors: currentSettings?.active_competitors || [],
+        active_country: currentSettings?.active_country || country, // Use existing or new country
+        active_competitors: currentSettings?.active_competitors || [], // Use existing or empty array
         prioritized_outlets: outlets,
         updated_at: new Date().toISOString(),
       }, {
