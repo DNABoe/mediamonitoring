@@ -224,7 +224,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
   
   const strongestCompetitor = competitorScoreValues.reduce((max, current) => 
     current.score > max.score ? current : max
-  , { name: allCompetitors[0] || 'F-35', score: 0 });
+  , { name: allCompetitors[0] || '', score: 0 });
 
   const total = gripenScore + strongestCompetitor.score;
   const gripenPercent = total > 0 ? (gripenScore / total) * 100 : 50;

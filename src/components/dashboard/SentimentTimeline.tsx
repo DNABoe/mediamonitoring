@@ -76,7 +76,7 @@ export const SentimentTimeline = ({ activeCompetitors }: SentimentTimelineProps)
         .eq('user_id', user.id)
         .maybeSingle();
 
-      const trackingCountry = userSettings?.active_country || 'PT';
+      const trackingCountry = userSettings?.active_country;
 
       // Fetch the baseline to get the tracking period for this user and country
       const { data: baseline } = await supabase
