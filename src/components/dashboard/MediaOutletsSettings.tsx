@@ -104,7 +104,7 @@ interface MediaOutletsSettingsProps {
 }
 
 export const MediaOutletsSettings = ({ onSettingsSaved }: MediaOutletsSettingsProps) => {
-  const [activeCountry, setActiveCountry] = useState<string>('PT');
+  const [activeCountry, setActiveCountry] = useState<string>('');
   const [prioritizedOutlets, setPrioritizedOutlets] = useState<PrioritizedOutlet[]>([]);
   const [newOutlet, setNewOutlet] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -151,12 +151,10 @@ export const MediaOutletsSettings = ({ onSettingsSaved }: MediaOutletsSettingsPr
 
       const { error } = await supabase
         .from('user_settings')
-        .upsert({
-          user_id: user.id,
+        .update({
           prioritized_outlets: prioritizedOutlets as any,
-        }, {
-          onConflict: 'user_id'
-        });
+        })
+        .eq('user_id', user.id);
 
       if (error) throw error;
 

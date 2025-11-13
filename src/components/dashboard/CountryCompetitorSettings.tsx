@@ -110,8 +110,8 @@ interface CountryCompetitorSettingsProps {
 }
 
 export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCompetitorSettingsProps) => {
-  const [activeCountry, setActiveCountry] = useState<string>('PT');
-  const [activeCompetitors, setActiveCompetitors] = useState<string[]>(['F-35']);
+  const [activeCountry, setActiveCountry] = useState<string>('');
+  const [activeCompetitors, setActiveCompetitors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
@@ -142,7 +142,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
 
       if (data) {
         setActiveCountry(data.active_country);
-        setActiveCompetitors(data.active_competitors || ['F-35']);
+        setActiveCompetitors(data.active_competitors || []);
       }
     } catch (error) {
       console.error('Error loading settings:', error);

@@ -56,7 +56,7 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      const trackingCountry = userSettingsData?.active_country || 'PT';
+      const trackingCountry = userSettingsData?.active_country;
       
       toast.success(
         `Tracking date set to ${format(date, 'PPP')}!`
@@ -95,8 +95,8 @@ export const BaselineGenerator = ({ currentDate }: BaselineGeneratorProps) => {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      const country = userSettings?.active_country || 'PT';
-      const competitors = userSettings?.active_competitors || ['F-35'];
+      const country = userSettings?.active_country;
+      const competitors = userSettings?.active_competitors || [];
 
       const collectionParams = {
         country,

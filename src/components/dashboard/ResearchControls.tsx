@@ -53,7 +53,7 @@ export const ResearchControls = () => {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const trackingCountry = userSettings?.active_country || 'PT';
+    const trackingCountry = userSettings?.active_country;
 
     // Only check existence for this user and country
     const { data } = await supabase
