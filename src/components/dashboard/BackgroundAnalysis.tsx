@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, BookOpen, RefreshCw } from "lucide-react";
+import { Loader2, BookOpen, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface BackgroundAnalysisProps {
   activeCountry: string;
@@ -36,8 +37,10 @@ export const BackgroundAnalysis = ({
   activeCompetitors 
 }: BackgroundAnalysisProps) => {
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+  const [previousAnalysis, setPreviousAnalysis] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [changesOpen, setChangesOpen] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -51,20 +54,29 @@ export const BackgroundAnalysis = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if analysis exists for this country and competitors
+      // Fetch the two most recent analyses for comparison
       const { data, error } = await supabase
         .from('background_analysis')
         .select('*')
         .eq('country', activeCountry)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(2);
 
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
-      setAnalysis(data as AnalysisData | null);
+      if (data && data.length > 0) {
+        setAnalysis(data[0] as AnalysisData);
+        if (data.length > 1) {
+          setPreviousAnalysis(data[1] as AnalysisData);
+        } else {
+          setPreviousAnalysis(null);
+        }
+      } else {
+        setAnalysis(null);
+        setPreviousAnalysis(null);
+      }
     } catch (error) {
       console.error('Error fetching analysis:', error);
     } finally {
@@ -188,6 +200,36 @@ export const BackgroundAnalysis = ({
     });
   };
 
+  const getChanges = () => {
+    if (!previousAnalysis) return [];
+    
+    const changes: { text: string; type: 'increase' | 'decrease' }[] = [];
+    
+    // Compare procurement context
+    if (analysis.procurement_context !== previousAnalysis.procurement_context) {
+      changes.push({ text: "Procurement context updated with new developments", type: 'increase' });
+    }
+    
+    // Compare political context
+    if (analysis.political_context !== previousAnalysis.political_context) {
+      changes.push({ text: "Political landscape analysis revised", type: 'increase' });
+    }
+    
+    // Compare geopolitical factors
+    if (analysis.geopolitical_factors !== previousAnalysis.geopolitical_factors) {
+      changes.push({ text: "Geopolitical considerations updated", type: 'increase' });
+    }
+    
+    // Compare economic factors
+    if (analysis.economic_factors !== previousAnalysis.economic_factors) {
+      changes.push({ text: "Economic analysis refreshed", type: 'increase' });
+    }
+    
+    return changes;
+  };
+
+  const changes = getChanges();
+
   return (
     <Card className="p-3 sm:p-6">
       <div className="space-y-4">
@@ -217,6 +259,35 @@ export const BackgroundAnalysis = ({
             </Button>
           </div>
         </div>
+
+        {/* Changes since last analysis - collapsible and subtle */}
+        {changes.length > 0 && (
+          <Collapsible open={changesOpen} onOpenChange={setChangesOpen}>
+            <CollapsibleTrigger className="w-full">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-2 border-t border-b">
+                <span className="flex-1 text-left">
+                  {changes.length} {changes.length === 1 ? 'change' : 'changes'} since last analysis
+                </span>
+                <TrendingUp className="h-3 w-3" />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="py-3 px-4 bg-muted/30 rounded-md mt-2 space-y-1.5">
+                {changes.map((change, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-xs">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span className="text-muted-foreground">{change.text}</span>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+        {!previousAnalysis && (
+          <div className="text-xs text-muted-foreground py-2 border-t border-b text-center">
+            First analysis generated. Changes will appear when you regenerate.
+          </div>
+        )}
 
         <Tabs defaultValue="procurement" className="w-full">
           <TabsList className={isMobile ? "grid w-full grid-cols-3" : "grid w-full grid-cols-5"}>
