@@ -40,6 +40,7 @@ export const SettingsDialog = ({ open, onOpenChange, onSettingsSaved }: Settings
   const [isSavingPrompt, setIsSavingPrompt] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("analysis");
+  const [previousTab, setPreviousTab] = useState("analysis");
   const [resetOptions, setResetOptions] = useState({
     articles: true,
     articleAnalyses: true,
@@ -267,6 +268,22 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
     }
   };
 
+  const handleTabChange = async (newTab: string) => {
+    // Auto-save when leaving the analysis tab
+    if (previousTab === "analysis" && newTab !== "analysis") {
+      try {
+        if ((window as any).__countryCompetitorSave) {
+          await (window as any).__countryCompetitorSave();
+        }
+      } catch (error) {
+        console.error('Error auto-saving analysis settings:', error);
+      }
+    }
+    
+    setPreviousTab(activeTab);
+    setActiveTab(newTab);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
@@ -277,7 +294,7 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full flex-1 flex flex-col overflow-hidden">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 flex-shrink-0">
             <TabsTrigger value="analysis" className="text-xs sm:text-sm">
               <span className="hidden sm:inline">Analysis Settings</span>
