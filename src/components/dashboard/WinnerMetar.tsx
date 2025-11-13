@@ -85,11 +85,15 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
       if (error) {
         console.error('Error fetching report:', error);
         toast.error('Failed to load analysis data');
+        setHasResearchReport(false);
         return;
       }
 
       console.log('Fetched report:', report);
       console.log('Media tonality:', report?.media_tonality);
+
+      // Update research report existence state
+      setHasResearchReport(!!report);
 
       if (report?.media_tonality) {
         const tonality = report.media_tonality as any;
