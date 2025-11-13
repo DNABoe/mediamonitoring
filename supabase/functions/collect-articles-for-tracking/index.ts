@@ -553,36 +553,64 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-pro', // Use Pro for better filtering accuracy
         messages: [{
+          role: 'system',
+          content: `You are a senior defense intelligence analyst specializing in fighter aircraft procurement. Your role is to identify ONLY articles with direct relevance to fighter jet acquisition decisions. You have expert knowledge of procurement processes, defense industry dynamics, and can distinguish between procurement news vs general military reporting.`
+        }, {
           role: 'user',
-          content: `You are analyzing news articles about FIGHTER JET PROCUREMENT for ${countryName}.
+          content: `Analyze ${preFilteredResults.length} news articles to identify those SPECIFICALLY about fighter jet procurement for ${countryName}'s Air Force.
 
-I have ${preFilteredResults.length} articles. Your task is to:
-1. STRICTLY identify articles about fighter jet PROCUREMENT, ACQUISITION, or PURCHASE for ${countryName}'s Air Force
-2. Focus on these specific fighters: ${competitors.join(', ')}, Gripen
-3. Return ONLY highly relevant articles (max 40 articles)
-4. Assign importance score based on relevance to procurement (10 = direct procurement news, 1 = barely relevant)
+**Competition Context:**
+- Target Country: ${countryName}
+- Fighters Under Evaluation: ${competitors.join(', ')}, Gripen (always include Gripen)
+- Current Phase: ${mode === 'recent' ? 'Recent developments and breaking news' : 'Comprehensive historical coverage'}
 
-STRICT EXCLUSION RULES - REJECT articles about:
-❌ General military exercises or training operations
-❌ Existing fleet maintenance or repairs  
-❌ Historical articles or anniversaries
-❌ Technical specifications without procurement context
-❌ Other countries' purchases (unless directly comparing to ${countryName})
-❌ Air shows, demonstrations, or exhibitions (unless procurement announcement)
+**STRICT FILTERING CRITERIA:**
 
-ONLY INCLUDE articles that:
-✅ Discuss ${countryName}'s procurement decision, tender, or competition
-✅ Announce official procurement milestones
-✅ Quote government/military officials about acquisition
-✅ Compare fighter options for ${countryName}
-✅ Report on procurement budgets or timelines
-✅ Cover industry responses to ${countryName}'s tender
+✅ **INCLUDE ONLY** articles that contain:
+- Official procurement announcements or tender updates for ${countryName}
+- Government/military officials discussing ${countryName}'s fighter acquisition plans
+- Budget allocations or timeline announcements for ${countryName}'s procurement
+- Comparative analysis of fighter options specifically for ${countryName}
+- Industry responses to ${countryName}'s Request for Proposal (RFP) or tender
+- Negotiations, contracts, or agreements related to ${countryName}'s purchase
+- Political debates or decisions about ${countryName}'s fighter acquisition
+- Economic impact analysis of procurement options for ${countryName}
 
-Articles:
-${preFilteredResults.map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   ${r.url}`).join('\n\n')}`
+❌ **EXCLUDE** articles about:
+- Military exercises, air shows, or demonstrations WITHOUT procurement context
+- Technical specifications or reviews not tied to ${countryName}'s decision
+- Historical retrospectives or anniversary pieces
+- Fleet maintenance, upgrades, or repairs of existing aircraft
+- Other countries' procurement (unless direct comparison to ${countryName})
+- General defense news not related to fighter acquisition
+- Pilot training or operational deployments
+- Crashes, incidents, or accidents
+
+**Importance Scoring (1-10):**
+- **10**: Official government announcement of winner/contract signing for ${countryName}
+- **9**: Major procurement milestone (shortlist announcement, RFP release, contract negotiations)
+- **8**: Government/military officials directly commenting on ${countryName}'s acquisition plans
+- **7**: Detailed analysis of ${countryName}'s procurement options with official sources
+- **6**: Industry responses, competitive positioning for ${countryName}'s tender
+- **5**: Political/budget discussions specifically about ${countryName}'s fighter purchase
+- **4**: Comparative technical analysis in context of ${countryName}'s requirements
+- **1-3**: Tangential mentions, historical context, or weak procurement connection
+
+**QUALITY THRESHOLD:** Return ONLY articles scoring 6 or higher. Maximum 40 highest-quality articles.
+
+**Articles to Analyze:**
+${preFilteredResults.map((r, i) => `
+[${i + 1}] 
+Title: ${r.title}
+Snippet: ${r.snippet}
+URL: ${r.url}
+Published: ${r.publishedDate || 'Unknown'}
+`).join('\n---\n')}`
         }],
+        temperature: 0.2,  // Low temperature for consistent, accurate filtering
+        max_tokens: 4000,
         tools: [{
           type: 'function',
           function: {

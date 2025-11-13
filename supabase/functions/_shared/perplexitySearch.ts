@@ -39,17 +39,22 @@ export async function perplexitySearch(
 ): Promise<SearchResult[]> {
   const { query, country, domains, recencyFilter = 'month' } = params;
 
-  // Build enhanced query with domain filtering
+  // Build enhanced query with domain filtering - Perplexity format
   let enhancedQuery = query;
   
+  // Add domain filtering in natural language for better Perplexity processing
   if (domains && domains.length > 0) {
-    const domainFilter = domains.slice(0, 5).map(d => `site:${d}`).join(' OR ');
-    enhancedQuery += ` (${domainFilter})`;
+    const topDomains = domains.slice(0, 8); // Increase domain coverage
+    const domainStr = topDomains.join(', ');
+    enhancedQuery = `Find articles from these sources: ${domainStr}. Search: ${query}`;
   }
   
   if (country) {
     enhancedQuery += ` ${country}`;
   }
+
+  // Add explicit instruction for comprehensive results
+  enhancedQuery = `${enhancedQuery}. Find comprehensive, accurate news articles with verified URLs.`;
 
   try {
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -59,19 +64,24 @@ export async function perplexitySearch(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: 'sonar', // Use sonar (not sonar-pro) for better search_results structure
         messages: [
+          {
+            role: 'system',
+            content: 'You are a news research assistant. Find and cite accurate, verified news articles. Always return proper citations with titles, URLs, and publication dates.'
+          },
           {
             role: 'user',
             content: enhancedQuery
           }
         ],
-        temperature: 0.0,
-        top_p: 0.9,
+        temperature: 0.1, // Low temperature for factual accuracy
+        top_p: 0.95,
         return_images: false,
         return_related_questions: false,
         search_recency_filter: recencyFilter,
-        return_citations: true
+        return_citations: true,
+        search_domain_filter: domains && domains.length > 0 ? domains.slice(0, 10) : undefined
       }),
     });
 
@@ -90,6 +100,10 @@ export async function perplexitySearch(
     }
 
     const data = await response.json();
+    console.log(`Perplexity response structure: ${Object.keys(data).join(', ')}`);
+    
+    // Extract content from AI message for parsing
+    const messageContent = data.choices?.[0]?.message?.content || '';
     
     // Extract structured search results (most reliable source)
     const searchResults: PerplexitySearchResult[] = data.search_results || [];
@@ -99,9 +113,15 @@ export async function perplexitySearch(
 
     // PRIMARY: Use structured search_results from Perplexity API
     if (searchResults && searchResults.length > 0) {
-      console.log(`✓ Found ${searchResults.length} search results from Perplexity API`);
+      console.log(`✓ Found ${searchResults.length} structured search results from Perplexity`);
       
       for (const result of searchResults) {
+        // Validate URL before adding
+        if (!result.url || !result.url.startsWith('http')) {
+          console.warn(`Skipping invalid URL: ${result.url}`);
+          continue;
+        }
+        
         // Perplexity provides title, url, snippet, and optional date
         results.push({
           title: result.title || extractTitleFromUrl(result.url),
@@ -111,13 +131,30 @@ export async function perplexitySearch(
         });
       }
     } 
-    // FALLBACK: If no structured results, use citations
+    // SECONDARY: Parse citations from message content for additional sources
     else if (citations && citations.length > 0) {
-      console.log(`Using ${citations.length} citations as fallback (no structured results)`);
+      console.log(`Extracting ${citations.length} citations from message`);
       
       for (const url of citations) {
+        if (!url || !url.startsWith('http')) {
+          console.warn(`Skipping invalid citation: ${url}`);
+          continue;
+        }
+        
+        // Try to extract title from message content near this URL
+        let title = extractTitleFromUrl(url);
+        const urlIndex = messageContent.indexOf(url);
+        if (urlIndex > 0) {
+          // Look for text before URL (potential title)
+          const beforeUrl = messageContent.substring(Math.max(0, urlIndex - 200), urlIndex);
+          const titleMatch = beforeUrl.match(/["']([^"']{20,150})["']/);
+          if (titleMatch) {
+            title = titleMatch[1];
+          }
+        }
+        
         results.push({
-          title: extractTitleFromUrl(url),
+          title,
           url,
           snippet: '',
           publishedDate: undefined
@@ -125,7 +162,7 @@ export async function perplexitySearch(
       }
     }
 
-    console.log(`✓ Perplexity found ${results.length} results for: "${query.substring(0, 60)}"`);
+    console.log(`✓ Perplexity extracted ${results.length} verified articles for: "${query.substring(0, 60)}"`);
     return results;
 
   } catch (error) {
