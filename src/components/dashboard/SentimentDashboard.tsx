@@ -66,19 +66,19 @@ export const SentimentDashboard = ({
     if (sentiment < -0.2) return <Badge variant="destructive">Negative</Badge>;
     return <Badge variant="secondary">Neutral</Badge>;
   };
-  return <div className="space-y-4">
+  return <div className="space-y-3 sm:space-y-4">
       {/* Sentiment Breakdown - Collapsible */}
       {mediaSentiment && (
         <Collapsible open={sentimentOpen} onOpenChange={setSentimentOpen}>
-          <Card className="p-4">
+          <Card className="p-3 sm:p-4">
             <CollapsibleTrigger className="flex items-center justify-between w-full">
-              <h3 className="text-base font-semibold">Sentiment Breakdown</h3>
+              <h3 className="text-sm sm:text-base font-semibold">Sentiment Breakdown</h3>
               <ChevronDown className={`h-4 w-4 transition-transform ${sentimentOpen ? 'rotate-180' : ''}`} />
             </CollapsibleTrigger>
-            <CollapsibleContent className="pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <CollapsibleContent className="pt-3 sm:pt-4">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4">
                 {Object.entries(mediaSentiment).map(([fighter, data]) => (
-                  <div key={fighter} className="p-4 border rounded-lg space-y-2">
+                  <div key={fighter} className="p-3 sm:p-4 border rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{fighter}</span>
                       {getSentimentIcon(data.sentiment_score)}

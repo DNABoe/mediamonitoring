@@ -33,47 +33,47 @@ export const ArticleFilters = ({
   availableCompetitors
 }: ArticleFiltersProps) => {
   return (
-    <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 bg-muted/30 rounded-lg">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          <h3 className="font-semibold">Filters</h3>
+          <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
+          <h3 className="text-sm sm:text-base font-semibold">Filters</h3>
           {activeFilterCount > 0 && (
-            <Badge variant="secondary">{activeFilterCount} active</Badge>
+            <Badge variant="secondary" className="text-xs">{activeFilterCount}</Badge>
           )}
         </div>
         {activeFilterCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={onClearFilters}>
-            <X className="h-4 w-4 mr-2" />
-            Clear All
+          <Button variant="ghost" size="sm" onClick={onClearFilters} className="h-7 sm:h-9 text-xs sm:text-sm">
+            <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            Clear
           </Button>
         )}
       </div>
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
         <Input
-          placeholder="Search articles by title or source..."
+          placeholder="Search articles..."
           value={filters.searchText}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9"
+          className="pl-8 sm:pl-9 text-sm h-9 sm:h-10"
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {/* Date Range */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Date Range</label>
+        <div className="space-y-2 sm:col-span-2">
+          <label className="text-xs sm:text-sm font-medium">Date Range</label>
           <div className="flex gap-2">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {filters.dateFrom ? format(filters.dateFrom, 'PP') : 'From'}
+                <Button variant="outline" className="w-full justify-start text-left font-normal text-xs sm:text-sm h-9 sm:h-10">
+                  <CalendarIcon className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  {filters.dateFrom ? format(filters.dateFrom, 'P') : 'From'}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
+              <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={filters.dateFrom || undefined}
@@ -84,12 +84,12 @@ export const ArticleFilters = ({
 
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {filters.dateTo ? format(filters.dateTo, 'PP') : 'To'}
+                <Button variant="outline" className="w-full justify-start text-left font-normal text-xs sm:text-sm h-9 sm:h-10">
+                  <CalendarIcon className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  {filters.dateTo ? format(filters.dateTo, 'P') : 'To'}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
+              <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={filters.dateTo || undefined}
@@ -102,9 +102,9 @@ export const ArticleFilters = ({
 
         {/* Sentiment */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Sentiment</label>
+          <label className="text-xs sm:text-sm font-medium">Sentiment</label>
           <Select value={filters.sentiment} onValueChange={onSentimentChange}>
-            <SelectTrigger>
+            <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -118,9 +118,9 @@ export const ArticleFilters = ({
 
         {/* Source Type */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Source Type</label>
+          <label className="text-xs sm:text-sm font-medium">Source Type</label>
           <Select value={filters.sourceType} onValueChange={onSourceTypeChange}>
-            <SelectTrigger>
+            <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -132,12 +132,13 @@ export const ArticleFilters = ({
         </div>
 
         {/* Competitors */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Competitors</label>
-          <div className="space-y-2 max-h-32 overflow-y-auto p-2 border rounded-md">
+        <div className="space-y-2 sm:col-span-2">
+          <label className="text-xs sm:text-sm font-medium">Competitors</label>
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {availableCompetitors.map(competitor => (
-              <div key={competitor} className="flex items-center gap-2">
+              <div key={competitor} className="flex items-center gap-1.5">
                 <Checkbox
+                  id={`comp-${competitor}`}
                   checked={filters.competitors.includes(competitor)}
                   onCheckedChange={(checked) => {
                     if (checked) {
@@ -146,8 +147,9 @@ export const ArticleFilters = ({
                       onCompetitorsChange(filters.competitors.filter(c => c !== competitor));
                     }
                   }}
+                  className="h-4 w-4"
                 />
-                <label className="text-sm">{competitor}</label>
+                <label htmlFor={`comp-${competitor}`} className="text-xs sm:text-sm cursor-pointer">{competitor}</label>
               </div>
             ))}
           </div>
