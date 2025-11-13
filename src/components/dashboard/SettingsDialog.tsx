@@ -39,7 +39,11 @@ export const SettingsDialog = ({ open, onOpenChange, onSettingsSaved }: Settings
   const [customPrompt, setCustomPrompt] = useState("");
   const [isSavingPrompt, setIsSavingPrompt] = useState(false);
   const [resetOptions, setResetOptions] = useState({
+    articles: true,
+    articleAnalyses: true,
+    socialMediaPosts: true,
     researchReports: true,
+    backgroundAnalysis: true,
     blackHatAnalysis: true,
     strategicMessaging: true,
     mediaList: true,
@@ -131,8 +135,14 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
   const handleReset = async () => {
     setIsResetting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('reset-research-data', {
-        body: resetOptions
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please log in to reset data");
+        return;
+      }
+
+      const { error } = await supabase.functions.invoke('reset-research-data', {
+        body: { resetOptions }
       });
 
       if (error) {
@@ -142,6 +152,53 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
       }
 
       toast.success("Selected data has been reset successfully");
+      
+      // Close dialog and refresh after a short delay
+      setTimeout(() => {
+        onOpenChange(false);
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleTotalReset = async () => {
+    setIsResetting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please log in to reset data");
+        return;
+      }
+
+      const { error } = await supabase.functions.invoke('reset-research-data', {
+        body: { 
+          resetOptions: {
+            articles: true,
+            articleAnalyses: true,
+            socialMediaPosts: true,
+            researchReports: true,
+            backgroundAnalysis: true,
+            blackHatAnalysis: true,
+            strategicMessaging: true,
+            mediaList: true,
+            baselines: true
+          },
+          totalReset: true
+        }
+      });
+
+      if (error) {
+        console.error('Total reset error:', error);
+        toast.error(error.message || "Failed to reset all data");
+        return;
+      }
+
+      toast.success("All data has been reset successfully");
       
       // Close dialog and refresh after a short delay
       setTimeout(() => {
@@ -275,12 +332,56 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
             <div className="space-y-3 mb-4">
               <div className="flex items-center space-x-2">
                 <Checkbox 
+                  id="articles" 
+                  checked={resetOptions.articles}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, articles: checked as boolean }))}
+                />
+                <Label htmlFor="articles" className="text-sm font-normal cursor-pointer">
+                  Collected articles (news and media items)
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="articleAnalyses" 
+                  checked={resetOptions.articleAnalyses}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, articleAnalyses: checked as boolean }))}
+                />
+                <Label htmlFor="articleAnalyses" className="text-sm font-normal cursor-pointer">
+                  Article sentiment analyses
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="socialMediaPosts" 
+                  checked={resetOptions.socialMediaPosts}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, socialMediaPosts: checked as boolean }))}
+                />
+                <Label htmlFor="socialMediaPosts" className="text-sm font-normal cursor-pointer">
+                  Social media posts and discussions
+                </Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
                   id="researchReports" 
                   checked={resetOptions.researchReports}
                   onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, researchReports: checked as boolean }))}
                 />
                 <Label htmlFor="researchReports" className="text-sm font-normal cursor-pointer">
                   Research reports and comparison metrics
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="backgroundAnalysis" 
+                  checked={resetOptions.backgroundAnalysis}
+                  onCheckedChange={(checked) => setResetOptions(prev => ({ ...prev, backgroundAnalysis: checked as boolean }))}
+                />
+                <Label htmlFor="backgroundAnalysis" className="text-sm font-normal cursor-pointer">
+                  Background intelligence analysis
                 </Label>
               </div>
               
@@ -333,44 +434,92 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
               <AlertDialogTrigger asChild>
                 <Button 
                   variant="destructive" 
-                  disabled={isResetting || !Object.values(resetOptions).some(v => v)} 
                   className="w-full"
+                  disabled={!Object.values(resetOptions).some(v => v)}
                 >
-                  {isResetting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Resetting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Reset Selected Data
-                    </>
-                  )}
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Reset Selected Data
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete the selected data:
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      {resetOptions.researchReports && <li>Research reports and comparison metrics</li>}
-                      {resetOptions.blackHatAnalysis && <li>Black hat analysis</li>}
-                      {resetOptions.strategicMessaging && <li>Strategic messaging suggestions</li>}
-                      {resetOptions.mediaList && <li>Key media references</li>}
-                      {resetOptions.baselines && <li>Baseline configurations</li>}
-                    </ul>
-                    <p className="mt-3 font-semibold">This action cannot be undone.</p>
+                    This will permanently delete the selected research data. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleReset}
+                    disabled={isResetting}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Yes, reset selected data
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Resetting...
+                      </>
+                    ) : (
+                      'Confirm Reset'
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
+          <div className="rounded-lg border border-destructive p-3 sm:p-4 mt-4">
+            <div className="flex items-start gap-3 mb-4">
+              <Trash2 className="h-5 w-5 text-destructive mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-destructive">Total Reset</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Clear ALL data and settings including active country selection, competitors, and all collected intelligence. This will completely reset the application to its initial state.
+                </p>
+              </div>
+            </div>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive" 
+                  className="w-full"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Total Reset (Clear Everything)
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-destructive">Complete Application Reset</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete ALL data including:
+                    <ul className="list-disc pl-4 mt-2 space-y-1">
+                      <li>All collected articles and social media posts</li>
+                      <li>All analyses and research reports</li>
+                      <li>Active country and competitor selections</li>
+                      <li>All settings and configurations</li>
+                      <li>Baseline data and metrics</li>
+                    </ul>
+                    <p className="mt-2 font-semibold">This action cannot be undone and will reset the application to its initial state.</p>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleTotalReset}
+                    disabled={isResetting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Resetting Everything...
+                      </>
+                    ) : (
+                      'Confirm Total Reset'
+                    )}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
