@@ -274,9 +274,11 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
       try {
         if ((window as any).__countryCompetitorSave) {
           await (window as any).__countryCompetitorSave();
+          toast.success('Analysis settings saved');
         }
       } catch (error) {
         console.error('Error auto-saving analysis settings:', error);
+        toast.error('Failed to save analysis settings');
       }
     }
     

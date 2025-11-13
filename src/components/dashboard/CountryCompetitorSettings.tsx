@@ -368,21 +368,6 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
           Please select at least one competitor
         </p>
       )}
-
-      <Button 
-        onClick={saveSettings} 
-        disabled={saving || !activeCountry || activeCompetitors.length === 0}
-        className="w-full"
-      >
-        {saving ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Saving...
-          </>
-        ) : (
-          'Save Changes'
-        )}
-      </Button>
     </div>
   );
 };
