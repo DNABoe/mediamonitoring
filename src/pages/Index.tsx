@@ -149,15 +149,17 @@ const Index = () => {
             {isMobile ? (
               <>
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-3xl leading-none flex-shrink-0">{userSettings.countryFlag}</span>
+                  <span className="text-3xl leading-none flex-shrink-0">
+                    {userSettings.activeCountry ? userSettings.countryFlag : '🌍'}
+                  </span>
                   <div className="flex flex-col items-start gap-0.5 min-w-0 flex-1">
                     <h1 className="text-sm font-bold text-foreground text-left truncate w-full">
-                      {userSettings.countryName} Analysis
+                      {userSettings.activeCountry ? `${userSettings.countryName} Analysis` : 'Fighter Program Analysis'}
                     </h1>
                     <div className="flex items-center gap-1 flex-wrap text-left">
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                         <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
-                        Live
+                        {userSettings.activeCountry ? 'Live' : 'Configure Settings'}
                       </p>
                     </div>
                   </div>
@@ -175,33 +177,46 @@ const Index = () => {
               /* Desktop Layout */
               <>
                 <div className="flex items-start gap-4">
-                  <span className="text-6xl leading-none">{userSettings.countryFlag}</span>
+                  <span className="text-6xl leading-none">
+                    {userSettings.activeCountry ? userSettings.countryFlag : '🌍'}
+                  </span>
                   <div className="flex flex-col items-start gap-1">
                     <div className="flex items-center gap-3">
                       <h1 className="text-xl font-bold text-foreground text-left">
-                        Fighter Program Media Analysis - {userSettings.countryName}
+                        {userSettings.activeCountry 
+                          ? `Fighter Program Media Analysis - ${userSettings.countryName}`
+                          : 'Fighter Program Media Analysis'
+                        }
                       </h1>
                       {isAdmin && <BaselineGenerator currentDate={baselineDate} />}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap text-left">
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
-                        Real-time intelligence dashboard • Competitors:
-                      </p>
-                      <span className="text-xs font-medium text-primary">
-                        Gripen
-                      </span>
-                      <span className="text-xs text-muted-foreground">vs</span>
-                      {userSettings.activeCompetitors.map((competitor, index) => (
-                        <span key={competitor}>
+                      {userSettings.activeCountry && userSettings.activeCompetitors.length > 0 ? (
+                        <>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
+                            Real-time intelligence dashboard • Competitors:
+                          </p>
                           <span className="text-xs font-medium text-primary">
-                            {competitor}
+                            Gripen
                           </span>
-                          {index < userSettings.activeCompetitors.length - 1 && (
-                            <span className="text-xs text-muted-foreground mx-1">•</span>
-                          )}
-                        </span>
-                      ))}
+                          <span className="text-xs text-muted-foreground">vs</span>
+                          {userSettings.activeCompetitors.map((competitor, index) => (
+                            <span key={competitor}>
+                              <span className="text-xs font-medium text-primary">
+                                {competitor}
+                              </span>
+                              {index < userSettings.activeCompetitors.length - 1 && (
+                                <span className="text-xs text-muted-foreground mx-1">•</span>
+                              )}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Configure analysis settings to begin monitoring
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

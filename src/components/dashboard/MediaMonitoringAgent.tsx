@@ -124,29 +124,36 @@ export const MediaMonitoringAgent = () => {
             <p className="text-2xl font-bold">{agentStatus.articles_collected_total || 0}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Outlets Discovered</p>
+            <p className="text-xs text-muted-foreground">Outlets Monitored</p>
             <p className="text-2xl font-bold">{agentStatus.outlets_discovered || 0}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Next Update</p>
+            <p className="text-xs text-muted-foreground">Next Check</p>
             <p className="text-sm font-medium">
               {agentStatus.next_run_at ? (
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {formatDistanceToNow(new Date(agentStatus.next_run_at), { addSuffix: true })}
                 </span>
-              ) : 'Scheduled'}
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
             </p>
           </div>
         </div>
 
-        {/* Last Fetch Timestamp */}
-        {agentStatus.last_articles_fetch && (
+        {/* Last Check Timestamp */}
+        {agentStatus.last_articles_fetch ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <TrendingUp className="h-4 w-4" />
             <span>
-              Last updated: {formatDistanceToNow(new Date(agentStatus.last_articles_fetch), { addSuffix: true })}
+              Last check: {formatDistanceToNow(new Date(agentStatus.last_articles_fetch), { addSuffix: true })}
             </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            <span>No checks performed yet</span>
           </div>
         )}
 
