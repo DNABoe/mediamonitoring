@@ -254,6 +254,11 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
   const hasScores = dimensionScores && Object.keys(dimensionScores).length > 0;
 
   const fetchAiSuggestion = async () => {
+    if (!hasResearchReport) {
+      toast.error('Please generate a research report first by clicking "Generate Analysis" above');
+      return;
+    }
+    
     setLoadingSuggestion(true);
     try {
       const { data, error } = await supabase.functions.invoke('suggest-dimension-weights');
