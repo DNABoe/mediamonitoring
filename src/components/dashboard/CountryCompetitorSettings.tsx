@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -116,12 +116,18 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
 
-  // Expose save function to parent
-  useEffect(() => {
-    if (onSave) {
-      (window as any).__countryCompetitorSave = saveSettings;
+  const saveSettings = useCallback(async () => {
+    console.log('💾 Saving settings...', { activeCountry, activeCompetitors });
+    
+    if (!activeCountry) {
+      toast.error('Please select a country');
+      return false;
     }
-  }, [activeCountry, activeCompetitors]);
+    
+    if (activeCompetitors.length === 0) {
+      toast.error('Please select at least one competitor');
+      return false;
+    }
 
   useEffect(() => {
     loadSettings();
@@ -151,21 +157,12 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
     }
   };
 
-  const saveSettings = async () => {
-    if (!activeCountry) {
-      toast.error('Please select a country');
-      return;
-    }
-    
-    if (activeCompetitors.length === 0) {
-      toast.error('Please select at least one competitor');
-      return;
-    }
-
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      console.log('👤 User authenticated:', user.id);
 
       // Get current settings to check if country changed
       const { data: currentSettings } = await supabase
@@ -174,10 +171,14 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
         .eq('user_id', user.id)
         .maybeSingle();
 
+      console.log('📋 Current settings:', currentSettings);
+
       const oldCountry = currentSettings?.active_country;
 
       // If country changed, trigger agent discovery and cleanup
       if (oldCountry && oldCountry !== activeCountry) {
+        console.log('🔄 Country changed from', oldCountry, 'to', activeCountry);
+        
         const { error: cleanupError } = await supabase.rpc('stop_agent_and_cleanup', {
           _user_id: user.id,
           _country: oldCountry
@@ -187,7 +188,7 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
           console.error('Error cleaning up old data:', cleanupError);
           toast.error('Failed to clean up previous country data');
           setSaving(false);
-          return;
+          return false;
         }
 
         toast('Switching country...', { description: `Discovering media outlets for ${activeCountry}...` });
@@ -232,6 +233,8 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
         }
       }
 
+      console.log('💾 Upserting settings...', { activeCountry, activeCompetitors });
+
       const { error } = await supabase
         .from('user_settings')
         .upsert({
@@ -242,21 +245,33 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
           onConflict: 'user_id'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Upsert error:', error);
+        throw error;
+      }
 
+      console.log('✅ Settings saved successfully');
       toast.success('Analysis settings saved successfully');
       
       // Notify parent component that settings were saved
       if (onSettingsSaved) {
         onSettingsSaved();
       }
+      
+      return true;
     } catch (error) {
-      console.error('Error saving settings:', error);
+      console.error('❌ Error saving settings:', error);
       toast.error('Failed to save settings');
+      return false;
     } finally {
       setSaving(false);
     }
-  };
+  }, [activeCountry, activeCompetitors, onSettingsSaved]);
+
+  // Expose save function to parent
+  useEffect(() => {
+    (window as any).__countryCompetitorSave = saveSettings;
+  }, [saveSettings]);
 
   const toggleCompetitor = (competitor: string) => {
     setActiveCompetitors(prev => 
