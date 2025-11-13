@@ -10,7 +10,7 @@ import { SentimentTimeline } from "@/components/dashboard/SentimentTimeline";
 import { ResearchControls } from "@/components/dashboard/ResearchControls";
 import { ResearchSources } from "@/components/dashboard/ResearchSources";
 import { StrategicSuggestions } from "@/components/dashboard/StrategicSuggestions";
-import { ResearchChanges } from "@/components/dashboard/ResearchChanges";
+
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { BlackHatAnalysis } from "@/components/dashboard/BlackHatAnalysis";
 import { AgentStatusPanel } from "@/components/dashboard/AgentStatusPanel";
@@ -248,9 +248,6 @@ const Index = () => {
           />
         </div>
 
-        <div className="mb-6">
-          <ResearchChanges />
-        </div>
 
         <div className="mb-6">
           <ResearchExecutiveSummary activeCompetitors={userSettings.activeCompetitors} />
