@@ -211,8 +211,11 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
 
       const oldCountry = currentSettings?.active_country;
 
-      // If country changed, trigger agent discovery and cleanup
-      if (oldCountry && oldCountry !== activeCountry) {
+      // If country changed OR this is first time setup, trigger agent discovery
+      const isFirstTimeSetup = !oldCountry && activeCountry;
+      const isCountryChange = oldCountry && oldCountry !== activeCountry;
+      
+      if (isCountryChange) {
         console.log('🔄 Country changed from', oldCountry, 'to', activeCountry);
         
         const { error: cleanupError } = await supabase.rpc('stop_agent_and_cleanup', {
@@ -226,8 +229,11 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
           setSaving(false);
           return false;
         }
+      }
 
-        toast('Switching country...', { description: `Discovering media outlets for ${activeCountry}...` });
+      if (isFirstTimeSetup || isCountryChange) {
+        const actionMessage = isFirstTimeSetup ? 'Setting up' : 'Switching country';
+        toast(actionMessage + '...', { description: `Discovering media outlets for ${activeCountry}...` });
 
         // Discover outlets for new country
         const countryObj = COUNTRIES.find(c => c.code === activeCountry);
