@@ -134,9 +134,17 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
   }, []);
 
   const loadSettings = async () => {
+    console.log('🔄 Loading settings...');
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('❌ No user found');
+        setLoading(false);
+        return;
+      }
+
+      console.log('👤 User found:', user.id);
 
       const { data, error } = await supabase
         .from('user_settings')
@@ -144,15 +152,26 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading settings:', error);
+        throw error;
+      }
+
+      console.log('📋 Loaded settings:', data);
 
       if (data) {
-        setActiveCountry(data.active_country);
+        setActiveCountry(data.active_country || '');
         setActiveCompetitors(data.active_competitors || []);
+      } else {
+        console.log('ℹ️ No settings found, using defaults');
+        setActiveCountry('');
+        setActiveCompetitors([]);
       }
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('❌ Error loading settings:', error);
+      toast.error('Failed to load settings');
     } finally {
+      console.log('✅ Loading complete');
       setLoading(false);
     }
   };
