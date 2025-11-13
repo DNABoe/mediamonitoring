@@ -106,14 +106,22 @@ interface PrioritizedOutlet {
 
 interface CountryCompetitorSettingsProps {
   onSettingsSaved?: () => void;
+  onSave?: () => Promise<void>;
 }
 
-export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitorSettingsProps) => {
+export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCompetitorSettingsProps) => {
   const [activeCountry, setActiveCountry] = useState<string>('PT');
   const [activeCompetitors, setActiveCompetitors] = useState<string[]>(['F-35']);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
+
+  // Expose save function to parent
+  useEffect(() => {
+    if (onSave) {
+      (window as any).__countryCompetitorSave = saveSettings;
+    }
+  }, [activeCountry, activeCompetitors]);
 
   useEffect(() => {
     loadSettings();
@@ -349,17 +357,6 @@ export const CountryCompetitorSettings = ({ onSettingsSaved }: CountryCompetitor
           ))}
         </div>
       </div>
-
-      <Button onClick={saveSettings} disabled={saving || activeCompetitors.length === 0} className="w-full">
-        {saving ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Saving...
-          </>
-        ) : (
-          'Save Analysis Settings'
-        )}
-      </Button>
 
       {activeCompetitors.length === 0 && (
         <p className="text-sm text-destructive">
