@@ -163,7 +163,24 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
         setActiveCountry(data.active_country || '');
         setActiveCompetitors(data.active_competitors || []);
       } else {
-        console.log('ℹ️ No settings found, using defaults');
+        console.log('ℹ️ No settings found, creating default row');
+        
+        // Create default user_settings row
+        const { error: insertError } = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: user.id,
+            active_country: null,
+            active_competitors: [],
+            prioritized_outlets: [],
+          });
+        
+        if (insertError) {
+          console.error('❌ Error creating default settings:', insertError);
+        } else {
+          console.log('✅ Default settings created');
+        }
+        
         setActiveCountry('');
         setActiveCompetitors([]);
       }
