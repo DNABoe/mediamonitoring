@@ -1,11 +1,12 @@
 import { Card } from "@/components/ui/card";
-import { TrendingUp, ChevronDown, ChevronUp, Brain, Loader2 } from "lucide-react";
+import { TrendingUp, ChevronDown, ChevronUp, Brain, Loader2, Sparkles } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip as ChartTooltip } from 'recharts';
 import { useUserSettings } from "@/hooks/useUserSettings";
 
 interface WinnerMetarProps {
@@ -40,6 +41,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
   const [isGeneratingResearch, setIsGeneratingResearch] = useState(false);
   const [showScores, setShowScores] = useState(false);
+  const [hasResearchReport, setHasResearchReport] = useState(false);
   const { settings: userSettings } = useUserSettings();
 
   const calculateWeightedScores = (currentWeights: typeof weights) => {
@@ -526,11 +528,43 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
             
             {showSettings && (
               <div className="space-y-4 p-4 bg-card border border-border rounded-lg shadow-sm">
-                <div className="text-sm text-muted-foreground mb-2 flex items-center justify-between">
-                  <span>Total: {totalWeight}%</span>
-                  {totalWeight !== 100 && (
-                    <span className="text-xs text-warning">Must equal 100%</span>
-                  )}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <span>Total: {totalWeight}%</span>
+                    {totalWeight !== 100 && (
+                      <span className="text-xs text-warning">Must equal 100%</span>
+                    )}
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={fetchAiSuggestion}
+                          disabled={loadingSuggestion || !hasResearchReport}
+                          className="h-7 text-xs"
+                        >
+                          {loadingSuggestion ? (
+                            <>
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-3 w-3 mr-1" />
+                              AI Suggest
+                            </>
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      {!hasResearchReport && (
+                        <TooltipContent>
+                          <p>Generate a research report first</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 {dimensionOrder.map((key) => (
                   <div key={key} className="space-y-2">
@@ -547,6 +581,16 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
                     />
                   </div>
                 ))}
+                {aiSuggestion && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={applyAiSuggestion}
+                    className="w-full mt-2"
+                  >
+                    Apply AI Suggestions
+                  </Button>
+                )}
               </div>
             )}
           </div>
