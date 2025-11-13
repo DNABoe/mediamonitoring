@@ -38,6 +38,8 @@ export const SettingsDialog = ({ open, onOpenChange, onSettingsSaved }: Settings
   const [isResetting, setIsResetting] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isSavingPrompt, setIsSavingPrompt] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("analysis");
   const [resetOptions, setResetOptions] = useState({
     articles: true,
     articleAnalyses: true,
@@ -239,6 +241,32 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
     setCustomPrompt(defaultPrompt);
   };
 
+  const handleSaveAndClose = async () => {
+    setIsSaving(true);
+    try {
+      // Save based on active tab
+      if (activeTab === "analysis") {
+        // Call the exposed save function from CountryCompetitorSettings
+        if ((window as any).__countryCompetitorSave) {
+          await (window as any).__countryCompetitorSave();
+        }
+      } else if (activeTab === "prompt") {
+        await savePrompt();
+      }
+      
+      toast.success("Settings saved successfully");
+      setTimeout(() => {
+        onOpenChange(false);
+        onSettingsSaved?.();
+      }, 500);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error("Failed to save settings");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
@@ -249,7 +277,7 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="analysis" className="w-full flex-1 flex flex-col overflow-hidden">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 flex-shrink-0">
             <TabsTrigger value="analysis" className="text-xs sm:text-sm">
               <span className="hidden sm:inline">Analysis Settings</span>
@@ -299,21 +327,6 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
                 className="min-h-[300px] font-mono text-xs"
                 placeholder="Enter your custom research prompt..."
               />
-
-              <Button 
-                onClick={savePrompt}
-                disabled={isSavingPrompt}
-                className="w-full"
-              >
-                {isSavingPrompt ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Prompt'
-                )}
-              </Button>
             </div>
           </TabsContent>
 
@@ -527,6 +540,30 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
           </div>
           </TabsContent>
         </Tabs>
+
+        {activeTab !== "data" && (
+          <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+            >
+              Close
+            </Button>
+            <Button 
+              onClick={handleSaveAndClose}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
