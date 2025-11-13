@@ -252,7 +252,15 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
     try {
       const { data, error } = await supabase.functions.invoke('suggest-dimension-weights');
       
-      if (error) throw error;
+      if (error) {
+        // Check if it's the "no research report" error
+        if (error.message?.includes('No research report found') || error.message?.includes('404')) {
+          toast.error('Please generate a research report first by clicking "Generate Analysis" above');
+        } else {
+          throw error;
+        }
+        return;
+      }
       
       if (data) {
         setAiSuggestion(data);
@@ -260,7 +268,7 @@ export const WinnerMetar = ({ activeCompetitors }: WinnerMetarProps) => {
       }
     } catch (error) {
       console.error('Error fetching AI suggestion:', error);
-      toast.error('Failed to generate AI suggestions');
+      toast.error('Failed to generate AI suggestions. Please try again.');
     } finally {
       setLoadingSuggestion(false);
     }
