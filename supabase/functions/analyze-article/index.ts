@@ -98,75 +98,38 @@ serve(async (req) => {
     const content = article.fulltext_en || article.summary_en || article.title_en || '';
     const title = article.title_en || article.title_pt || '';
 
-    // Create comprehensive AI analysis prompt
-    const systemPrompt = `You are a senior defense intelligence analyst with 20+ years of experience in fighter aircraft procurement. You provide deep, strategic analysis that goes beyond surface-level reporting to uncover underlying narratives, political positioning, and competitive dynamics. Your analysis is precise, evidence-based, and professionally detailed.`;
+    const systemPrompt = `You are a senior defense intelligence analyst specializing in fighter aircraft procurement. Provide deep, evidence-based analysis of media coverage and competitive positioning.`;
 
-    const userPrompt = `Conduct a comprehensive intelligence analysis of this fighter aircraft procurement article:
+    const userPrompt = `Analyze this fighter procurement article for competitive intelligence:
 
-**Article Title:** ${title}
+Title: ${title}
+Content: ${content}
+Fighters: ${competitors.join(', ')}, Gripen
 
-**Full Content:** 
-${content}
-
-**Competition Analysis Context:** 
-Primary Fighters: ${competitors.join(', ')}, Gripen (ALWAYS analyze Gripen)
-
-**Required Analysis Depth:**
-
-Provide a professional intelligence assessment in the following JSON structure:
-
+Return detailed JSON analysis:
 {
-  "main_sentiment": {
-    "Gripen": <precise number -1.0 to +1.0, or null if no mention>,
-    "F-35": <precise number -1.0 to +1.0, or null if no mention>,
-    ... [include ALL competitors from list]
-  },
+  "main_sentiment": {"Gripen": <-1.0 to +1.0 or null>, "F-35": <-1.0 to +1.0 or null>, ...},
   "sentiment_details": {
-    "Gripen": "<200-300 word detailed analysis explaining: (1) explicit statements about this fighter, (2) implicit framing/tone, (3) comparative positioning vs competitors, (4) specific evidence from article supporting sentiment score. If not mentioned: 'No mentions or references found in article.'>",
-    "F-35": "<same detailed 200-300 word analysis>",
-    ... [ALL competitors]
+    "Gripen": "<200-300 word analysis: (1) explicit statements, (2) implicit framing, (3) competitive positioning, (4) evidence supporting score. Or 'No mentions found.'>",
+    "F-35": "<same detailed analysis>", ...
   },
   "key_points": [
-    "<150+ word point: Primary procurement decision/announcement with specific details on timeline, budget, quantities, decision-makers>",
-    "<150+ word point: Technical/capability comparison highlighting specific performance metrics, operational requirements, or technological advantages discussed>",
-    "<150+ word point: Political/geopolitical factors including government positions, international relations, alliance considerations, or domestic political pressures>",
-    "<150+ word point: Economic/industrial factors covering costs, offsets, technology transfer, jobs, local production, or budget constraints>",
-    "<150+ word point: Strategic implications discussing defense posture, threat scenarios, interoperability, or long-term force planning>",
-    "<150+ word point: Media narrative analysis identifying framing, sources quoted, information emphasized or omitted>"
-    ... [provide 6-10 comprehensive intelligence points]
+    "<150+ word point on procurement decisions with timeline/budget/quantities>",
+    "<150+ word point on technical capabilities and performance metrics>",
+    "<150+ word point on political/geopolitical factors>",
+    "<150+ word point on economic/industrial factors>",
+    "<150+ word point on strategic implications>",
+    "<150+ word point on media narrative framing>"
   ],
-  "article_tone": "<precise classification: objective-factual / analysis-opinion / promotional-advocacy / critical-investigative / speculative>",
-  "influence_score": <1-10: 1-3=niche/blog, 4-6=regional media, 7-8=major national outlet, 9-10=international tier-1 source with verified government sources>,
-  "extracted_quotes": [
-    {"quote": "exact verbatim quote from article", "context": "speaker identity (title/role), significance (why this quote matters for procurement analysis), and competitive implication"},
-    ... [extract 4-8 most strategic/revealing quotes - prioritize official statements, competitive comparisons, cost figures, timeline commitments]
-  ],
-  "narrative_themes": [
-    "cost-effectiveness", "technical-superiority", "political-alignment", "industrial-cooperation", 
-    "operational-requirements", "budget-constraints", "geopolitical-positioning", "technology-transfer",
-    "interoperability", "sovereignty", "jobs-economy", "timeline-urgency", etc.
-    ... [identify ALL relevant themes - be comprehensive]
-  ]
+  "article_tone": "<objective-factual / analysis-opinion / promotional-advocacy / critical-investigative / speculative>",
+  "influence_score": <1-10 based on source credibility>,
+  "extracted_quotes": [{"quote": "...", "context": "speaker, significance, competitive implication"}],
+  "narrative_themes": ["cost-effectiveness", "technical-superiority", "political-alignment", ...]
 }
 
-**Sentiment Scoring Precision Guide:**
-- **+0.8 to +1.0**: Strongly favorable - explicit endorsement, praised capabilities, recommended choice
-- **+0.4 to +0.7**: Moderately positive - presented favorably, advantages highlighted, competitive edge noted
-- **+0.1 to +0.3**: Slightly positive - mentioned positively but not emphasized, minor advantages noted
-- **-0.1 to +0.1**: Neutral - balanced coverage, factual presentation, no clear bias
-- **-0.3 to -0.1**: Slightly negative - minor concerns raised, disadvantages mentioned
-- **-0.7 to -0.4**: Moderately negative - significant concerns, questioned suitability, disadvantages emphasized
-- **-1.0 to -0.8**: Strongly negative - dismissed as unsuitable, major criticisms, explicit recommendation against
+Sentiment guide: +0.8 to +1.0 (strongly favorable), +0.4 to +0.7 (positive), +0.1 to +0.3 (slightly positive), -0.1 to +0.1 (neutral), -0.3 to -0.1 (slightly negative), -0.7 to -0.4 (negative), -1.0 to -0.8 (strongly negative), null (not mentioned).
 
-**null**: No mention whatsoever in article
-
-**Critical Instructions:**
-1. Base ALL analysis on explicit evidence from the article text
-2. For sentiment_details: cite specific phrases/sentences that support the score
-3. Identify subtle bias in word choice, source selection, information emphasis
-4. Distinguish between direct quotes vs journalist framing
-5. Note what is NOT mentioned (omissions can reveal bias)
-6. For key_points: provide actionable intelligence, not just article summary`;
+Base analysis on explicit evidence, cite specific phrases, identify bias in word choice and source selection.`;
 
     // Call Lovable AI
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

@@ -553,63 +553,39 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro', // Use Pro for better filtering accuracy
+        model: 'google/gemini-2.5-pro',
         messages: [{
           role: 'system',
-          content: `You are a senior defense intelligence analyst specializing in fighter aircraft procurement. Your role is to identify ONLY articles with direct relevance to fighter jet acquisition decisions. You have expert knowledge of procurement processes, defense industry dynamics, and can distinguish between procurement news vs general military reporting.`
+          content: `You are a defense intelligence analyst identifying fighter aircraft procurement articles. Filter for DIRECT procurement relevance only.`
         }, {
           role: 'user',
-          content: `Analyze ${preFilteredResults.length} news articles to identify those SPECIFICALLY about fighter jet procurement for ${countryName}'s Air Force.
+          content: `Filter ${preFilteredResults.length} articles for ${countryName} fighter jet procurement.
 
-**Competition Context:**
-- Target Country: ${countryName}
-- Fighters Under Evaluation: ${competitors.join(', ')}, Gripen (always include Gripen)
-- Current Phase: ${mode === 'recent' ? 'Recent developments and breaking news' : 'Comprehensive historical coverage'}
+Fighters: ${competitors.join(', ')}, Gripen
+Mode: ${mode === 'recent' ? 'Recent news' : 'Historical coverage'}
 
-**STRICT FILTERING CRITERIA:**
+INCLUDE ONLY:
+✅ Official procurement announcements/tenders for ${countryName}
+✅ Government officials discussing ${countryName}'s acquisition
+✅ Budget/timeline announcements for ${countryName}
+✅ Comparative analysis for ${countryName}'s decision
+✅ RFP responses and negotiations
+✅ Political debates on ${countryName}'s purchase
 
-✅ **INCLUDE ONLY** articles that contain:
-- Official procurement announcements or tender updates for ${countryName}
-- Government/military officials discussing ${countryName}'s fighter acquisition plans
-- Budget allocations or timeline announcements for ${countryName}'s procurement
-- Comparative analysis of fighter options specifically for ${countryName}
-- Industry responses to ${countryName}'s Request for Proposal (RFP) or tender
-- Negotiations, contracts, or agreements related to ${countryName}'s purchase
-- Political debates or decisions about ${countryName}'s fighter acquisition
-- Economic impact analysis of procurement options for ${countryName}
+EXCLUDE:
+❌ Exercises, air shows without procurement context
+❌ Technical specs not tied to ${countryName}'s decision
+❌ Historical/anniversary pieces
+❌ Maintenance/repairs
+❌ Other countries' procurement
+❌ Training/operations
 
-❌ **EXCLUDE** articles about:
-- Military exercises, air shows, or demonstrations WITHOUT procurement context
-- Technical specifications or reviews not tied to ${countryName}'s decision
-- Historical retrospectives or anniversary pieces
-- Fleet maintenance, upgrades, or repairs of existing aircraft
-- Other countries' procurement (unless direct comparison to ${countryName})
-- General defense news not related to fighter acquisition
-- Pilot training or operational deployments
-- Crashes, incidents, or accidents
+Scoring: 10=contract signing, 9=major milestone, 8=official comments, 7=detailed analysis, 6=industry response. Return ONLY score ≥6, max 40 articles.
 
-**Importance Scoring (1-10):**
-- **10**: Official government announcement of winner/contract signing for ${countryName}
-- **9**: Major procurement milestone (shortlist announcement, RFP release, contract negotiations)
-- **8**: Government/military officials directly commenting on ${countryName}'s acquisition plans
-- **7**: Detailed analysis of ${countryName}'s procurement options with official sources
-- **6**: Industry responses, competitive positioning for ${countryName}'s tender
-- **5**: Political/budget discussions specifically about ${countryName}'s fighter purchase
-- **4**: Comparative technical analysis in context of ${countryName}'s requirements
-- **1-3**: Tangential mentions, historical context, or weak procurement connection
-
-**QUALITY THRESHOLD:** Return ONLY articles scoring 6 or higher. Maximum 40 highest-quality articles.
-
-**Articles to Analyze:**
-${preFilteredResults.map((r, i) => `
-[${i + 1}] 
-Title: ${r.title}
-Snippet: ${r.snippet}
-URL: ${r.url}
-Published: ${r.publishedDate || 'Unknown'}
-`).join('\n---\n')}`
+Articles:
+${preFilteredResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\n${r.url}`).join('\n\n')}`
         }],
-        temperature: 0.2,  // Low temperature for consistent, accurate filtering
+        temperature: 0.2,
         max_tokens: 4000,
         tools: [{
           type: 'function',
