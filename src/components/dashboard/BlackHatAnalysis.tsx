@@ -44,7 +44,7 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [analysis, setAnalysis] = useState<PlatformAnalysis[]>([]);
-  const [selectedTab, setSelectedTab] = useState<string>('gripen');
+  const [selectedTab, setSelectedTab] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -130,11 +130,10 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
   };
 
   const extractBlackHatIssues = (report: ResearchReport) => {
-    const allCompetitors = ['Gripen', ...activeCompetitors];
     const platformIssues: { [key: string]: BlackHatIssue[] } = {};
     
-    // Initialize issues arrays for all platforms
-    allCompetitors.forEach(comp => {
+    // Initialize issues arrays for all active competitors
+    activeCompetitors.forEach(comp => {
       platformIssues[comp] = [];
     });
 
@@ -148,11 +147,11 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
     if (report.political_analysis) {
       const text = report.political_analysis.toLowerCase();
       
-      allCompetitors.forEach(platform => {
+      activeCompetitors.forEach(platform => {
         if (searchText(text, platform) && (text.includes('opposition') || text.includes('criticism') || text.includes('concern'))) {
           platformIssues[platform].push({
             title: 'Political Opposition',
-            description: 'Evidence of political resistance or concerns in Portuguese decision-making circles.',
+            description: 'Evidence of political resistance or concerns in decision-making circles.',
             severity: 'high',
             category: 'Political',
             impact: 'Could delay or derail procurement process',
@@ -161,13 +160,14 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
           });
         }
         
-        if (platform === 'F-35' && searchText(text, platform) && (text.includes('nato') || text.includes('dependency') || text.includes('us control'))) {
+        // Generic strategic dependency check for any platform
+        if (searchText(text, platform) && (text.includes('dependency') || text.includes('control') || text.includes('reliance'))) {
           platformIssues[platform].push({
             title: 'Strategic Dependency Risk',
-            description: 'Concerns about over-reliance on US-controlled systems and technology.',
+            description: 'Concerns about over-reliance on foreign-controlled systems and technology.',
             severity: 'high',
             category: 'Strategic',
-            impact: 'Reduced operational autonomy in conflicts not aligned with US interests',
+            impact: 'Reduced operational autonomy in conflicts',
             likelihood: 'High'
           });
         }
@@ -178,7 +178,7 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
     if (report.capability_analysis) {
       const text = report.capability_analysis.toLowerCase();
       
-      allCompetitors.forEach(platform => {
+      activeCompetitors.forEach(platform => {
         if (searchText(text, platform) && (text.includes('limitation') || text.includes('weakness') || text.includes('inferior'))) {
           platformIssues[platform].push({
             title: 'Capability Limitations',
@@ -187,28 +187,17 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
             category: 'Technical',
             impact: 'Reduced effectiveness in specific mission scenarios',
             likelihood: 'Medium',
-            mitigation: platform === 'F-35' ? 'Software upgrades and Block updates address many limitations' : 'Upgrade packages or complementary systems can address some gaps'
+            mitigation: 'Upgrade packages or complementary systems can address some gaps'
           });
         }
         
-        if (platform !== 'F-35' && searchText(text, platform) && (text.includes('stealth') || text.includes('radar cross') || text.includes('detectability'))) {
+        if (searchText(text, platform) && (text.includes('stealth') || text.includes('radar cross') || text.includes('detectability'))) {
           platformIssues[platform].push({
             title: 'Low Observable Technology Gap',
             description: 'Limited stealth capabilities compared to 5th generation competitors.',
             severity: 'medium',
             category: 'Technical',
             impact: 'Higher vulnerability in contested airspace',
-            likelihood: 'High'
-          });
-        }
-        
-        if (platform === 'F-35' && searchText(text, platform) && (text.includes('maintenance') || text.includes('availability') || text.includes('uptime'))) {
-          platformIssues[platform].push({
-            title: 'Maintenance Complexity',
-            description: 'High maintenance requirements and potential availability issues.',
-            severity: 'high',
-            category: 'Operational',
-            impact: 'Lower fleet availability and higher operational costs',
             likelihood: 'High'
           });
         }
@@ -219,27 +208,27 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
     if (report.cost_analysis) {
       const text = report.cost_analysis.toLowerCase();
       
-      allCompetitors.forEach(platform => {
+      activeCompetitors.forEach(platform => {
         if (searchText(text, platform) && (text.includes('expensive') || text.includes('high cost') || text.includes('budget concern'))) {
           platformIssues[platform].push({
             title: 'Cost Concerns',
             description: 'Financial vulnerabilities or budget challenges identified in procurement process.',
-            severity: platform === 'F-35' ? 'critical' : 'high',
+            severity: 'high',
             category: 'Financial',
-            impact: platform === 'F-35' ? 'Significant budget strain affecting other defense priorities' : 'Budget overruns or reduced procurement numbers',
-            likelihood: platform === 'F-35' ? 'High' : 'Medium',
-            mitigation: platform === 'F-35' ? 'Explore multi-year procurement strategies and international cost-sharing' : 'Negotiate fixed-price contracts with performance guarantees'
+            impact: 'Budget overruns or reduced procurement numbers',
+            likelihood: 'Medium',
+            mitigation: 'Negotiate fixed-price contracts with performance guarantees'
           });
         }
         
-        if (platform === 'F-35' && searchText(text, platform) && (text.includes('cost per flight hour') || text.includes('cpfh') || text.includes('operating cost'))) {
+        if (searchText(text, platform) && (text.includes('cost per flight hour') || text.includes('cpfh') || text.includes('operating cost'))) {
           platformIssues[platform].push({
             title: 'High Operating Costs',
-            description: 'Significantly higher cost per flight hour compared to alternatives.',
-            severity: 'critical',
+            description: 'Higher cost per flight hour compared to alternatives.',
+            severity: 'high',
             category: 'Financial',
             impact: 'Reduced training hours and operational readiness',
-            likelihood: 'Very High'
+            likelihood: 'High'
           });
         }
       });
@@ -249,7 +238,7 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
     if (report.industrial_cooperation) {
       const text = report.industrial_cooperation.toLowerCase();
       
-      allCompetitors.forEach(platform => {
+      activeCompetitors.forEach(platform => {
         if (searchText(text, platform) && (text.includes('risk') || text.includes('dependency') || text.includes('limited'))) {
           platformIssues[platform].push({
             title: 'Industrial Partnership Risks',
@@ -257,25 +246,25 @@ export const BlackHatAnalysis = ({ activeCompetitors, activeCountry }: BlackHatA
             severity: 'medium',
             category: 'Industrial',
             impact: 'Limited domestic industrial benefits',
-            likelihood: platform === 'F-35' ? 'High' : 'Medium',
-            mitigation: platform === 'F-35' ? 'Seek regional maintenance hub status or specific workshare agreements' : 'Negotiate comprehensive offset packages and tech transfer agreements'
+            likelihood: 'Medium',
+            mitigation: 'Negotiate comprehensive offset packages and tech transfer agreements'
           });
         }
         
-        if (platform === 'F-35' && searchText(text, platform) && (text.includes('alis') || text.includes('autonomic logistics') || text.includes('data sharing'))) {
+        if (searchText(text, platform) && (text.includes('centralized logistics') || text.includes('data sharing') || text.includes('dependency'))) {
           platformIssues[platform].push({
-            title: 'ALIS Dependency & Data Sovereignty',
-            description: 'Mandatory use of centralized logistics system with data security implications.',
+            title: 'Logistics Dependency & Data Sovereignty',
+            description: 'Centralized logistics system with data security implications.',
             severity: 'high',
             category: 'Technical',
             impact: 'Limited operational autonomy and potential data exposure',
-            likelihood: 'Very High'
+            likelihood: 'High'
           });
         }
       });
     }
 
-    const analysisResults: PlatformAnalysis[] = allCompetitors.map(platform => ({
+    const analysisResults: PlatformAnalysis[] = activeCompetitors.map(platform => ({
       platform,
       issues: platformIssues[platform]
     }));

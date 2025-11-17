@@ -86,7 +86,9 @@ serve(async (req) => {
       userId = user.id;
     }
     
-    console.log('Step 1 SUCCESS: Authenticated user:', userId);
+    // Sanitize userId for logging
+    const sanitizedUserId = userId.substring(0, 8) + '...';
+    console.log('Step 1 SUCCESS: Authenticated user:', sanitizedUserId);
 
     // ============ REQUEST VALIDATION ============
     console.log('Step 2: Validating request body...');
