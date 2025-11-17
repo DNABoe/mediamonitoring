@@ -11,6 +11,7 @@ export interface UserSettings {
 
 const COUNTRIES = [
   { code: 'AR', name: 'Argentina', flag: '🇦🇷' },
+  { code: 'AT', name: 'Austria', flag: '🇦🇹' },
   { code: 'AU', name: 'Australia', flag: '🇦🇺' },
   { code: 'BE', name: 'Belgium', flag: '🇧🇪' },
   { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
