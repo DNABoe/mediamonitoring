@@ -780,7 +780,7 @@ export type Database = {
         }
         Insert: {
           active_competitors?: string[]
-          active_country?: string
+          active_country: string
           auto_refresh_enabled?: boolean | null
           created_at?: string | null
           id?: string
