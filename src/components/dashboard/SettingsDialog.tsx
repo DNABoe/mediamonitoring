@@ -320,7 +320,7 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
           </TabsList>
 
           <TabsContent value="analysis" className="space-y-4 overflow-y-auto flex-1">
-            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} />
+            <CountryCompetitorSettings onSettingsSaved={onSettingsSaved} skipCallback={true} />
           </TabsContent>
 
           <TabsContent value="media" className="space-y-4 overflow-y-auto flex-1">
