@@ -22,7 +22,6 @@ interface AnalysisData {
   competitors: string[];
   procurement_context: string;
   competitor_overview: string;
-  gripen_overview: string;
   political_context: string;
   economic_factors: string;
   geopolitical_factors: string;
@@ -320,14 +319,7 @@ export const BackgroundAnalysis = ({
 
           <TabsContent value="competitors" className="space-y-6">
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-primary border-b pb-2">Saab Gripen</h3>
-              <div className="text-sm">
-                {formatAnalysisText(analysis.gripen_overview)}
-              </div>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t">
-              <h3 className="text-lg font-semibold text-primary border-b pb-2">Competitor Aircraft</h3>
+              <h3 className="text-lg font-semibold text-primary border-b pb-2">Competitor Overview</h3>
               <div className="flex flex-wrap gap-2 mb-4">
                 {activeCompetitors.map(competitor => (
                   <Badge key={competitor} variant="outline">{competitor}</Badge>

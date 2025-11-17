@@ -15,13 +15,34 @@ serve(async (req) => {
     console.log('Agent monitor news started');
     
     // This function is called by cron/scheduled tasks and must use service role authorization
-    // Verify the request has the correct service role key
+    // Verify the request has the correct service role key using constant-time comparison
     const authHeader = req.headers.get('Authorization');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const expectedAuth = `Bearer ${serviceRoleKey}`;
     
-    if (!authHeader || authHeader !== expectedAuth) {
-      console.error('Unauthorized attempt to access agent monitor');
+    if (!authHeader || !serviceRoleKey) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - service role required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Use constant-time comparison to prevent timing attacks
+    const expectedAuth = `Bearer ${serviceRoleKey}`;
+    if (authHeader.length !== expectedAuth.length) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - service role required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    let isValid = true;
+    for (let i = 0; i < authHeader.length; i++) {
+      if (authHeader.charCodeAt(i) !== expectedAuth.charCodeAt(i)) {
+        isValid = false;
+      }
+    }
+    
+    if (!isValid) {
       return new Response(JSON.stringify({ error: 'Unauthorized - service role required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -58,7 +79,9 @@ serve(async (req) => {
 
     for (const agent of agents) {
       try {
-        console.log(`Processing agent for user ${agent.user_id}, country ${agent.active_country}`);
+        // Sanitize user_id for logging
+        const sanitizedUserId = agent.user_id.substring(0, 8) + '...';
+        console.log(`Processing agent for user ${sanitizedUserId}, country ${agent.active_country}`);
         
         const isFirstRun = agent.articles_collected_total === 0;
         console.log(`First run: ${isFirstRun}`);
