@@ -269,8 +269,8 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
   };
 
   const handleTabChange = async (newTab: string) => {
-    // Auto-save when leaving the analysis tab
-    if (previousTab === "analysis" && newTab !== "analysis") {
+    // Auto-save when leaving the analysis tab (but not when going to data-management)
+    if (previousTab === "analysis" && newTab !== "analysis" && newTab !== "data-management") {
       try {
         if ((window as any).__countryCompetitorSave) {
           await (window as any).__countryCompetitorSave();
@@ -279,6 +279,7 @@ Analyze and suggest a weight distribution of key decision parameters in {{countr
       } catch (error) {
         console.error('Error auto-saving analysis settings:', error);
         toast.error('Failed to save analysis settings');
+        // Don't prevent tab change on error
       }
     }
     
