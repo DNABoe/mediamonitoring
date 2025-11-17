@@ -107,9 +107,10 @@ interface PrioritizedOutlet {
 interface CountryCompetitorSettingsProps {
   onSettingsSaved?: () => void;
   onSave?: () => Promise<void>;
+  skipCallback?: boolean;
 }
 
-export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCompetitorSettingsProps) => {
+export const CountryCompetitorSettings = ({ onSettingsSaved, onSave, skipCallback = false }: CountryCompetitorSettingsProps) => {
   const [activeCountry, setActiveCountry] = useState<string>('');
   const [activeCompetitors, setActiveCompetitors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -295,8 +296,8 @@ export const CountryCompetitorSettings = ({ onSettingsSaved, onSave }: CountryCo
       console.log('✅ Settings saved successfully');
       toast.success('Analysis settings saved successfully');
       
-      // Notify parent component that settings were saved
-      if (onSettingsSaved) {
+      // Notify parent component that settings were saved (unless skipCallback is true for auto-save)
+      if (onSettingsSaved && !skipCallback) {
         onSettingsSaved();
       }
       
