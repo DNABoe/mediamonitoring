@@ -558,33 +558,43 @@ serve(async (req) => {
         model: 'google/gemini-2.5-pro',
         messages: [{
           role: 'system',
-          content: `You are a defense intelligence analyst identifying fighter aircraft procurement articles. Filter for DIRECT procurement relevance only.`
+          content: `You are a defense procurement analyst. Your task is to identify articles relevant to fighter aircraft procurement decisions, including direct announcements, political debate, strategic analysis, and industry developments.`
         }, {
           role: 'user',
-          content: `Filter ${preFilteredResults.length} articles for ${countryName} fighter jet procurement.
+          content: `Analyze ${preFilteredResults.length} articles for ${countryName} fighter jet procurement context.
 
-Fighters: ${competitors.join(', ')}, Gripen
-Mode: ${mode === 'recent' ? 'Recent news' : 'Historical coverage'}
+Fighters of interest: ${competitors.join(', ')}, Gripen
+Collection mode: ${mode === 'recent' ? 'Recent developments (last 3 months)' : 'Full historical coverage'}
 
-INCLUDE ONLY:
-✅ Official procurement announcements/tenders for ${countryName}
-✅ Government officials discussing ${countryName}'s acquisition
-✅ Budget/timeline announcements for ${countryName}
-✅ Comparative analysis for ${countryName}'s decision
-✅ RFP responses and negotiations
-✅ Political debates on ${countryName}'s purchase
+INCLUDE articles about:
+✅ Official procurement announcements, tenders, or RFPs for ${countryName}
+✅ Government officials or defense ministry discussing ${countryName}'s fighter acquisition
+✅ Budget allocation, timeline discussions, or political debate about ${countryName}'s purchase
+✅ Comparative analysis, expert opinions, or strategic assessments of ${countryName}'s options
+✅ Contract negotiations, industrial cooperation proposals, or offset agreements
+✅ Defense industry news directly related to ${countryName}'s procurement process
+✅ Parliamentary or legislative discussions about fighter purchases
 
-EXCLUDE:
-❌ Exercises, air shows without procurement context
-❌ Technical specs not tied to ${countryName}'s decision
-❌ Historical/anniversary pieces
-❌ Maintenance/repairs
-❌ Other countries' procurement
-❌ Training/operations
+EXCLUDE articles about:
+❌ Pure military exercises or operational updates (unless discussing procurement implications)
+❌ Air shows, demonstrations, or technical specs not tied to ${countryName}'s procurement
+❌ Historical retrospectives without procurement relevance
+❌ Routine maintenance, repairs, or upgrades of existing fleet
+❌ Other countries' procurement (unless comparing to ${countryName}'s options)
+❌ General training or deployment news
 
-Scoring: 10=contract signing, 9=major milestone, 8=official comments, 7=detailed analysis, 6=industry response. Return ONLY score ≥6, max 40 articles.
+IMPORTANCE SCORING (1-10):
+10 = Contract signing, official purchase announcement
+9 = Major procurement milestone, RFP release, finalist selection
+8 = Official government comments on procurement, detailed evaluations
+7 = Expert analysis, political debate, strategic assessments
+6 = Industry response, offset proposals, related defense spending
+5 = Informed commentary, procurement context discussions
+4 = Tangential procurement mentions, related defense policy
 
-Articles:
+Return articles scoring ≥4 (maximum 50 articles). Prioritize procurement relevance over publication date.
+
+Articles to analyze:
 ${preFilteredResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\n${r.url}`).join('\n\n')}`
         }],
         temperature: 0.2,
@@ -664,7 +674,7 @@ ${preFilteredResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\n${r.url
     console.log(`AI identified ${analysisResult.articles?.length || 0} relevant articles`);
 
     // Filter by minimum importance and sort
-    const MIN_IMPORTANCE = 6;
+    const MIN_IMPORTANCE = 4; // Lowered from 6 to capture more relevant articles
     const importantArticles = (analysisResult.articles || [])
       .filter((a: any) => a.importance >= MIN_IMPORTANCE)
       .sort((a: any, b: any) => b.importance - a.importance);
@@ -672,11 +682,13 @@ ${preFilteredResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\n${r.url
     console.log(`${importantArticles.length} articles meet importance threshold (>= ${MIN_IMPORTANCE})`);
 
     if (importantArticles.length === 0) {
+      console.warn('No articles met importance threshold - this is unusual if searches found results');
       return new Response(JSON.stringify({ 
         success: true,
-        articlesFound: preFilteredResults.length,
+        articlesFound: uniqueResults.length,
+        articlesAnalyzed: preFilteredResults.length,
         articlesStored: 0,
-        message: 'No articles met importance threshold'
+        message: `Found ${uniqueResults.length} articles but none were relevant enough to procurement decisions (importance < ${MIN_IMPORTANCE}). Try adjusting date range or competitors.`
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
