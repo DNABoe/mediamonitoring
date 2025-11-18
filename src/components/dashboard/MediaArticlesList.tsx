@@ -164,18 +164,45 @@ export const MediaArticlesList = ({
           mode: 'full'
         }
       });
-      if (error) throw error;
-      toast({
-        title: "Full period collection complete",
-        description: `Collected ${data?.totalSaved || 0} articles across entire tracking period.`,
-        duration: 5000
-      });
+      if (error) {
+        console.error('Collection error:', error);
+        throw error;
+      }
+      
+      const articlesStored = data?.articlesStored || 0;
+      const articlesFound = data?.articlesFound || 0;
+      
+      if (articlesStored === 0 && articlesFound > 0) {
+        toast({
+          title: "No relevant articles found",
+          description: data?.message || `Searched ${articlesFound} articles but none met relevance criteria. Try different date range or competitors.`,
+          variant: "default",
+          duration: 8000
+        });
+      } else if (articlesStored > 0) {
+        toast({
+          title: "Collection complete",
+          description: `Saved ${articlesStored} relevant articles from ${articlesFound} found.`,
+          duration: 5000
+        });
+      } else {
+        toast({
+          title: "No articles found",
+          description: "No articles found for this period. Try expanding the date range.",
+          duration: 5000
+        });
+      }
+      
       await fetchMediaArticles();
     } catch (error: any) {
+      console.error('Collection error:', error);
       toast({
         title: "Collection failed",
-        description: error.message || "Failed to collect articles. Please try again.",
-        variant: "destructive"
+        description: error.message?.includes('FunctionsRelayError') || error.message?.includes('FunctionsHttpError')
+          ? "Connection to collection service failed. Please try again."
+          : (error.message || "Failed to collect articles. Please try again."),
+        variant: "destructive",
+        duration: 8000
       });
     } finally {
       setLoading(false);
@@ -218,18 +245,45 @@ export const MediaArticlesList = ({
           mode: 'recent'
         }
       });
-      if (error) throw error;
-      toast({
-        title: "Recent update complete",
-        description: `Found ${data?.totalSaved || 0} new articles from the last 3 months.`,
-        duration: 5000
-      });
+      if (error) {
+        console.error('Update error:', error);
+        throw error;
+      }
+      
+      const articlesStored = data?.articlesStored || 0;
+      const articlesFound = data?.articlesFound || 0;
+      
+      if (articlesStored === 0 && articlesFound > 0) {
+        toast({
+          title: "No new relevant articles",
+          description: data?.message || `Searched ${articlesFound} articles but none met relevance criteria.`,
+          variant: "default",
+          duration: 8000
+        });
+      } else if (articlesStored > 0) {
+        toast({
+          title: "Update complete",
+          description: `Saved ${articlesStored} new articles from ${articlesFound} found.`,
+          duration: 5000
+        });
+      } else {
+        toast({
+          title: "No new articles",
+          description: "No new articles found for the last 3 months.",
+          duration: 5000
+        });
+      }
+      
       await fetchMediaArticles();
     } catch (error: any) {
+      console.error('Update error:', error);
       toast({
         title: "Update failed",
-        description: error.message || "Failed to update recent articles. Please try again.",
-        variant: "destructive"
+        description: error.message?.includes('FunctionsRelayError') || error.message?.includes('FunctionsHttpError')
+          ? "Connection to collection service failed. Please try again."
+          : (error.message || "Failed to update recent articles. Please try again."),
+        variant: "destructive",
+        duration: 8000
       });
     } finally {
       setLoading(false);
