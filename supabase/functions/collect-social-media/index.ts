@@ -116,19 +116,62 @@ serve(async (req) => {
     let totalCollected = 0;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
-    // Map country code to language for local search
-    const countryLanguageMap: Record<string, string> = {
-      'PT': 'Portuguese',
-      'ES': 'Spanish',
-      'FR': 'French',
-      'DE': 'German',
-      'IT': 'Italian',
-      'PL': 'Polish',
-      'SE': 'Swedish',
-      'FI': 'Finnish',
-      'NO': 'Norwegian'
+    // Map country code to language and country name for local search
+    const countryLanguageMap: Record<string, { language: string; name: string }> = {
+      'AR': { language: 'Spanish', name: 'Argentina' },
+      'AT': { language: 'German', name: 'Austria' },
+      'AU': { language: 'English', name: 'Australia' },
+      'BE': { language: 'Dutch', name: 'Belgium' },
+      'BR': { language: 'Portuguese', name: 'Brazil' },
+      'BG': { language: 'Bulgarian', name: 'Bulgaria' },
+      'CA': { language: 'English', name: 'Canada' },
+      'CL': { language: 'Spanish', name: 'Chile' },
+      'CN': { language: 'Chinese', name: 'China' },
+      'CO': { language: 'Spanish', name: 'Colombia' },
+      'HR': { language: 'Croatian', name: 'Croatia' },
+      'CZ': { language: 'Czech', name: 'Czech Republic' },
+      'DK': { language: 'Danish', name: 'Denmark' },
+      'EG': { language: 'Arabic', name: 'Egypt' },
+      'FI': { language: 'Finnish', name: 'Finland' },
+      'FR': { language: 'French', name: 'France' },
+      'DE': { language: 'German', name: 'Germany' },
+      'GR': { language: 'Greek', name: 'Greece' },
+      'HU': { language: 'Hungarian', name: 'Hungary' },
+      'IN': { language: 'English', name: 'India' },
+      'ID': { language: 'Indonesian', name: 'Indonesia' },
+      'IL': { language: 'Hebrew', name: 'Israel' },
+      'IT': { language: 'Italian', name: 'Italy' },
+      'JP': { language: 'Japanese', name: 'Japan' },
+      'MY': { language: 'Malay', name: 'Malaysia' },
+      'MX': { language: 'Spanish', name: 'Mexico' },
+      'NL': { language: 'Dutch', name: 'Netherlands' },
+      'NZ': { language: 'English', name: 'New Zealand' },
+      'NO': { language: 'Norwegian', name: 'Norway' },
+      'PK': { language: 'English', name: 'Pakistan' },
+      'PE': { language: 'Spanish', name: 'Peru' },
+      'PH': { language: 'English', name: 'Philippines' },
+      'PL': { language: 'Polish', name: 'Poland' },
+      'PT': { language: 'Portuguese', name: 'Portugal' },
+      'RO': { language: 'Romanian', name: 'Romania' },
+      'SA': { language: 'Arabic', name: 'Saudi Arabia' },
+      'SG': { language: 'English', name: 'Singapore' },
+      'SK': { language: 'Slovak', name: 'Slovakia' },
+      'ZA': { language: 'English', name: 'South Africa' },
+      'KR': { language: 'Korean', name: 'South Korea' },
+      'ES': { language: 'Spanish', name: 'Spain' },
+      'SE': { language: 'Swedish', name: 'Sweden' },
+      'CH': { language: 'German', name: 'Switzerland' },
+      'TW': { language: 'Chinese', name: 'Taiwan' },
+      'TH': { language: 'Thai', name: 'Thailand' },
+      'TR': { language: 'Turkish', name: 'Turkey' },
+      'UA': { language: 'Ukrainian', name: 'Ukraine' },
+      'AE': { language: 'Arabic', name: 'UAE' },
+      'GB': { language: 'English', name: 'United Kingdom' },
+      'US': { language: 'English', name: 'United States' },
+      'VN': { language: 'Vietnamese', name: 'Vietnam' }
     };
-    const localLanguage = countryLanguageMap[country] || 'English';
+    const localLanguage = countryLanguageMap[country]?.language || 'English';
+    const countryName = countryLanguageMap[country]?.name || country;
 
     // Calculate date range in days
     const startDateObj = new Date(startDate || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
@@ -151,27 +194,17 @@ serve(async (req) => {
         // PASS 1: Last 24 hours - CRITICAL for breaking discussions (all platforms)
         searchQueries.push({
           platform: 'reddit',
-          query: `${fighter} ${country} site:reddit.com`,
-          dateRange: 'd1'
-        });
-        searchQueries.push({
-          platform: 'reddit',
-          query: `${fighter} procurement site:reddit.com`,
+          query: `${fighter} ${countryName} procurement site:reddit.com`,
           dateRange: 'd1'
         });
         searchQueries.push({
           platform: 'x',
-          query: `${fighter} ${country} site:x.com OR site:twitter.com`,
-          dateRange: 'd1'
-        });
-        searchQueries.push({
-          platform: 'x',
-          query: `${fighter} procurement site:x.com OR site:twitter.com`,
+          query: `${fighter} ${countryName} site:x.com OR site:twitter.com`,
           dateRange: 'd1'
         });
         searchQueries.push({
           platform: 'facebook',
-          query: `${fighter} ${localLanguage} site:facebook.com`,
+          query: `${fighter} ${countryName} ${localLanguage} site:facebook.com`,
           dateRange: 'd1'
         });
         searchQueries.push({
@@ -185,42 +218,22 @@ serve(async (req) => {
         
         searchQueries.push({
           platform: 'reddit',
-          query: `${fighter} military site:reddit.com`,
-          dateRange: recentRange
-        });
-        searchQueries.push({
-          platform: 'reddit',
-          query: `${fighter} ${country} purchase site:reddit.com`,
+          query: `${fighter} ${countryName} defense site:reddit.com`,
           dateRange: recentRange
         });
         searchQueries.push({
           platform: 'x',
-          query: `${fighter} defense site:x.com OR site:twitter.com`,
-          dateRange: recentRange
-        });
-        searchQueries.push({
-          platform: 'x',
-          query: `${fighter} ${country} contract site:x.com OR site:twitter.com`,
+          query: `${fighter} ${countryName} contract site:x.com OR site:twitter.com`,
           dateRange: recentRange
         });
         searchQueries.push({
           platform: 'facebook',
-          query: `${fighter} ${country} site:facebook.com`,
-          dateRange: recentRange
-        });
-        searchQueries.push({
-          platform: 'facebook',
-          query: `${fighter} defense ${localLanguage} site:facebook.com`,
+          query: `${fighter} ${countryName} ${localLanguage} site:facebook.com`,
           dateRange: recentRange
         });
         searchQueries.push({
           platform: 'linkedin',
-          query: `${fighter} aerospace site:linkedin.com`,
-          dateRange: recentRange
-        });
-        searchQueries.push({
-          platform: 'linkedin',
-          query: `${fighter} ${country} defense site:linkedin.com`,
+          query: `${fighter} ${countryName} site:linkedin.com`,
           dateRange: recentRange
         });
         
@@ -393,7 +406,7 @@ serve(async (req) => {
         if (data.items) {
           console.log(`  ✓ Found ${data.items.length} posts`);
           for (const item of data.items) {
-            await processSocialPost(item, search.platform, userId, country, competitors, supabaseClient, LOVABLE_API_KEY);
+            await processSocialPost(item, search.platform, userId, country, competitors, supabaseClient, LOVABLE_API_KEY, localLanguage, countryName);
             totalCollected++;
           }
         } else {
@@ -439,11 +452,13 @@ async function processSocialPost(
   country: string, 
   competitors: string[], 
   supabaseClient: any,
-  lovableApiKey: string | undefined
+  lovableApiKey: string | undefined,
+  countryLanguage: string,
+  countryName: string
 ) {
   try {
     const postId = item.link.split('/').pop() || item.link;
-    const content = item.snippet || item.title;
+    let content = item.snippet || item.title;
     
     // Deep sentiment analysis using Lovable AI with enhanced prompt
     let sentiment = 0;
@@ -461,40 +476,44 @@ async function processSocialPost(
             model: 'google/gemini-2.5-flash',
             messages: [{
               role: 'user',
-              content: `Analyze this social media post about fighter jet procurement for ${country}.
+              content: `Analyze this social media post about fighter jet procurement for ${countryName} (${country}).
 
 We are tracking these fighters: ${[...competitors, 'Gripen'].join(', ')}
 
 Post: "${content}"
 
-CRITICAL FILTERING - Only include posts that are DIRECTLY about ${country}'s fighter procurement:
+CRITICAL FILTERING - Only include posts that are DIRECTLY about ${countryName}'s fighter procurement:
 
 ✅ INCLUDE ONLY if post discusses:
-- ${country} actively considering/negotiating purchase of: ${[...competitors, 'Gripen'].join(', ')}
-- Direct comparisons between fighters specifically for ${country}'s procurement
-- Political/economic debates about which fighter ${country} should buy
-- Official announcements or credible rumors about ${country}'s fighter acquisition
-- ${country}'s defense budget/strategy related to fighter replacement
+- ${countryName} actively considering/negotiating purchase of: ${[...competitors, 'Gripen'].join(', ')}
+- Direct comparisons between fighters specifically for ${countryName}'s procurement
+- Political/economic debates about which fighter ${countryName} should buy
+- Official announcements or credible rumors about ${countryName}'s fighter acquisition
+- ${countryName}'s defense budget/strategy related to fighter replacement
 
 ❌ REJECT if post is about:
-- General fighter specs or capabilities (without ${country} procurement context)
-- Other countries purchasing these fighters (unless comparing to ${country})
+- General fighter specs or capabilities (without ${countryName} procurement context)
+- Other countries purchasing these fighters (unless comparing to ${countryName})
 - Military exercises, airshows, or demonstrations (not procurement)
 - Historical content or past purchases
 - Technical discussions without procurement decision context
 - Generic defense industry news
-- Any post that doesn't mention ${country} or its procurement
+- Any post that doesn't mention ${countryName} or its procurement
+
+LANGUAGE & TRANSLATION:
+- Post language appears to be: ${countryLanguage}
+- If the post is NOT in ${countryLanguage}, provide an English translation in the response
 
 RELEVANCE SCORING (be STRICT):
-- 9-10: Official procurement announcement or major decision for ${country}
-- 7-8: Credible discussion of ${country}'s procurement options
-- 5-6: Tangential mention of ${country}'s potential purchase
+- 9-10: Official procurement announcement or major decision for ${countryName}
+- 7-8: Credible discussion of ${countryName}'s procurement options
+- 5-6: Tangential mention of ${countryName}'s potential purchase
 - 1-4: Weak connection or no procurement context
 - 0: Completely irrelevant
 
 FIGHTER TAGS: Only tag fighters that are EXPLICITLY mentioned in the post from: ${[...competitors, 'Gripen'].join(', ')}
 
-If relevance < 7 OR post doesn't mention ${country}, return:
+If relevance < 7 OR post doesn't mention ${countryName}, return:
 { "sentiment": 0, "fighter_tags": [], "temperature": "cool", "relevance": 0, "procurement_related": false }
 
 If relevant (relevance >= 7), provide:
@@ -504,7 +523,8 @@ If relevant (relevance >= 7), provide:
   "temperature": "hot" | "warm" | "cool",
   "relevance": number (7-10),
   "procurement_related": true,
-  "sentiment_by_fighter": { "fighter_name": number }
+  "sentiment_by_fighter": { "fighter_name": number },
+  "translated_content": "English translation if post is not in ${countryLanguage}, otherwise omit this field"
 }`
             }],
           }),
@@ -525,6 +545,11 @@ If relevant (relevance >= 7), provide:
             
             sentiment = parsed.sentiment || 0;
             tags = parsed.fighter_tags || [];
+            
+            // If translation provided, append it to the content
+            if (parsed.translated_content) {
+              content = `${content}\n\n[Translation: ${parsed.translated_content}]`;
+            }
             
             console.log(`  AI Analysis: sentiment=${sentiment}, temp=${parsed.temperature}, relevance=${parsed.relevance}`);
           } catch {
