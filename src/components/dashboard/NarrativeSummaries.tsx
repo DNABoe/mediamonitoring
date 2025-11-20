@@ -28,8 +28,12 @@ export const NarrativeSummaries = () => {
         .limit(50);
 
       if (items) {
-        setGripenItems(items.filter(i => i.fighter_tags?.includes('Gripen')));
-        setF35Items(items.filter(i => i.fighter_tags?.includes('F-35')));
+        setGripenItems(items.filter(i => 
+          i.fighter_tags?.some((tag: string) => tag.toLowerCase().includes('gripen'))
+        ));
+        setF35Items(items.filter(i => 
+          i.fighter_tags?.some((tag: string) => tag.toLowerCase().includes('f-35') || tag.toLowerCase().includes('f35'))
+        ));
       }
       setLoading(false);
     };

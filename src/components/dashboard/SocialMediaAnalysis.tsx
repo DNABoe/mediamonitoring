@@ -55,10 +55,15 @@ export const SocialMediaAnalysis = ({ activeCountry, activeCompetitors }: Social
 
       if (error) throw error;
 
-      // Filter by active competitors + Gripen
+      // Filter by active competitors + Gripen (case-insensitive)
       const allCompetitors = ['Gripen', ...activeCompetitors];
       const filteredPosts = posts?.filter(post => 
-        allCompetitors.some(comp => post.fighter_tags?.includes(comp))
+        allCompetitors.some(comp => 
+          post.fighter_tags?.some((tag: string) => 
+            tag.toLowerCase().includes(comp.toLowerCase()) || 
+            comp.toLowerCase().includes(tag.toLowerCase())
+          )
+        )
       ) || [];
 
       // Calculate statistics

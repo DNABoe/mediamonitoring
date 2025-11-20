@@ -51,8 +51,18 @@ export const SocialTrendsSummary = ({ activeCountry, activeCompetitors }: Social
 
       // Fighter breakdown
       const fighterStats = allCompetitors.map(fighter => {
-        const fighterPosts = posts.filter(p => p.fighter_tags?.includes(fighter));
-        const fighterRecent = recentPosts.filter(p => p.fighter_tags?.includes(fighter));
+        const fighterPosts = posts.filter(p => 
+          p.fighter_tags?.some((tag: string) => 
+            tag.toLowerCase().includes(fighter.toLowerCase()) || 
+            fighter.toLowerCase().includes(tag.toLowerCase())
+          )
+        );
+        const fighterRecent = recentPosts.filter(p => 
+          p.fighter_tags?.some((tag: string) => 
+            tag.toLowerCase().includes(fighter.toLowerCase()) || 
+            fighter.toLowerCase().includes(tag.toLowerCase())
+          )
+        );
         const avgSentiment = fighterPosts.length > 0
           ? fighterPosts.reduce((sum, p) => sum + (p.sentiment || 0), 0) / fighterPosts.length
           : 0;
