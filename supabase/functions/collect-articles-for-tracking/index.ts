@@ -94,7 +94,7 @@ serve(async (req) => {
     console.log('Step 2: Validating request body...');
     const { country, competitors, startDate, endDate, mode = 'full' } = body;
     
-    console.log('Request params:', { country, competitors, startDate, endDate, mode });
+    console.log('Request params:', { country, mode, competitorCount: competitors?.length });
 
     // Validate country code
     if (!country || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) {
