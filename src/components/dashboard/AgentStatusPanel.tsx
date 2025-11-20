@@ -104,8 +104,15 @@ export const AgentStatusPanel = ({ activeCountry, activeCompetitors }: AgentStat
       // Calculate social sentiment
       if (socialData && socialData.length > 0) {
         const sentimentByFighter: any = {};
-        activeCompetitors.forEach(fighter => {
-          const fighterPosts = socialData.filter(p => p.fighter_tags?.includes(fighter));
+        // Include Gripen + active competitors
+        const allFighters = ['Gripen', ...activeCompetitors];
+        allFighters.forEach(fighter => {
+          const fighterPosts = socialData.filter(p => 
+            p.fighter_tags?.some((tag: string) => 
+              tag.toLowerCase().includes(fighter.toLowerCase()) || 
+              fighter.toLowerCase().includes(tag.toLowerCase())
+            )
+          );
           if (fighterPosts.length > 0) {
             const avgSentiment = fighterPosts.reduce((sum, p) => sum + (p.sentiment || 0), 0) / fighterPosts.length;
             sentimentByFighter[fighter] = {

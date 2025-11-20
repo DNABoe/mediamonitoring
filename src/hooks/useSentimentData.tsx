@@ -110,7 +110,13 @@ export const useSentimentData = (activeCountry: string, activeCompetitors: strin
         const weekPublication = publicationByWeek.get(weekKey)!;
 
         article.fighter_tags?.forEach((tag: string) => {
-          const fighter = fighters.find(f => tag.toLowerCase().includes(f.toLowerCase()));
+          // Case-insensitive matching - check if tag contains fighter name
+          const normalizedTag = tag.toLowerCase();
+          const fighter = fighters.find(f => 
+            normalizedTag.includes(f.toLowerCase()) || 
+            f.toLowerCase().includes(normalizedTag)
+          );
+          
           if (fighter) {
             // Use analyzed sentiment if available, otherwise fall back to basic sentiment
             const mainSentiment = article.article_analyses?.[0]?.main_sentiment as { score?: number } | undefined;

@@ -35,10 +35,15 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors, star
 
       if (error) throw error;
 
-      // Filter by active competitors + Gripen
+      // Filter by active competitors + Gripen (case-insensitive matching)
       const allCompetitors = ['Gripen', ...activeCompetitors];
       const filteredPosts = posts?.filter(post => 
-        allCompetitors.some(comp => post.fighter_tags?.includes(comp))
+        allCompetitors.some(comp => 
+          post.fighter_tags?.some((tag: string) => 
+            tag.toLowerCase().includes(comp.toLowerCase()) || 
+            comp.toLowerCase().includes(tag.toLowerCase())
+          )
+        )
       ) || [];
 
       if (filteredPosts.length === 0) {
@@ -70,9 +75,14 @@ export const SocialSentimentTimeline = ({ activeCountry, activeCompetitors, star
           totalPosts: dayPosts.length,
         };
 
-        // Calculate per-fighter sentiment (including Gripen)
+        // Calculate per-fighter sentiment (including Gripen) - case-insensitive
         allCompetitors.forEach(fighter => {
-          const fighterPosts = dayPosts.filter(p => p.fighter_tags?.includes(fighter));
+          const fighterPosts = dayPosts.filter(p => 
+            p.fighter_tags?.some((tag: string) => 
+              tag.toLowerCase().includes(fighter.toLowerCase()) || 
+              fighter.toLowerCase().includes(tag.toLowerCase())
+            )
+          );
           const avgSentiment = fighterPosts.length > 0
             ? fighterPosts.reduce((sum, p) => sum + (p.sentiment || 0), 0) / fighterPosts.length
             : null;

@@ -40,10 +40,15 @@ export const SocialMediaFeed = ({ activeCountry, activeCompetitors }: SocialMedi
       .limit(50);
 
     if (!error && data) {
-      // Filter by active competitors + Gripen
+      // Filter by active competitors + Gripen (case-insensitive)
       const allCompetitors = ['Gripen', ...activeCompetitors];
       const filtered = data.filter(post => 
-        allCompetitors.some(comp => post.fighter_tags?.includes(comp))
+        allCompetitors.some(comp => 
+          post.fighter_tags?.some((tag: string) => 
+            tag.toLowerCase().includes(comp.toLowerCase()) || 
+            comp.toLowerCase().includes(tag.toLowerCase())
+          )
+        )
       );
       // Sort by published_at newest first (already sorted by DB query)
       setPosts(filtered);

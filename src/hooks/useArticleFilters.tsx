@@ -48,12 +48,18 @@ export const useArticleFilters = (articles: any[]) => {
         if (filters.sentiment === 'neutral' && Math.abs(sentiment) > 0.1) return false;
       }
 
-      // Competitor filter
+      // Competitor filter - always include Gripen
       if (filters.competitors.length > 0) {
-        const hasMatchingCompetitor = filters.competitors.some(comp =>
-          article.fighter_tags?.includes(comp)
+        const hasGripen = article.fighter_tags?.some((tag: string) => 
+          tag.toLowerCase().includes('gripen')
         );
-        if (!hasMatchingCompetitor) return false;
+        const hasSelectedCompetitor = filters.competitors.some(comp =>
+          article.fighter_tags?.some((tag: string) => 
+            tag.toLowerCase().includes(comp.toLowerCase())
+          )
+        );
+        // Include if it has Gripen OR any selected competitor
+        if (!hasGripen && !hasSelectedCompetitor) return false;
       }
 
       return true;

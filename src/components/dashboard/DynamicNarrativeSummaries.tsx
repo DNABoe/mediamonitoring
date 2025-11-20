@@ -29,8 +29,12 @@ export const DynamicNarrativeSummaries = () => {
         return;
       }
 
-      const gripenItems = items.filter(i => i.fighter_tags?.includes('Gripen'));
-      const f35Items = items.filter(i => i.fighter_tags?.includes('F-35'));
+      const gripenItems = items.filter(i => 
+        i.fighter_tags?.some((tag: string) => tag.toLowerCase().includes('gripen'))
+      );
+      const f35Items = items.filter(i => 
+        i.fighter_tags?.some((tag: string) => tag.toLowerCase().includes('f-35') || tag.toLowerCase().includes('f35'))
+      );
 
       // Aggregate summaries - use all available summaries
       const gripenSummary = gripenItems.length > 0
