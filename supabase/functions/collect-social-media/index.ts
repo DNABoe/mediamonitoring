@@ -40,6 +40,8 @@ serve(async (req) => {
     }
 
     const userId = user.id;
+    const sanitizedUserId = userId.substring(0, 8) + '...';
+    console.log('Authenticated user:', sanitizedUserId);
     
     const body = await req.json();
     const { country, competitors, startDate, endDate } = body;

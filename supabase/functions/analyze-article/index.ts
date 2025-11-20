@@ -53,7 +53,8 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Authenticated user: ${user.id}`);
+    const sanitizedUserId = user.id.substring(0, 8) + '...';
+    console.log(`Authenticated user: ${sanitizedUserId}`);
 
     const { articleId, competitors } = await req.json();
 
@@ -83,15 +84,20 @@ serve(async (req) => {
       }
     }
 
-    // Fetch article details
+    // Fetch article details with ownership verification
     const { data: article, error: articleError } = await supabase
       .from('items')
       .select('*')
       .eq('id', articleId)
+      .eq('user_id', user.id)
       .single();
 
     if (articleError || !article) {
-      throw new Error('Article not found');
+      console.error('Article not found or access denied');
+      return new Response(
+        JSON.stringify({ error: 'Article not found or access denied' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Prepare content for analysis
