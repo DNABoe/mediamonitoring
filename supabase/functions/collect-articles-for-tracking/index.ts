@@ -396,7 +396,25 @@ serve(async (req) => {
       // Strategy: Exhaustive search with multiple date ranges and query variations
       // Focus on capturing every recent article with high relevance
       
-      // PRIORITY 1: Breaking news (last 24-48 hours) - all fighters
+      // PRIORITY 1: Breaking news (last 24-48 hours) - all fighters with broader terms
+      for (const fighter of [...competitors, 'Gripen']) {
+        // Native language with country name
+        allSearchQueries.push({
+          query: `${fighter} ${countryName} fighter jet aircraft`,
+          country: countryName,
+          domains: prioritizedDomains.length > 0 ? prioritizedDomains : allDomains.slice(0, 15),
+          recencyFilter: 'day'
+        });
+        
+        // English broader search
+        allSearchQueries.push({
+          query: `${fighter} ${countryName} procurement defense`,
+          country: countryName,
+          recencyFilter: 'day'
+        });
+      }
+      
+      // Additional comprehensive searches
       for (const fighter of [...competitors, 'Gripen']) {
         allSearchQueries.push({
           query: `${fighter} ${countryName} news`,
@@ -558,41 +576,49 @@ serve(async (req) => {
         model: 'google/gemini-2.5-pro',
         messages: [{
           role: 'system',
-          content: `You are a defense procurement analyst. Your task is to identify articles relevant to fighter aircraft procurement decisions, including direct announcements, political debate, strategic analysis, and industry developments.`
+          content: `You are a comprehensive defense intelligence analyst. Your task is to identify ALL articles that mention fighter aircraft in the context of ${countryName}, including procurement news, political discussions, defense policy, industry developments, strategic analysis, and international comparisons.
+
+BE INCLUSIVE: Cast a wide net to capture all fighter-related intelligence that could inform procurement decisions or market analysis.`
         }, {
           role: 'user',
-          content: `Analyze ${preFilteredResults.length} articles for ${countryName} fighter jet procurement context.
+          content: `Analyze ${preFilteredResults.length} articles for ${countryName} fighter jet intelligence.
 
 Fighters of interest: ${competitors.join(', ')}, Gripen
 Collection mode: ${mode === 'recent' ? 'Recent developments (last 3 months)' : 'Full historical coverage'}
 
 INCLUDE articles about:
-✅ Official procurement announcements, tenders, or RFPs for ${countryName}
-✅ Government officials or defense ministry discussing ${countryName}'s fighter acquisition
-✅ Budget allocation, timeline discussions, or political debate about ${countryName}'s purchase
-✅ Comparative analysis, expert opinions, or strategic assessments of ${countryName}'s options
-✅ Contract negotiations, industrial cooperation proposals, or offset agreements
-✅ Defense industry news directly related to ${countryName}'s procurement process
-✅ Parliamentary or legislative discussions about fighter purchases
+✅ ANY procurement-related news for ${countryName} (announcements, tenders, RFPs, negotiations, decisions)
+✅ Government/military officials discussing fighter needs, options, or evaluations
+✅ Budget discussions, funding allocations, or defense spending related to fighters
+✅ Political debate, parliamentary discussions, or legislative actions on fighter purchases
+✅ Comparative analysis of fighter options (Gripen vs competitors)
+✅ Expert opinions, strategic assessments, or defense policy analysis
+✅ Industry news: contract bids, offset proposals, industrial cooperation
+✅ International context: similar procurement by other nations, market trends
+✅ Technology comparisons, capability assessments, operational requirements
+✅ Trade relations, diplomatic aspects of fighter deals
+✅ Economic impact studies, job creation, industrial benefits
+✅ Air shows, demonstrations IF they discuss procurement implications
+✅ Military exercises IF they mention procurement context or fighter comparisons
+✅ Alliance considerations (NATO, EU) affecting fighter choices
 
-EXCLUDE articles about:
-❌ Pure military exercises or operational updates (unless discussing procurement implications)
-❌ Air shows, demonstrations, or technical specs not tied to ${countryName}'s procurement
-❌ Historical retrospectives without procurement relevance
-❌ Routine maintenance, repairs, or upgrades of existing fleet
-❌ Other countries' procurement (unless comparing to ${countryName}'s options)
-❌ General training or deployment news
+EXCLUDE ONLY these:
+❌ Pure technical specifications without procurement context
+❌ Routine maintenance/repair news with no strategic implications
+❌ Completely unrelated countries' procurement (no comparison to ${countryName})
 
-IMPORTANCE SCORING (1-10):
+IMPORTANCE SCORING (1-10) - BE GENEROUS:
 10 = Contract signing, official purchase announcement
-9 = Major procurement milestone, RFP release, finalist selection
-8 = Official government comments on procurement, detailed evaluations
-7 = Expert analysis, political debate, strategic assessments
-6 = Industry response, offset proposals, related defense spending
-5 = Informed commentary, procurement context discussions
-4 = Tangential procurement mentions, related defense policy
+9 = Major procurement milestone, RFP release, shortlist announcement
+8 = Official government statements on procurement, detailed evaluations
+7 = Political debate, expert analysis, strategic assessments
+6 = Industry news, offset proposals, defense policy discussions
+5 = Comparative analysis, international context, capability discussions
+4 = Air show coverage with procurement mentions, related defense news
+3 = General fighter news with potential relevance to ${countryName}
+2 = Background context, historical comparisons, tangential mentions
 
-Return articles scoring ≥4 (maximum 50 articles). Prioritize procurement relevance over publication date.
+Return ALL articles scoring ≥3 (maximum 80 articles). Be comprehensive - when in doubt, INCLUDE the article.
 
 Articles to analyze:
 ${preFilteredResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\n${r.url}`).join('\n\n')}`
@@ -674,10 +700,11 @@ ${preFilteredResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\n${r.url
     console.log(`AI identified ${analysisResult.articles?.length || 0} relevant articles`);
 
     // Filter by minimum importance and sort
-    const MIN_IMPORTANCE = 4; // Lowered from 6 to capture more relevant articles
+    const MIN_IMPORTANCE = 3; // Lowered to 3 to capture comprehensive intelligence
     const importantArticles = (analysisResult.articles || [])
       .filter((a: any) => a.importance >= MIN_IMPORTANCE)
-      .sort((a: any, b: any) => b.importance - a.importance);
+      .sort((a: any, b: any) => b.importance - a.importance)
+      .slice(0, 80); // Increased max articles from 50 to 80
 
     console.log(`${importantArticles.length} articles meet importance threshold (>= ${MIN_IMPORTANCE})`);
 
