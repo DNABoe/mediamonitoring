@@ -761,6 +761,13 @@ ${preFilteredResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\n${r.url
         // Invalid URL, leave sourceCountry null
       }
 
+      // Ensure Gripen is always included in tags since all articles for tracking country
+      // represent competitive intelligence relevant to Gripen's market position
+      const fighterTags = article.fighter_tags || [];
+      if (!fighterTags.some((tag: string) => tag.toLowerCase().includes('gripen'))) {
+        fighterTags.push('Gripen');
+      }
+
       return {
         user_id: userId,
         tracking_country: country,
@@ -769,7 +776,7 @@ ${preFilteredResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\n${r.url
         title_pt: originalArticle.title, // Store original title (often in Portuguese for PT sources)
         title_en: originalArticle.title, // Store same as English for now - will be translated later if needed
         summary_en: originalArticle.snippet,
-        fighter_tags: article.fighter_tags || [],
+        fighter_tags: fighterTags,
         sentiment: article.sentiment || 0,
         published_at: originalArticle.publishedDate || new Date(
           startDateObj.getTime() + Math.random() * (endDateObj.getTime() - startDateObj.getTime())
