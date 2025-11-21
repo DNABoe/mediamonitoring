@@ -80,12 +80,12 @@ serve(async (req) => {
       throw new Error('Google Search API credentials not configured');
     }
 
-    console.log('Checking for existing social media posts to enable smart incremental updates...');
+    console.log('Checking for existing social media posts to determine collection strategy...');
     
     // Check if we already have posts collected
     const { data: existingPosts, error: existingError } = await supabaseClient
       .from('social_media_posts')
-      .select('fetched_at')
+      .select('fetched_at, published_at')
       .eq('user_id', userId)
       .eq('tracking_country', country)
       .order('fetched_at', { ascending: false })
@@ -94,25 +94,27 @@ serve(async (req) => {
     const hasExistingCollection = existingPosts && existingPosts.length > 0;
     const lastCollectionDate = hasExistingCollection ? new Date(existingPosts[0].fetched_at) : null;
     
+    // Always do comprehensive collection to maintain 6-month coverage
+    // Only use focused incremental if collection was very recent (< 6 hours)
     let isIncrementalUpdate = false;
-    let incrementalDays = 3; // Social media: search last 3 days for incremental
+    let incrementalDays = 2;
     
     if (hasExistingCollection && lastCollectionDate) {
       const hoursSinceLastCollection = (Date.now() - lastCollectionDate.getTime()) / (1000 * 60 * 60);
       
-      // If last collection was within the last 3 days, do incremental update (reduced from 7 days)
-      if (hoursSinceLastCollection < 72) { // 3 days = 72 hours
+      // Only use incremental mode if last collection was within 6 hours (reduced from 72 hours/3 days)
+      // This ensures we maintain comprehensive 6-month coverage most of the time
+      if (hoursSinceLastCollection < 6) {
         isIncrementalUpdate = true;
-        // Focus on 1-2 days for very recent posts
-        incrementalDays = Math.max(1, Math.min(2, Math.ceil(hoursSinceLastCollection / 24)));
+        incrementalDays = 2; // Focus on last 2 days for very recent updates
         console.log(`✓ INCREMENTAL UPDATE MODE: Last collection was ${Math.round(hoursSinceLastCollection)} hours ago`);
-        console.log(`  Will PRIORITIZE newest posts (last ${incrementalDays} days) with multiple time ranges`);
-        console.log(`  Strategy: Multi-pass approach to catch all breaking discussions`);
+        console.log(`  Will focus on last ${incrementalDays} days of breaking posts`);
       } else {
-        console.log(`Last collection was ${Math.round(hoursSinceLastCollection / 24)} days ago - doing full collection`);
+        console.log(`Last collection was ${Math.round(hoursSinceLastCollection)} hours ago (${Math.round(hoursSinceLastCollection / 24)} days)`);
+        console.log('Performing COMPREHENSIVE collection to maintain 6-month coverage');
       }
     } else {
-      console.log('No existing collection found - doing initial full collection');
+      console.log('No existing collection found - performing INITIAL COMPREHENSIVE collection');
     }
 
     let totalCollected = 0;
@@ -240,10 +242,11 @@ serve(async (req) => {
         });
         
       } else {
-        // ============ FULL MODE: Comprehensive coverage ============
+        // ============ FULL MODE: Comprehensive 6-month+ coverage ============
+        console.log(`  FULL MODE: Building comprehensive 6-month queries for ${fighter}`);
       
-        // REDDIT - Multiple search strategies with more thorough coverage
-        // Recent discussions (last 7 days) - MOST IMPORTANT for temperature
+        // REDDIT - Comprehensive multi-timeframe coverage
+        // Breaking news (last 7 days) - CRITICAL for temperature
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} ${country} fighter jet site:reddit.com`,
@@ -255,39 +258,49 @@ serve(async (req) => {
           dateRange: 'd7'
         });
         
-        // Recent broader search (30 days)
+        // Recent month - sustaining discussions
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} ${countryName} site:reddit.com`,
+          dateRange: 'd30'
+        });
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} military aviation site:reddit.com`,
           dateRange: 'd30'
         });
+        
+        // 3-month coverage - medium-term context
+        searchQueries.push({
+          platform: 'reddit',
+          query: `${fighter} ${country} defense site:reddit.com`,
+          dateRange: 'd90'
+        });
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} purchase contract site:reddit.com`,
-          dateRange: 'd30'
+          dateRange: 'd90'
         });
         
-        // Extended 2-month coverage for historical context
+        // 6-month coverage - full tracking period
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} ${country} site:reddit.com`,
-          dateRange: 'd60'
+          dateRange: 'd180'
         });
-        
-        // Specific subreddits if country-specific
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} site:reddit.com/r/${country.toLowerCase()}`,
-          dateRange: 'd60'
+          dateRange: 'd180'
         });
         searchQueries.push({
           platform: 'reddit',
           query: `${fighter} defense site:reddit.com/r/defense`,
-          dateRange: 'd60'
+          dateRange: 'd180'
         });
         
-        // X (TWITTER) - Multiple angles with more variations
-        // Very recent (last 3 days for real-time temperature)
+        // X (TWITTER) - Comprehensive multi-timeframe coverage
+        // Breaking (last 3 days)
         searchQueries.push({
           platform: 'x',
           query: `${fighter} ${country} site:x.com OR site:twitter.com`,
@@ -299,6 +312,7 @@ serve(async (req) => {
           dateRange: 'd3'
         });
         
+        // Recent week
         searchQueries.push({
           platform: 'x',
           query: `${fighter} procurement ${localLanguage} site:x.com OR site:twitter.com`,
@@ -310,6 +324,7 @@ serve(async (req) => {
           dateRange: 'd7'
         });
         
+        // Recent month
         searchQueries.push({
           platform: 'x',
           query: `${fighter} military site:x.com OR site:twitter.com`,
@@ -317,15 +332,22 @@ serve(async (req) => {
         });
         searchQueries.push({
           platform: 'x',
-          query: `${fighter} defense purchase site:x.com OR site:twitter.com`,
+          query: `${fighter} ${countryName} defense site:x.com OR site:twitter.com`,
           dateRange: 'd30'
         });
         
-        // Extended 2-month coverage for X
+        // 3-month coverage
         searchQueries.push({
           platform: 'x',
           query: `${fighter} ${country} site:x.com OR site:twitter.com`,
-          dateRange: 'd60'
+          dateRange: 'd90'
+        });
+        
+        // 6-month coverage
+        searchQueries.push({
+          platform: 'x',
+          query: `${fighter} ${countryName} site:x.com OR site:twitter.com`,
+          dateRange: 'd180'
         });
 
         // FACEBOOK - Local language focus with more queries
@@ -358,7 +380,8 @@ serve(async (req) => {
           dateRange: 'd60'
         });
 
-        // LINKEDIN - Professional discourse with more depth
+        // LINKEDIN - Professional discourse with comprehensive timeline
+        // Recent week
         searchQueries.push({
           platform: 'linkedin',
           query: `${fighter} ${country} aerospace site:linkedin.com`,
@@ -370,6 +393,7 @@ serve(async (req) => {
           dateRange: 'd7'
         });
         
+        // Recent month
         searchQueries.push({
           platform: 'linkedin',
           query: `${fighter} procurement site:linkedin.com`,
@@ -377,15 +401,22 @@ serve(async (req) => {
         });
         searchQueries.push({
           platform: 'linkedin',
-          query: `${fighter} contract site:linkedin.com`,
+          query: `${fighter} ${countryName} contract site:linkedin.com`,
           dateRange: 'd30'
         });
         
-        // Extended 2-month coverage for LinkedIn
+        // 3-month coverage
         searchQueries.push({
           platform: 'linkedin',
           query: `${fighter} ${country} site:linkedin.com`,
-          dateRange: 'd60'
+          dateRange: 'd90'
+        });
+        
+        // 6-month coverage
+        searchQueries.push({
+          platform: 'linkedin',
+          query: `${fighter} site:linkedin.com`,
+          dateRange: 'd180'
         });
       }
     }
